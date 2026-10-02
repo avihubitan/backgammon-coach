@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { allLessons } from '@/curriculum';
 import { nextLesson } from '@/features/learning/progression';
+import { currentFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useChallengeStore } from '@/state/challengeStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
@@ -21,7 +23,7 @@ function go(action: ChallengeAction) {
   } else if (action.kind === 'practice') {
     router.push({ pathname: '/practice/[kind]', params: { kind: action.category } });
   } else {
-    const lesson = nextLesson(useProgressStore.getState().lessons);
+    const lesson = nextLesson(useProgressStore.getState().lessons, allLessons, currentFeatureAccess().canAccessLesson);
     if (lesson) router.push({ pathname: '/lesson/[id]', params: { id: lesson.id } });
     else router.push('/practice');
   }

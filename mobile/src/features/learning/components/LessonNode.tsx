@@ -65,9 +65,10 @@ export function LessonNode({
   const hidden = revealing && !opened;
   const shownStatus: LessonStatus = hidden ? 'locked' : status;
   const locked = shownStatus === 'locked';
+  const premium = shownStatus === 'premium';
   const completed = shownStatus === 'completed';
-  const face = locked ? colors.locked : completed ? colors.primary : color;
-  const edge = locked ? '#1D2129' : completed ? colors.primaryShadow : shade(color);
+  const face = locked || premium ? colors.locked : completed ? colors.primary : color;
+  const edge = locked || premium ? '#1D2129' : completed ? colors.primaryShadow : shade(color);
   const showCurrent = current && !hidden;
   const justOpened = revealing && opened;
 
@@ -156,13 +157,15 @@ export function LessonNode({
         <Pressable
           testID={testID}
           accessibilityRole="button"
-          accessibilityLabel={`${label}, ${locked ? 'locked' : completed ? `completed with ${stars} stars` : 'available'}`}
+          accessibilityLabel={`${label}, ${
+            locked ? 'locked' : premium ? 'part of Premium' : completed ? `completed with ${stars} stars` : 'available'
+          }`}
           onPressIn={() => haptics.tap()}
           onPress={onPress}
         >
           {({ pressed }) => (
             <View style={[styles.edge, { backgroundColor: edge, paddingBottom: pressed ? 2 : 6, marginTop: pressed ? 4 : 0 }]}>
-              <View style={[styles.face, { backgroundColor: face }]}>
+              <View style={[styles.face, { backgroundColor: face }, premium && styles.premiumFace]}>
                 <Animated.View
                   style={
                     hidden
@@ -184,9 +187,9 @@ export function LessonNode({
                   }
                 >
                   <Icon
-                    name={locked ? 'lock' : completed ? 'check-bold' : icon}
-                    size={locked ? 26 : 32}
-                    color={locked ? colors.lockedText : colors.textInverse}
+                    name={locked ? 'lock' : premium ? 'crown' : completed ? 'check-bold' : icon}
+                    size={locked ? 26 : premium ? 30 : 32}
+                    color={locked ? colors.lockedText : premium ? colors.star : colors.textInverse}
                   />
                 </Animated.View>
               </View>
@@ -216,6 +219,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  premiumFace: { borderWidth: 2, borderColor: 'rgba(255, 201, 77, 0.45)' },
   halo: {
     position: 'absolute',
     top: -8,

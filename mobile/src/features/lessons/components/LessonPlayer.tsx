@@ -5,6 +5,7 @@ import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { categoryResultsFor, type LessonReward } from '@/features/learning/progressModel';
 import { exerciseXp } from '@/features/learning/progression';
 import { summarizeSession, type LessonOutcome } from '@/features/lessons/engine/session';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
 import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
@@ -21,6 +22,7 @@ interface LessonPlayerProps {
 /** Plays a lesson and records the result (XP, stars, unlocks) when it ends. */
 export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps) {
   const recordLessonResult = useProgressStore((state) => state.recordLessonResult);
+  const canAccess = useFeatureAccess().canAccessLesson;
   // Replays of finished lessons earn practice XP at half rate.
   const replay = useProgressStore((state) => !!state.lessons[lesson.id]?.completed);
   const [run, setRun] = useState(0);
@@ -65,6 +67,7 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
           outcome,
           categoryResultsFor(lesson, session.outcomes),
           session.outcomes,
+          canAccess,
         );
         if (outcome.passed) {
           analytics.track('lesson_completed', {

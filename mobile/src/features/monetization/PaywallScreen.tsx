@@ -21,6 +21,9 @@ const HEADLINES: Record<string, string> = {
   coach_review: 'Get a full coach review of every game.',
   mistakes: 'Turn your mistakes into strengths.',
   analysis: 'See the numbers behind every tip.',
+  lesson: 'Unlock every advanced course.',
+  lesson_complete: 'Unlock every advanced course.',
+  home: 'Keep learning with every advanced course.',
 };
 
 const PERIOD_WORD = { month: 'month', year: 'year', lifetime: 'one-time purchase' } as const;
@@ -308,7 +311,8 @@ function PremiumWelcome({ onDone }: { onDone: () => void }) {
         Welcome to Premium!
       </AppText>
       <AppText variant="body" color="textSecondary" align="center">
-        Unlimited coach reviews, practice built from your own games, and advanced analysis are now unlocked.
+        Every advanced course, unlimited coach reviews, practice built from your own games and advanced analysis
+        are now unlocked.
       </AppText>
       <View style={styles.welcomeButton}>
         <Button testID="premium-continue" label="Let’s play" onPress={onDone} />

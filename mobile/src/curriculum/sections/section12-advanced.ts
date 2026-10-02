@@ -32,6 +32,7 @@ export const advancedSection: Section = {
   icon: 'brain',
   color: '#FBBF24',
   goal: 'Make expert decisions in tricky positions.',
+  tier: 'premium',
   lessons: [
     {
       id: 'advanced-1',

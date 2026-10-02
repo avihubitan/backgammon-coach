@@ -7,14 +7,15 @@ import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
-import { curriculum, sectionNumber, type Lesson, type Section } from '@/curriculum';
+import { allLessons, curriculum, sectionNumber, type Lesson, type Section } from '@/curriculum';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { LessonSheet } from './components/LessonSheet';
 import { SectionPath } from './components/SectionPath';
-import { lessonStatus, nextLesson, sectionProgress } from './progression';
+import { blockingLesson, lessonStatus, nextLesson, sectionProgress } from './progression';
 
 export function LearningMap() {
   const lessons = useProgressStore((state) => state.lessons);
@@ -26,7 +27,10 @@ export function LearningMap() {
   const [selected, setSelected] = useState<{ lesson: Lesson; section: Section } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const currentNodeRef = useRef<View>(null);
-  const upNext = nextLesson(lessons);
+  const access = useFeatureAccess();
+  const canAccess = access.canAccessLesson;
+  const upNext = nextLesson(lessons, allLessons, canAccess);
+  const pathComplete = allLessons.every((lesson) => lessons[lesson.id]?.completed);
   const totalLessons = curriculum.reduce((sum, section) => sum + section.lessons.length, 0);
   const completedLessons = Object.values(lessons).filter((record) => record.completed).length;
   const totalStars = Object.values(lessons).reduce((sum, record) => sum + record.bestStars, 0);
@@ -73,9 +77,15 @@ export function LearningMap() {
         </View>
       }
     >
-      {curriculum.map((section) => {
-        const stats = sectionProgress(section, lessons);
+      {curriculum.map((section, sectionIndex) => {
+        const stats = sectionProgress(section, lessons, allLessons, canAccess);
         const sectionRevealing = !!revealing && section.lessons[0]?.id === revealing;
+        const premium = section.lessons.some((lesson) => !canAccess(lesson.id));
+        const previous = curriculum[sectionIndex - 1];
+        const lockedHint =
+          previous && previous.lessons.some((lesson) => !canAccess(lesson.id))
+            ? 'Finish the free lessons before it to unlock'
+            : 'Finish the previous section to unlock';
         return (
           <View key={section.id} style={styles.section}>
             <Animated.View
@@ -101,15 +111,28 @@ export function LearningMap() {
               testID={`section-${section.id}`}
             >
               <View style={styles.bannerText}>
-                <AppText variant="label" color={stats.unlocked ? 'textInverse' : 'textMuted'}>
-                  Section {sectionNumber(section.id)}
-                  {stats.done ? ' · Complete' : ''}
-                </AppText>
+                <View style={styles.bannerLabelRow}>
+                  <AppText variant="label" color={stats.unlocked ? 'textInverse' : 'textMuted'}>
+                    Section {sectionNumber(section.id)}
+                    {stats.done ? ' · Complete' : ''}
+                  </AppText>
+                  {premium ? (
+                    <View
+                      style={[styles.premiumChip, stats.unlocked && styles.premiumChipOnColor]}
+                      testID={`section-premium-${section.id}`}
+                    >
+                      <Icon name="crown" size={12} color={stats.unlocked ? 'rgba(16,14,10,0.8)' : colors.star} />
+                      <AppText variant="caption" color={stats.unlocked ? 'rgba(16,14,10,0.8)' : colors.star}>
+                        PREMIUM
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
                 <AppText variant="heading" color={stats.unlocked ? 'textInverse' : 'textSecondary'}>
                   {section.title}
                 </AppText>
                 <AppText variant="small" color={stats.unlocked ? 'rgba(16,14,10,0.75)' : 'textMuted'}>
-                  {stats.unlocked ? section.subtitle : `Finish the previous section to unlock`}
+                  {stats.unlocked ? section.subtitle : lockedHint}
                 </AppText>
                 {stats.unlocked ? (
                   <View style={styles.bannerProgress}>
@@ -144,7 +167,7 @@ export function LearningMap() {
                 currentRef={currentNodeRef}
                 stops={section.lessons.map((lesson) => ({
                   lesson,
-                  status: lessonStatus(lesson.id, lessons),
+                  status: lessonStatus(lesson.id, lessons, allLessons, canAccess),
                   stars: lessons[lesson.id]?.bestStars ?? 0,
                   current: upNext?.id === lesson.id,
                   revealing: revealing === lesson.id,
@@ -158,23 +181,30 @@ export function LearningMap() {
       })}
 
       <View style={styles.finish}>
-        <View style={[styles.trophy, upNext ? styles.trophyLocked : null]}>
-          <Icon name="trophy" size={38} color={upNext ? colors.textMuted : colors.primary} />
+        <View style={[styles.trophy, pathComplete ? null : styles.trophyLocked]}>
+          <Icon name="trophy" size={38} color={pathComplete ? colors.primary : colors.textMuted} />
         </View>
-        <AppText variant="subheading" color={upNext ? 'textMuted' : 'primary'}>
+        <AppText variant="subheading" color={pathComplete ? 'primary' : 'textMuted'}>
           Mastery
         </AppText>
         <AppText variant="small" color="textMuted" align="center">
-          {upNext ? 'Finish every lesson to complete your path.' : 'Path complete. You’ve mastered the course!'}
+          {pathComplete ? 'Path complete. You’ve mastered the course!' : 'Finish every lesson to complete your path.'}
         </AppText>
       </View>
 
       <LessonSheet
         lesson={selected?.lesson ?? null}
-        status={selected ? lessonStatus(selected.lesson.id, lessons) : 'locked'}
+        status={selected ? lessonStatus(selected.lesson.id, lessons, allLessons, canAccess) : 'locked'}
         record={selected ? lessons[selected.lesson.id] : undefined}
         color={selected?.section.color ?? colors.primary}
+        requiresPremium={selected ? !canAccess(selected.lesson.id) : false}
+        preview={selected ? access.isPreviewLesson(selected.lesson.id) : false}
+        blockedBy={selected ? blockingLesson(selected.lesson.id, lessons, allLessons, canAccess) : null}
         onStart={start}
+        onUpgrade={() => {
+          setSelected(null);
+          router.push({ pathname: '/paywall', params: { source: 'lesson' } });
+        }}
         onClose={() => setSelected(null)}
       />
     </Screen>
@@ -200,6 +230,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bannerText: { flex: 1, gap: 2 },
+  bannerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  premiumChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  premiumChipOnColor: { backgroundColor: 'rgba(255,255,255,0.3)' },
   bannerProgress: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   bannerIcon: {
     width: 56,

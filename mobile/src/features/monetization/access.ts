@@ -7,8 +7,13 @@ import type { Entitlements } from './entitlements';
  * they never check prices, products or lesson numbers themselves.
  */
 export interface FeatureAccess {
-  /** Lessons in free sections are open to everyone; premium sections need the full curriculum. */
+  /**
+   * Lessons in free sections are open to everyone. Premium sections need the
+   * full curriculum, except for their first lessons: a free preview.
+   */
   canAccessLesson(lessonId: string): boolean;
+  /** A free preview of a premium course (only true for players without the full curriculum). */
+  isPreviewLesson(lessonId: string): boolean;
   /** Full, move-by-move coach reviews without a daily limit. */
   canUseAiCoach(): boolean;
   /** Whether this particular game's full review can be opened now. */
@@ -22,9 +27,11 @@ export interface FeatureAccess {
 export interface AccessPolicy {
   /** Full coach reviews a free player can open per day. */
   freeCoachReviewsPerDay: number;
+  /** Lessons at the start of every premium section that anyone can play. */
+  freePreviewLessons: number;
 }
 
-export const ACCESS_POLICY: AccessPolicy = { freeCoachReviewsPerDay: 1 };
+export const ACCESS_POLICY: AccessPolicy = { freeCoachReviewsPerDay: 1, freePreviewLessons: 1 };
 
 export interface AccessUsage {
   /** Games whose full review was unlocked today with the free allowance. */
@@ -38,12 +45,23 @@ export function createFeatureAccess(
   usage: AccessUsage,
   policy: AccessPolicy = ACCESS_POLICY,
 ): FeatureAccess {
+  /** 'open' for everyone, 'preview' for a free taste of a premium course, 'premium' otherwise. */
+  const lessonTier = (lessonId: string): 'open' | 'preview' | 'premium' | null => {
+    const lesson = getLesson(lessonId);
+    const section = lesson ? getSection(lesson.sectionId) : undefined;
+    if (!lesson || !section) return null;
+    if ((section.tier ?? 'free') === 'free') return 'open';
+    const index = section.lessons.findIndex((candidate) => candidate.id === lessonId);
+    return index < policy.freePreviewLessons ? 'preview' : 'premium';
+  };
   return {
     canAccessLesson(lessonId) {
-      const lesson = getLesson(lessonId);
-      if (!lesson) return false;
-      const tier = getSection(lesson.sectionId)?.tier ?? 'free';
-      return tier === 'free' || entitlements.hasFullCurriculum;
+      const tier = lessonTier(lessonId);
+      if (tier === null) return false;
+      return tier !== 'premium' || entitlements.hasFullCurriculum;
+    },
+    isPreviewLesson(lessonId) {
+      return lessonTier(lessonId) === 'preview' && !entitlements.hasFullCurriculum;
     },
     canUseAiCoach() {
       return entitlements.hasAiCoach;

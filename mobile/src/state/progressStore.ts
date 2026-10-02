@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import type { SkillCategory } from '@/curriculum';
 import type { GameAchievementStats } from '@/features/learning/achievements';
-import { dayKey, type ExerciseResult } from '@/features/learning/progression';
+import { dayKey, type ExerciseResult, type LessonAccess } from '@/features/learning/progression';
 import {
   applyLessonResult,
   grantXp,
@@ -23,6 +23,8 @@ interface ProgressActions {
     outcome: LessonOutcome,
     categoryResults?: { category: SkillCategory; firstTry: boolean }[],
     exerciseResults?: Record<string, ExerciseResult>,
+    /** Which lessons the learner can open, so unlocks skip premium ones they can't. */
+    canAccess?: LessonAccess,
   ) => LessonReward;
   /** XP from practice drills, games or challenges. */
   awardXp: (amount: number, games?: GameAchievementStats) => Reward;
@@ -46,8 +48,16 @@ export const useProgressStore = create<ProgressStore>()(
 
       completeOnboarding: () => set({ onboardingCompleted: true }),
 
-      recordLessonResult: (lessonId, outcome, categoryResults = [], exerciseResults = {}) => {
-        const { data, reward } = applyLessonResult(get(), lessonId, outcome, dayKey(clock()), categoryResults, exerciseResults);
+      recordLessonResult: (lessonId, outcome, categoryResults = [], exerciseResults = {}, canAccess) => {
+        const { data, reward } = applyLessonResult(
+          get(),
+          lessonId,
+          outcome,
+          dayKey(clock()),
+          categoryResults,
+          exerciseResults,
+          canAccess,
+        );
         set(data);
         return reward;
       },

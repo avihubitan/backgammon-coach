@@ -8,7 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { StatChip } from '@/components/ui/StatChip';
-import { curriculum, sectionNumber } from '@/curriculum';
+import { allLessons, curriculum, getSection, sectionNumber } from '@/curriculum';
 import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
 import {
   currentSection,
@@ -16,10 +16,12 @@ import {
   levelInfo,
   maxLessonXp,
   nextLesson,
+  premiumLessonsLeft,
   sectionProgress,
   visibleStreak,
 } from '@/features/learning/progression';
 import { todayXp } from '@/features/learning/progressModel';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
 
@@ -30,9 +32,12 @@ export function HomeScreen() {
   const streak = visibleStreak(progress.streak, today);
   const xpToday = todayXp(progress, today);
   const goal = progress.dailyGoalXp;
-  const lesson = nextLesson(progress.lessons);
-  const section = currentSection(progress.lessons);
-  const sectionStats = sectionProgress(section, progress.lessons);
+  const canAccess = useFeatureAccess().canAccessLesson;
+  const lesson = nextLesson(progress.lessons, allLessons, canAccess);
+  const section = currentSection(progress.lessons, curriculum, canAccess);
+  const sectionStats = sectionProgress(section, progress.lessons, allLessons, canAccess);
+  const premiumLeft = lesson ? [] : premiumLessonsLeft(progress.lessons, allLessons, canAccess);
+  const premiumSection = premiumLeft.length > 0 ? getSection(premiumLeft[0].sectionId) : undefined;
   const startedPath = Object.values(progress.lessons).some((record) => record.completed);
   const playUnlocked = isFeatureUnlocked('play', progress.lessons);
   const goalMet = xpToday >= goal;
@@ -131,6 +136,38 @@ export function HomeScreen() {
             label={startedPath ? 'Continue learning' : 'Start learning'}
             icon="play"
             onPress={() => router.push({ pathname: '/lesson/[id]', params: { id: lesson.id } })}
+          />
+        </Card>
+      ) : premiumSection ? (
+        <Card tone="accent" style={styles.continueCard} testID="premium-continue-card" enterDelay={90}>
+          <View style={styles.continueTop}>
+            <View style={[styles.sectionIcon, { backgroundColor: premiumSection.color }]}>
+              <Icon name={premiumSection.icon} size={26} color="textInverse" />
+            </View>
+            <View style={styles.flex}>
+              <AppText variant="label" color="textSecondary">
+                Section {sectionNumber(premiumSection.id)} · {premiumSection.title}
+              </AppText>
+              <AppText variant="caption" color="textSecondary">
+                You’ve finished every free lesson
+              </AppText>
+            </View>
+          </View>
+          <View>
+            <AppText variant="caption" color="textSecondary">
+              KEEP GOING
+            </AppText>
+            <AppText variant="title">{premiumLeft[0].title}</AppText>
+            <AppText variant="small" color="textSecondary">
+              {premiumLeft.length} more advanced lesson{premiumLeft.length === 1 ? '' : 's'} with Premium. Games, drills
+              and replays stay free.
+            </AppText>
+          </View>
+          <Button
+            testID="home-unlock-premium"
+            label="Unlock with Premium"
+            icon="crown"
+            onPress={() => router.push({ pathname: '/paywall', params: { source: 'home' } })}
           />
         </Card>
       ) : (

@@ -17,6 +17,7 @@ export const racingSection: Section = {
   icon: 'run-fast',
   color: '#A3E635',
   goal: 'Know who’s ahead, and race home efficiently.',
+  tier: 'premium',
   lessons: [
     {
       id: 'racing-1',

@@ -24,6 +24,7 @@ export const middleGameSection: Section = {
   icon: 'sword-cross',
   color: '#2DD4BF',
   goal: 'Pick the right plan once the armies meet.',
+  tier: 'premium',
   lessons: [
     {
       id: 'middle-1',

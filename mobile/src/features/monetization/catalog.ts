@@ -52,12 +52,13 @@ export const PREMIUM_BENEFITS: { icon: string; title: string; text: string }[] =
   { icon: 'school', title: 'Unlimited coach reviews', text: 'A full move-by-move review of every game, explained in plain words.' },
   { icon: 'auto-fix', title: 'Practise your own mistakes', text: 'Positions you got wrong come back until you get them right.' },
   { icon: 'chart-line', title: 'Advanced analysis', text: 'Win chances and equity behind every coaching tip.' },
-  { icon: 'book-open-page-variant', title: 'Advanced courses', text: 'Doubling cube, openings, middle game and more as they’re released.' },
+  { icon: 'book-open-page-variant', title: 'Advanced courses', text: 'The middle game, racing, the doubling cube and advanced strategy.' },
 ];
 
 /** What stays free for everyone: the promise that keeps the paywall honest. */
 export const FREE_FOREVER = [
-  'The complete beginner course',
+  'The complete beginner course and Opening Moves',
+  'The first lesson of every advanced course',
   'Daily challenges and skill drills',
   'Games against the computer at every level',
   'A coach summary of every game, plus a full review each day',

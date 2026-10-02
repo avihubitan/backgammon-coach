@@ -8,10 +8,12 @@ import {
   lessonXpBreakdown,
   levelInfo,
   newlyUnlockedLessons,
+  OPEN_ACCESS,
   pruneDays,
   registerActivity,
   visibleStreak,
   type ExerciseResult,
+  type LessonAccess,
   type LessonRecords,
   type LessonXpBreakdown,
   type StreakState,
@@ -134,6 +136,7 @@ export function applyLessonResult(
   today: string,
   categoryResults: { category: SkillCategory; firstTry: boolean }[] = [],
   exerciseResults: Record<string, ExerciseResult> = {},
+  canAccess: LessonAccess = OPEN_ACCESS,
 ): { data: ProgressData; reward: LessonReward } {
   const lesson = getLesson(lessonId);
   if (!lesson) throw new Error(`Unknown lesson ${lessonId}`);
@@ -180,7 +183,7 @@ export function applyLessonResult(
       ...granted.reward,
       xp,
       firstCompletion,
-      unlockedLessons: firstCompletion ? newlyUnlockedLessons(lessonId) : [],
+      unlockedLessons: firstCompletion ? newlyUnlockedLessons(lessonId, undefined, canAccess) : [],
       stars: outcome.stars,
       bestStars: record.bestStars,
     },

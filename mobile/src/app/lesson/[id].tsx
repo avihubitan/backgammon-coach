@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { getLesson } from '@/curriculum';
+import { allLessons, getLesson, getSection } from '@/curriculum';
 import { lessonStatus } from '@/features/learning/progression';
 import { LessonPlayer } from '@/features/lessons/components/LessonPlayer';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
@@ -17,6 +18,7 @@ export default function LessonRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const lesson = id ? getLesson(id) : undefined;
   const lessons = useProgressStore((state) => state.lessons);
+  const access = useFeatureAccess();
   const insets = useSafeAreaInsets();
   // Opening a freshly unlocked lesson counts as having seen it unlock.
   useEffect(() => {
@@ -28,7 +30,29 @@ export default function LessonRoute() {
     else router.replace('/learn');
   };
 
-  if (!lesson || lessonStatus(lesson.id, lessons) === 'locked') {
+  if (lesson && !access.canAccessLesson(lesson.id)) {
+    return (
+      <View style={[styles.blocked, { paddingTop: insets.top + spacing.huge }]} testID="lesson-premium">
+        <Icon name="crown" size={52} color={colors.star} />
+        <AppText variant="title" align="center">
+          Part of Premium
+        </AppText>
+        <AppText variant="body" color="textSecondary" align="center">
+          “{lesson.title}” is in {getSection(lesson.sectionId)?.title ?? 'an advanced course'}. The first lesson of every
+          advanced course is free; Premium opens the rest.
+        </AppText>
+        <Button
+          testID="lesson-see-premium"
+          label="See Premium"
+          icon="crown"
+          onPress={() => router.replace({ pathname: '/paywall', params: { source: 'lesson' } })}
+        />
+        <Button label="Back to path" variant="ghost" size="medium" onPress={() => router.replace('/learn')} />
+      </View>
+    );
+  }
+
+  if (!lesson || lessonStatus(lesson.id, lessons, allLessons, access.canAccessLesson) === 'locked') {
     return (
       <View style={[styles.blocked, { paddingTop: insets.top + spacing.huge }]}>
         <Icon name="lock" size={48} color="textMuted" />

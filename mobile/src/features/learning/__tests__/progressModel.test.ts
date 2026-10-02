@@ -31,6 +31,13 @@ describe('applying lesson results', () => {
     expect(data.stats.exercisesFirstTry).toBe(4);
   });
 
+  it('skips lessons the learner cannot open when announcing the unlock', () => {
+    const third = allLessons[2];
+    const canAccess = (id: string) => id !== second.id;
+    const { reward } = applyLessonResult(initialProgress(), first.id, outcome(), '2026-03-10', [], {}, canAccess);
+    expect(reward.unlockedLessons.map((lesson) => lesson.id)).toEqual([third.id]);
+  });
+
   it('starts a streak and unlocks the first achievement', () => {
     const { data, reward } = applyLessonResult(initialProgress(), first.id, outcome(), '2026-03-10');
     expect(reward.streak).toBe(1);

@@ -158,7 +158,7 @@ export function SectionPath({ section, stops, width, currentRef, onPress, onReve
           />
           <AppText
             variant="caption"
-            color={stop.status === 'locked' && !stop.revealing ? 'textMuted' : 'textSecondary'}
+            color={(stop.status === 'locked' || stop.status === 'premium') && !stop.revealing ? 'textMuted' : 'textSecondary'}
             align="center"
             style={styles.label}
             numberOfLines={2}

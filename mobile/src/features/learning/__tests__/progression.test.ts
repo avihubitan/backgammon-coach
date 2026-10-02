@@ -1,6 +1,7 @@
 import { allLessons, curriculum, type Lesson } from '@/curriculum';
 
 import {
+  blockingLesson,
   dayKey,
   emptyLessonRecord,
   emptyStreak,
@@ -10,7 +11,9 @@ import {
   lessonXpBreakdown,
   levelInfo,
   maxLessonXp,
+  newlyUnlockedLessons,
   nextLesson,
+  premiumLessonsLeft,
   pruneDays,
   registerActivity,
   sectionProgress,
@@ -122,6 +125,51 @@ describe('unlocking', () => {
 
   it('returns null when every lesson is complete', () => {
     expect(nextLesson(done(...allLessons.map((lesson) => lesson.id)))).toBeNull();
+  });
+
+  describe('with premium lessons the learner cannot open', () => {
+    // A tiny path: a free lesson, then a premium course whose first lesson is a free preview,
+    // then another premium course.
+    const path = allLessons.slice(0, 7);
+    const [free, previewA, premiumA1, premiumA2, previewB, premiumB1, premiumB2] = path;
+    const canAccess = (id: string) => ![premiumA1.id, premiumA2.id, premiumB1.id, premiumB2.id].includes(id);
+
+    it('shows reached premium lessons with a crown and keeps unreached ones locked', () => {
+      const records = done(free.id, previewA.id);
+      expect(lessonStatus(previewA.id, records, path, canAccess)).toBe('completed');
+      expect(lessonStatus(premiumA1.id, records, path, canAccess)).toBe('premium');
+      expect(lessonStatus(premiumA2.id, records, path, canAccess)).toBe('premium');
+      expect(lessonStatus(premiumB1.id, done(free.id), path, canAccess)).toBe('locked');
+    });
+
+    it('lets premium lessons be skipped so the next free preview opens', () => {
+      expect(lessonStatus(previewB.id, done(free.id), path, canAccess)).toBe('locked');
+      expect(blockingLesson(previewB.id, done(free.id), path, canAccess)?.id).toBe(previewA.id);
+      const records = done(free.id, previewA.id);
+      expect(lessonStatus(previewB.id, records, path, canAccess)).toBe('available');
+      expect(nextLesson(records, path, canAccess)?.id).toBe(previewB.id);
+      expect(newlyUnlockedLessons(previewA.id, path, canAccess).map((lesson) => lesson.id)).toEqual([previewB.id]);
+    });
+
+    it('knows what is left behind Premium once the free lessons are done', () => {
+      const records = done(free.id, previewA.id, previewB.id);
+      expect(nextLesson(records, path, canAccess)).toBeNull();
+      expect(premiumLessonsLeft(records, path, canAccess).map((lesson) => lesson.id)).toEqual([
+        premiumA1.id,
+        premiumA2.id,
+        premiumB1.id,
+        premiumB2.id,
+      ]);
+    });
+
+    it('behaves exactly like the plain path when everything is open', () => {
+      const records = done(free.id, previewA.id);
+      expect(lessonStatus(premiumA1.id, records, path)).toBe('available');
+      expect(lessonStatus(premiumA2.id, records, path)).toBe('locked');
+      expect(lessonStatus(previewB.id, records, path)).toBe('locked');
+      expect(newlyUnlockedLessons(previewA.id, path).map((lesson) => lesson.id)).toEqual([premiumA1.id]);
+      expect(premiumLessonsLeft(records, path)).toEqual([]);
+    });
   });
 
   it('unlocks practice once the first section is complete', () => {

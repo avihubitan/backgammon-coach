@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -14,6 +15,7 @@ import { getSection, type Lesson } from '@/curriculum';
 import { getAchievement } from '@/features/learning/achievements';
 import type { LessonReward } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 interface LessonCompleteProps {
@@ -61,6 +63,11 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
   const lastInSection = section?.lessons[section.lessons.length - 1]?.id === lesson.id;
   const next = reward.unlockedLessons[0];
   const passed = outcome.passed;
+  const canAccess = useFeatureAccess().canAccessLesson;
+  // After a free preview, say where the rest of the course is (once, calmly).
+  const sectionIndex = section ? section.lessons.findIndex((candidate) => candidate.id === lesson.id) : -1;
+  const nextInSection = section && sectionIndex >= 0 ? section.lessons[sectionIndex + 1] : undefined;
+  const premiumNext = passed && nextInSection && !canAccess(nextInSection.id) ? nextInSection : undefined;
   const leveledUp = reward.levelAfter > reward.levelBefore;
   const [levelUp, setLevelUp] = useState<'waiting' | 'showing' | 'done'>(leveledUp ? 'waiting' : 'done');
 
@@ -158,6 +165,26 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
               </AppText>
               <AppText variant="bodyStrong">{next.title}</AppText>
             </View>
+          </Animated.View>
+        ) : null}
+
+        {premiumNext && section ? (
+          <Animated.View style={[styles.card, styles.premiumCard, riseIn(BEAT.unlock)]} testID="premium-next-card">
+            <Icon name="crown" size={26} color={colors.star} />
+            <View style={styles.nextText}>
+              <AppText variant="caption" color="textSecondary">
+                PREMIUM
+              </AppText>
+              <AppText variant="bodyStrong">The rest of {section.title} is in Premium.</AppText>
+            </View>
+            <Button
+              testID="premium-next"
+              label="See"
+              variant="secondary"
+              size="medium"
+              fullWidth={false}
+              onPress={() => router.push({ pathname: '/paywall', params: { source: 'lesson_complete' } })}
+            />
           </Animated.View>
         ) : null}
 
@@ -285,6 +312,7 @@ const styles = StyleSheet.create({
   },
   nextCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.primary },
   nextText: { flex: 1 },
+  premiumCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: 'rgba(255, 201, 77, 0.45)' },
   extra: {
     flexDirection: 'row',
     alignItems: 'center',

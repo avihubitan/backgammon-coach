@@ -114,19 +114,75 @@ export function levelInfo(xp: number): LevelInfo {
 // ---------------------------------------------------------------------------
 // Unlocking
 
-export type LessonStatus = 'locked' | 'available' | 'completed';
+/**
+ * 'premium': the learner has reached the lesson, but it's part of Premium.
+ * Unreached premium lessons are simply 'locked'.
+ */
+export type LessonStatus = 'locked' | 'available' | 'completed' | 'premium';
 
-export function lessonStatus(lessonId: string, records: LessonRecords, lessons: Lesson[] = allLessons): LessonStatus {
-  if (records[lessonId]?.completed) return 'completed';
-  const index = lessons.findIndex((lesson) => lesson.id === lessonId);
-  if (index < 0) return 'locked';
-  if (index === 0) return 'available';
-  return records[lessons[index - 1].id]?.completed ? 'available' : 'locked';
+/** Which lessons the learner may open (see FeatureAccess.canAccessLesson). */
+export type LessonAccess = (lessonId: string) => boolean;
+
+/** Everyone can open everything: the default for pure progression rules and tests. */
+export const OPEN_ACCESS: LessonAccess = () => true;
+
+/**
+ * A lesson is reached once every earlier lesson the learner can open is done.
+ * Premium lessons they can't open don't block the free previews after them.
+ */
+function reached(index: number, records: LessonRecords, lessons: Lesson[], canAccess: LessonAccess): boolean {
+  for (let i = index - 1; i >= 0; i--) {
+    const previous = lessons[i];
+    if (records[previous.id]?.completed) return true;
+    if (canAccess(previous.id)) return false;
+  }
+  return true;
 }
 
-/** The lesson the learner should do next, or null when the path is complete. */
-export function nextLesson(records: LessonRecords, lessons: Lesson[] = allLessons): Lesson | null {
-  return lessons.find((lesson) => !records[lesson.id]?.completed) ?? null;
+export function lessonStatus(
+  lessonId: string,
+  records: LessonRecords,
+  lessons: Lesson[] = allLessons,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): LessonStatus {
+  if (records[lessonId]?.completed) return 'completed';
+  const index = lessons.findIndex((lesson) => lesson.id === lessonId);
+  if (index < 0 || !reached(index, records, lessons, canAccess)) return 'locked';
+  return canAccess(lessonId) ? 'available' : 'premium';
+}
+
+/** The lesson the learner has to finish before `lessonId` opens up (null when nothing blocks it). */
+export function blockingLesson(
+  lessonId: string,
+  records: LessonRecords,
+  lessons: Lesson[] = allLessons,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): Lesson | null {
+  const index = lessons.findIndex((lesson) => lesson.id === lessonId);
+  for (let i = index - 1; i >= 0; i--) {
+    const previous = lessons[i];
+    if (records[previous.id]?.completed) return null;
+    if (canAccess(previous.id)) return previous;
+  }
+  return null;
+}
+
+/** The lesson the learner should do next, or null when every lesson they can open is done. */
+export function nextLesson(
+  records: LessonRecords,
+  lessons: Lesson[] = allLessons,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): Lesson | null {
+  return lessons.find((lesson) => !records[lesson.id]?.completed && canAccess(lesson.id)) ?? null;
+}
+
+/** Unfinished lessons that need Premium, in path order. */
+export function premiumLessonsLeft(
+  records: LessonRecords,
+  lessons: Lesson[] = allLessons,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): Lesson[] {
+  return lessons.filter((lesson) => !records[lesson.id]?.completed && !canAccess(lesson.id));
 }
 
 export interface SectionProgress {
@@ -139,11 +195,16 @@ export interface SectionProgress {
   done: boolean;
 }
 
-export function sectionProgress(section: Section, records: LessonRecords, lessons: Lesson[] = allLessons): SectionProgress {
+export function sectionProgress(
+  section: Section,
+  records: LessonRecords,
+  lessons: Lesson[] = allLessons,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): SectionProgress {
   const completed = section.lessons.filter((lesson) => records[lesson.id]?.completed).length;
   const stars = section.lessons.reduce((sum, lesson) => sum + (records[lesson.id]?.bestStars ?? 0), 0);
   const first = section.lessons[0];
-  const unlocked = first ? lessonStatus(first.id, records, lessons) !== 'locked' : false;
+  const unlocked = first ? lessonStatus(first.id, records, lessons, canAccess) !== 'locked' : false;
   return {
     completed,
     total: section.lessons.length,
@@ -156,15 +217,28 @@ export function sectionProgress(section: Section, records: LessonRecords, lesson
 }
 
 /** The section the learner is currently working through (the last one if all are done). */
-export function currentSection(records: LessonRecords, sections: Section[] = curriculum): Section {
-  const lesson = nextLesson(records, sections.flatMap((section) => section.lessons));
+export function currentSection(
+  records: LessonRecords,
+  sections: Section[] = curriculum,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): Section {
+  const lesson = nextLesson(records, sections.flatMap((section) => section.lessons), canAccess);
   return sections.find((section) => section.id === lesson?.sectionId) ?? sections[sections.length - 1];
 }
 
-/** Lessons that become available because `lessonId` was just completed for the first time. */
-export function newlyUnlockedLessons(lessonId: string, lessons: Lesson[] = allLessons): Lesson[] {
+/**
+ * Lessons that become available because `lessonId` was just completed for the
+ * first time: the next lesson the learner can open, skipping premium ones.
+ */
+export function newlyUnlockedLessons(
+  lessonId: string,
+  lessons: Lesson[] = allLessons,
+  canAccess: LessonAccess = OPEN_ACCESS,
+): Lesson[] {
   const index = lessons.findIndex((lesson) => lesson.id === lessonId);
-  return index >= 0 && index + 1 < lessons.length ? [lessons[index + 1]] : [];
+  if (index < 0) return [];
+  const next = lessons.slice(index + 1).find((lesson) => canAccess(lesson.id));
+  return next ? [next] : [];
 }
 
 export interface FeatureUnlock {

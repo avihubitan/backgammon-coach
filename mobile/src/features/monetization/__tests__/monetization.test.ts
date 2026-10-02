@@ -1,19 +1,54 @@
 import { allLessons, curriculum } from '@/curriculum';
 import { MockSubscriptionService } from '@/services/purchases/mockProvider';
 
-import { createFeatureAccess } from '../access';
+import { ACCESS_POLICY, createFeatureAccess } from '../access';
 import { enabledProducts, PRODUCTS } from '../catalog';
 import { entitlementsFor, FREE_ENTITLEMENTS } from '../entitlements';
 
 const NOW = new Date('2026-10-02T12:00:00Z');
 const noUsage = { reviewedToday: [], unlockedReviews: [] };
 
+const FULL = entitlementsFor({ productId: 'premium_annual', period: 'year', expiresAt: '2027-01-01T00:00:00Z', inTrial: false }, NOW);
+
 describe('feature access', () => {
-  it('keeps the whole beginner course free', () => {
+  it('keeps the whole beginner course and Opening Moves free', () => {
     const access = createFeatureAccess(FREE_ENTITLEMENTS, noUsage);
-    for (const section of curriculum) expect(section.tier ?? 'free').toBe('free');
-    for (const lesson of allLessons) expect(access.canAccessLesson(lesson.id)).toBe(true);
+    const lastFree = curriculum.findIndex((section) => section.id === 'openings');
+    expect(lastFree).toBeGreaterThan(0);
+    for (const section of curriculum.slice(0, lastFree + 1)) {
+      expect(section.tier ?? 'free').toBe('free');
+      for (const lesson of section.lessons) {
+        expect(access.canAccessLesson(lesson.id)).toBe(true);
+        expect(access.isPreviewLesson(lesson.id)).toBe(false);
+      }
+    }
     expect(access.canAccessLesson('no-such-lesson')).toBe(false);
+  });
+
+  it('gives free players the first lesson of every premium course as a preview', () => {
+    const access = createFeatureAccess(FREE_ENTITLEMENTS, noUsage);
+    const premiumSections = curriculum.filter((section) => section.tier === 'premium');
+    expect(premiumSections.length).toBeGreaterThan(0);
+    for (const section of premiumSections) {
+      const [first, ...rest] = section.lessons;
+      expect(access.canAccessLesson(first.id)).toBe(true);
+      expect(access.isPreviewLesson(first.id)).toBe(true);
+      for (const lesson of rest) {
+        expect(access.canAccessLesson(lesson.id)).toBe(false);
+        expect(access.isPreviewLesson(lesson.id)).toBe(false);
+      }
+    }
+    // The policy decides how long a preview is.
+    const longer = createFeatureAccess(FREE_ENTITLEMENTS, noUsage, { ...ACCESS_POLICY, freePreviewLessons: 2 });
+    expect(longer.canAccessLesson(premiumSections[0].lessons[1].id)).toBe(true);
+  });
+
+  it('opens every lesson with the full curriculum, with no preview labels', () => {
+    const access = createFeatureAccess(FULL, noUsage);
+    for (const lesson of allLessons) {
+      expect(access.canAccessLesson(lesson.id)).toBe(true);
+      expect(access.isPreviewLesson(lesson.id)).toBe(false);
+    }
   });
 
   it('gives free players one full coach review a day; unlocked games stay open', () => {
@@ -28,8 +63,7 @@ describe('feature access', () => {
   });
 
   it('opens everything for premium', () => {
-    const premium = entitlementsFor({ productId: 'premium_annual', period: 'year', expiresAt: '2027-01-01T00:00:00Z', inTrial: false }, NOW);
-    const access = createFeatureAccess(premium, { reviewedToday: ['a', 'b'], unlockedReviews: [] });
+    const access = createFeatureAccess(FULL, { reviewedToday: ['a', 'b'], unlockedReviews: [] });
     expect(access.canReviewGame('anything')).toBe(true);
     expect(access.canUseAiCoach()).toBe(true);
     expect(access.canAnalyzeGame()).toBe(true);

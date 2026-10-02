@@ -74,7 +74,7 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Count pips in a race.',
     icon: 'counter',
     color: '#3DD68C',
-    requiresSection: 'racing',
+    requiresSection: 'bearing-off',
   },
   {
     id: 'opening',

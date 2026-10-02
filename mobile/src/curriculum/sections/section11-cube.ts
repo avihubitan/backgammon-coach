@@ -50,6 +50,7 @@ export const cubeSection: Section = {
   icon: 'cube-outline',
   color: '#E879F9',
   goal: 'Double at the right time, and know when to take.',
+  tier: 'premium',
   lessons: [
     {
       id: 'cube-1',

@@ -6,7 +6,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Stars } from '@/components/ui/Stars';
-import { allLessons, isScored, type Lesson } from '@/curriculum';
+import { isScored, type Lesson } from '@/curriculum';
 import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { maxLessonXp, type LessonRecord, type LessonStatus } from '../progression';
@@ -16,18 +16,34 @@ interface LessonSheetProps {
   status: LessonStatus;
   record?: LessonRecord;
   color: string;
+  /** The lesson needs Premium (whether or not the learner has reached it yet). */
+  requiresPremium?: boolean;
+  /** A free first lesson of a premium course. */
+  preview?: boolean;
+  /** What to finish first when the lesson is locked. */
+  blockedBy?: Lesson | null;
   onStart: (lesson: Lesson) => void;
+  onUpgrade: () => void;
   onClose: () => void;
 }
 
 /** Details for a lesson node: what you'll learn, rewards and a start button. */
-export function LessonSheet({ lesson, status, record, color, onStart, onClose }: LessonSheetProps) {
+export function LessonSheet({
+  lesson,
+  status,
+  record,
+  color,
+  requiresPremium = false,
+  preview = false,
+  blockedBy,
+  onStart,
+  onUpgrade,
+  onClose,
+}: LessonSheetProps) {
   const insets = useSafeAreaInsets();
   if (!lesson) return null;
-  const index = allLessons.findIndex((candidate) => candidate.id === lesson.id);
-  const previous = index > 0 ? allLessons[index - 1] : null;
   const exercises = lesson.steps.filter(isScored).length;
-  const locked = status === 'locked';
+  const locked = status === 'locked' || requiresPremium;
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close lesson details">
@@ -45,7 +61,11 @@ export function LessonSheet({ lesson, status, record, color, onStart, onClose }:
             <View style={styles.handle} />
             <View style={styles.titleRow}>
               <View style={[styles.icon, { backgroundColor: locked ? colors.locked : color }]}>
-                <Icon name={locked ? 'lock' : lesson.icon} size={26} color={locked ? 'textMuted' : 'textInverse'} />
+                <Icon
+                  name={requiresPremium ? 'crown' : locked ? 'lock' : lesson.icon}
+                  size={26}
+                  color={requiresPremium ? colors.star : locked ? 'textMuted' : 'textInverse'}
+                />
               </View>
               <View style={styles.flex}>
                 <AppText variant="title">{lesson.title}</AppText>
@@ -82,11 +102,30 @@ export function LessonSheet({ lesson, status, record, color, onStart, onClose }:
               ) : null}
             </View>
 
-            {locked ? (
+            {preview && !record?.completed ? (
+              <View style={styles.previewNote} testID="preview-note">
+                <Icon name="gift-outline" size={18} color="primary" />
+                <AppText variant="small" color="textSecondary" style={styles.flex}>
+                  A free preview of a Premium course.
+                </AppText>
+              </View>
+            ) : null}
+
+            {requiresPremium ? (
+              <>
+                <View style={styles.lockedNote}>
+                  <Icon name="crown" size={18} color={colors.star} />
+                  <AppText variant="small" color="textSecondary" style={styles.flex}>
+                    This lesson is part of Premium, with every advanced course.
+                  </AppText>
+                </View>
+                <Button testID="unlock-premium" label="Unlock with Premium" icon="crown" onPress={onUpgrade} />
+              </>
+            ) : locked ? (
               <View style={styles.lockedNote}>
                 <Icon name="lock" size={18} color="textSecondary" />
                 <AppText variant="small" color="textSecondary" style={styles.flex}>
-                  Complete “{previous?.title}” to unlock this lesson.
+                  {blockedBy ? `Complete “${blockedBy.title}” to unlock this lesson.` : 'Keep going on your path to unlock this lesson.'}
                 </AppText>
               </View>
             ) : (
@@ -143,6 +182,7 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   objectives: { gap: spacing.sm },
   objective: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  previewNote: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   lockedNote: {
     flexDirection: 'row',
     gap: spacing.sm,
