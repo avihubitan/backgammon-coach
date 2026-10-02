@@ -19,6 +19,7 @@ import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { FeedbackPanel, praise, type Feedback } from './FeedbackPanel';
 import { LessonComplete } from './LessonComplete';
+import { ChallengeStepView } from './steps/ChallengeStepView';
 import { ChoiceStepView } from './steps/ChoiceStepView';
 import { CubeStepView } from './steps/CubeStepView';
 import { DemoStepView } from './steps/DemoStepView';
@@ -199,7 +200,7 @@ function renderStep(
     case 'cube':
       return <CubeStepView key={key} step={step} {...common} />;
     case 'challenge':
-      return null;
+      return <ChallengeStepView key={key} step={step} {...common} />;
   }
 }
 

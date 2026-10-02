@@ -53,7 +53,9 @@ export function resolveTap(turn: TurnState, selected: MoveSource | null, place: 
   const sources = movableSources(turn);
 
   if (selected !== null) {
-    if (place === selected) return { kind: 'deselect' };
+    // Re-tapping the selected checker keeps it selected: lessons tell learners to
+    // "tap the checker", and it may already be selected for them.
+    if (place === selected) return { kind: 'ignore' };
     const path = destinationsFrom(turn, selected).get(place as MoveTarget);
     if (path) return { kind: 'move', moves: path };
     if (place !== 'off' && sources.includes(place)) return { kind: 'select', source: place };

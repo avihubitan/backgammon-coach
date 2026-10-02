@@ -1,10 +1,24 @@
 import { boardSection } from './sections/section1-board';
+import { movingSection } from './sections/section2-moving';
+import { hittingSection } from './sections/section3-hitting';
+import { pointsSection } from './sections/section4-points';
+import { positionSection } from './sections/section5-position';
+import { bearingOffSection } from './sections/section6-bearing-off';
+import { winningSection } from './sections/section7-winning';
 import type { Lesson, Section } from './types';
 
 export * from './types';
 
 /** Sections in learning order. Lessons unlock one after another across sections. */
-export const curriculum: Section[] = [boardSection];
+export const curriculum: Section[] = [
+  boardSection,
+  movingSection,
+  hittingSection,
+  pointsSection,
+  positionSection,
+  bearingOffSection,
+  winningSection,
+];
 
 export const allLessons: Lesson[] = curriculum.flatMap((section) => section.lessons);
 

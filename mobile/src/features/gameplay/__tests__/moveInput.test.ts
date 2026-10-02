@@ -20,8 +20,8 @@ describe('tap to move', () => {
     if (result.kind === 'move') expect(result.moves.map((m) => m.to)).toEqual([7, 4]);
   });
 
-  it('deselects when tapping the same checker again', () => {
-    expect(resolveTap(opening, 8, 8)).toEqual({ kind: 'deselect' });
+  it('keeps the selection when tapping the same checker again', () => {
+    expect(resolveTap(opening, 8, 8)).toEqual({ kind: 'ignore' });
   });
 
   it('switches selection to another movable checker', () => {

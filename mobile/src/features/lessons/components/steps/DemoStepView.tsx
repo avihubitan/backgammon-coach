@@ -55,7 +55,13 @@ function DemoRun({
 
   return (
     <>
-      <StepBoard setup={step.board} board={boardAfter(step, played)} width={boardWidth} layoutKey={`${step.id}-${run}`} />
+      <StepBoard
+        setup={step.board}
+        board={boardAfter(step, played)}
+        width={boardWidth}
+        layoutKey={`${step.id}-${run}`}
+        dice={step.board.dice ? { values: step.board.dice, player: 'player1' } : null}
+      />
       <View style={styles.captionRow}>
         {caption ? (
           <View style={styles.caption}>
