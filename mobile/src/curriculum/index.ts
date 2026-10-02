@@ -5,6 +5,11 @@ import { pointsSection } from './sections/section4-points';
 import { positionSection } from './sections/section5-position';
 import { bearingOffSection } from './sections/section6-bearing-off';
 import { winningSection } from './sections/section7-winning';
+import { openingsSection } from './sections/section8-openings';
+import { middleGameSection } from './sections/section9-middle-game';
+import { racingSection } from './sections/section10-racing';
+import { cubeSection } from './sections/section11-cube';
+import { advancedSection } from './sections/section12-advanced';
 import type { Lesson, Section } from './types';
 
 export * from './types';
@@ -18,6 +23,11 @@ export const curriculum: Section[] = [
   positionSection,
   bearingOffSection,
   winningSection,
+  openingsSection,
+  middleGameSection,
+  racingSection,
+  cubeSection,
+  advancedSection,
 ];
 
 export const allLessons: Lesson[] = curriculum.flatMap((section) => section.lessons);

@@ -74,7 +74,7 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Count pips in a race.',
     icon: 'counter',
     color: '#3DD68C',
-    requiresSection: 'bearing-off',
+    requiresSection: 'racing',
   },
   {
     id: 'opening',
@@ -82,7 +82,7 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Play the standard first moves.',
     icon: 'book-open-variant',
     color: '#5FD3E8',
-    requiresSection: 'winning',
+    requiresSection: 'openings',
   },
 ];
 

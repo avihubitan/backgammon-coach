@@ -37,16 +37,16 @@ export const positionSection: Section = {
         {
           id: 'make',
           kind: 'move',
-          prompt: 'You rolled **4-2**. Make an anchor with your two back checkers.',
+          prompt: 'You rolled **3-2**. Make an anchor with your two back checkers.',
           board: {
             position: {
               player1: { 24: 1, 22: 1, 13: 5, 8: 3, 6: 5 },
               player2: { 1: 2, 12: 4, 17: 3, 18: 2, 19: 4 },
             },
-            dice: [4, 2],
+            dice: [3, 2],
           },
           goal: { type: 'make-point', point: 22 },
-          solution: '24/22 13/9',
+          solution: '24/22 13/10',
           correct: 'Anchored! Your back checkers are safe, and they always have a place to land.',
           wrong: 'Your back checkers are on the 24- and 22-points. Which number brings one onto the other?',
         },
