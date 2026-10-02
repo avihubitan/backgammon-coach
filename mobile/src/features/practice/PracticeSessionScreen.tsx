@@ -10,6 +10,7 @@ import { curriculum } from '@/curriculum';
 import { DRILL_CATEGORIES, type DrillCategory } from '@/curriculum/drills';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { exerciseXp } from '@/features/learning/progression';
+import { analytics } from '@/services/analytics';
 import type { Reward } from '@/features/learning/progressModel';
 import { StepSessionPlayer } from '@/features/lessons/components/StepSessionPlayer';
 import { summarizeSteps, type LessonOutcome } from '@/features/lessons/engine/session';
@@ -115,6 +116,7 @@ export function PracticeSessionScreen({ kind }: { kind: string }) {
       sessionId={session.id}
       steps={session.steps}
       xpForStep={practiceXp}
+      kind="practice"
       exitTitle="Leave this practice?"
       exitMessage="This session won’t count, but nothing else is lost."
       onExit={leave}
@@ -133,6 +135,12 @@ export function PracticeSessionScreen({ kind }: { kind: string }) {
         progress.recordPracticeSession();
         usePracticeStore.getState().recordSession(kind as PracticeKind, outcome.firstTryCorrect);
         reportChallengeEvent({ type: 'practice-session', category: kind as PracticeKind });
+        analytics.track('practice_session_completed', {
+          kind,
+          steps: outcome.scoredSteps,
+          first_try: outcome.firstTryCorrect,
+          xp,
+        });
         const saved = useMistakesStore.getState().mistakes;
         const mastered =
           kind === 'mistakes'

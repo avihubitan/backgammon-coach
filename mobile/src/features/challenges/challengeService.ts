@@ -2,6 +2,7 @@ import { curriculum } from '@/curriculum';
 import { isFeatureUnlocked } from '@/features/learning/progression';
 import { isMastered } from '@/features/practice/mistakes';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
+import { analytics } from '@/services/analytics';
 import { feedback } from '@/services/feedback';
 import { useChallengeStore } from '@/state/challengeStore';
 import { useMistakesStore } from '@/state/mistakesStore';
@@ -35,6 +36,7 @@ export function reportChallengeEvent(event: ChallengeEvent) {
   const challenge = getChallenge(result.state.id);
   if (!challenge) return;
   useProgressStore.getState().awardXp(challenge.xp);
+  analytics.track('daily_challenge_completed', { challenge_id: challenge.id, xp: challenge.xp });
   useToastStore.getState().show({
     icon: challenge.icon,
     title: 'Daily challenge complete!',

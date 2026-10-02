@@ -11,6 +11,7 @@ import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
+import { analytics } from '@/services/analytics';
 
 const LEVELS: { id: AiLevel; title: string; description: string; icon: IconName; color: string }[] = [
   {
@@ -143,6 +144,8 @@ export function PlayHub() {
         variant={resumable ? 'secondary' : 'primary'}
         onPress={() => {
           startGame(settings);
+          analytics.track('game_started', { mode: 'ai', level: settings.level, match_length: settings.matchLength });
+          analytics.track('ai_game_started', { level: settings.level, match_length: settings.matchLength });
           router.push('/game');
         }}
       />
@@ -172,7 +175,7 @@ export function PlayHub() {
               style={styles.recent}
               testID={`recent-${game.id}`}
               accessibilityLabel={`${game.playerWon ? 'Won' : 'Lost'} against ${game.level}`}
-              onPress={() => router.push({ pathname: '/review/[id]', params: { id: game.id } })}
+              onPress={() => router.push({ pathname: '/review/[id]', params: { id: game.id, from: 'history' } })}
             >
               <View style={[styles.resultDot, { backgroundColor: game.playerWon ? colors.success : colors.danger }]}>
                 <AppText variant="caption" color="textInverse">

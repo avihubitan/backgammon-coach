@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { analytics, newAnalyticsId } from '@/services/analytics';
 import { configureFeedback } from '@/services/feedback';
 
 import { persistStorage } from './storage';
@@ -16,6 +17,10 @@ export interface SettingsData {
   showMovableHints: boolean;
   /** Show the technical evaluation numbers in game reviews. */
   showTechnicalStats: boolean;
+  /** Share anonymous usage data (no personal information). */
+  analytics: boolean;
+  /** Random id for this install, used only to group anonymous analytics. */
+  installId: string;
 }
 
 interface SettingsActions {
@@ -29,6 +34,8 @@ export const DEFAULT_SETTINGS: SettingsData = {
   showPointNumbers: true,
   showMovableHints: true,
   showTechnicalStats: false,
+  analytics: true,
+  installId: '',
 };
 
 const pickSettings = (state: SettingsData): SettingsData => ({
@@ -38,9 +45,16 @@ const pickSettings = (state: SettingsData): SettingsData => ({
   showPointNumbers: state.showPointNumbers,
   showMovableHints: state.showMovableHints,
   showTechnicalStats: state.showTechnicalStats,
+  analytics: state.analytics,
+  installId: state.installId,
 });
 
-configureFeedback(DEFAULT_SETTINGS);
+function apply(settings: SettingsData) {
+  configureFeedback(settings);
+  analytics.setEnabled(settings.analytics);
+}
+
+apply(DEFAULT_SETTINGS);
 
 export const useSettingsStore = create<SettingsData & SettingsActions>()(
   persist(
@@ -48,18 +62,20 @@ export const useSettingsStore = create<SettingsData & SettingsActions>()(
       ...DEFAULT_SETTINGS,
       update: (patch) => {
         set(patch);
-        configureFeedback(get());
+        apply(get());
       },
     }),
     {
       name: 'bg-coach/settings',
-      version: 2,
+      version: 3,
       storage: persistStorage,
       partialize: (state): SettingsData => pickSettings(state),
-      // Version 1 had no sound or music settings.
+      // Older versions had no sound, music or analytics settings.
       migrate: (persisted) => ({ ...DEFAULT_SETTINGS, ...(persisted as Partial<SettingsData>) }),
       onRehydrateStorage: () => (state) => {
-        if (state) configureFeedback(state);
+        if (!state) return;
+        if (!state.installId) state.update({ installId: newAnalyticsId() });
+        apply(state);
       },
     },
   ),

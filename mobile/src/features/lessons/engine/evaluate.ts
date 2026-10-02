@@ -76,6 +76,8 @@ export function goalMet(
 export interface MoveVerdict {
   correct: boolean;
   message: string;
+  /** The kind of mistake the coach recognised (hitting, safety…), when it explained one. */
+  mistakeCategory?: string;
 }
 
 export function evaluateMoveStep(
@@ -92,7 +94,11 @@ export function evaluateMoveStep(
   if (specific) return { correct: false, message: specific.text };
   if (step.coachFeedback) {
     const explained = explainDifference(start, LEARNER, moves, solutionMoves(step, start), false);
-    return { correct: false, message: `${explained.explanation} ${step.wrong}`.trim() };
+    return {
+      correct: false,
+      message: `${explained.explanation} ${step.wrong}`.trim(),
+      mistakeCategory: explained.category,
+    };
   }
   return { correct: false, message: step.wrong };
 }

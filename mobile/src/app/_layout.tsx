@@ -2,6 +2,7 @@ import { PlusJakartaSans_500Medium } from '@expo-google-fonts/plus-jakarta-sans/
 import { PlusJakartaSans_600SemiBold } from '@expo-google-fonts/plus-jakarta-sans/600SemiBold';
 import { PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans/700Bold';
 import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans/800ExtraBold';
+import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -13,7 +14,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
+import { analytics, startAnalyticsSession } from '@/services/analytics';
 import { soundBank } from '@/services/feedback';
+import { useProgressStore } from '@/state/progressStore';
+import { useSettingsStore } from '@/state/settingsStore';
 import { useHydration } from '@/state/useHydration';
 import { colors } from '@/theme';
 
@@ -46,6 +50,10 @@ export default function RootLayout() {
     if (!ready) return;
     SplashScreen.hideAsync().catch(() => {});
     soundBank.preload();
+    const settings = useSettingsStore.getState();
+    startAnalyticsSession(settings.installId || 'pending', Constants.expoConfig?.version ?? '0');
+    const progress = useProgressStore.getState();
+    analytics.track('app_opened', { first_open: !progress.onboardingCompleted && progress.xp === 0 });
   }, [ready]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;

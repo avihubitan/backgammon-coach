@@ -16,6 +16,7 @@ import {
   type LessonSessionState,
   type StepOutcome,
 } from '@/features/lessons/engine/session';
+import { analytics } from '@/services/analytics';
 import { feedback as gameFeedback } from '@/services/feedback';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 
@@ -27,6 +28,7 @@ import { DemoStepView } from './steps/DemoStepView';
 import { ExplainStepView } from './steps/ExplainStepView';
 import { MoveStepView } from './steps/MoveStepView';
 import { TapStepView } from './steps/TapStepView';
+import type { StepResultDetail } from './steps/types';
 
 type PlayerStatus = 'active' | 'correct' | 'wrong' | 'showing';
 
@@ -35,7 +37,10 @@ interface StepSessionPlayerProps {
   steps: LessonStep[];
   /** Called once with the finished session (after the last step). */
   onFinish: (session: LessonSessionState) => void;
-  onExit: () => void;
+  /** Called when the learner quits early, with how far they got. */
+  onExit: (progress: { stepIndex: number; steps: number }) => void;
+  /** Which kind of session this is, for analytics. */
+  kind?: 'lesson' | 'practice';
   /** Called for every answer (practice uses it to track individual items). */
   onAnswer?: (step: LessonStep, correct: boolean, firstTry: boolean) => void;
   /** XP a solved step earns; when set, the player shows an XP counter and flying rewards. */
@@ -62,6 +67,7 @@ export function StepSessionPlayer({
   onExit,
   onAnswer,
   xpForStep,
+  kind = 'lesson',
   exitTitle = 'Leave this lesson?',
   exitMessage = 'You’ll lose your progress in this lesson. It only takes a couple of minutes to finish.',
 }: StepSessionPlayerProps) {
@@ -85,9 +91,30 @@ export function StepSessionPlayer({
   const done = status === 'correct' || (status === 'wrong' && (step.kind === 'choice' || step.kind === 'cube')) || !isScored(step);
   const progress = (session.stepIndex + (done && status !== 'active' ? 1 : 0)) / steps.length;
 
-  const handleResult = (correct: boolean, message: string) => {
+  const handleResult = (correct: boolean, message: string, detail?: StepResultDetail) => {
     const wasShowing = status === 'showing';
     const previous = session.outcomes[step.id];
+    const retries = previous?.mistakes ?? 0;
+    if (correct) {
+      analytics.track('exercise_completed', {
+        session: kind,
+        session_id: sessionId,
+        step_id: step.id,
+        step_kind: step.kind,
+        first_try: !previous && !wasShowing,
+        retry_count: retries,
+        revealed: wasShowing || !!previous?.revealed,
+      });
+    } else {
+      analytics.track('exercise_failed', {
+        session: kind,
+        session_id: sessionId,
+        step_id: step.id,
+        step_kind: step.kind,
+        retry_count: retries,
+        mistake_category: detail?.mistakeCategory,
+      });
+    }
     const updated = lessonSessionReducer(session, { type: 'answer', stepId: step.id, correct });
     dispatch({ type: 'answer', stepId: step.id, correct });
     const firstTry = !previous && correct && !wasShowing;
@@ -220,7 +247,7 @@ export function StepSessionPlayer({
         onCancel={() => setConfirmExit(false)}
         onConfirm={() => {
           setConfirmExit(false);
-          onExit();
+          onExit({ stepIndex: session.stepIndex, steps: steps.length });
         }}
       />
     </View>
@@ -235,7 +262,7 @@ function renderStep(
     status: 'active' | 'correct' | 'wrong';
     rawStatus: PlayerStatus;
     mistakes: number;
-    onResult: (correct: boolean, message: string) => void;
+    onResult: (correct: boolean, message: string, detail?: StepResultDetail) => void;
   },
 ) {
   const { key, rawStatus, ...common } = props;

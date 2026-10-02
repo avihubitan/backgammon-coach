@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import type { Lesson } from '@/curriculum';
+import { getSection, type Lesson } from '@/curriculum';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { categoryResultsFor, type LessonReward } from '@/features/learning/progressModel';
 import { exerciseXp } from '@/features/learning/progression';
 import { summarizeSession, type LessonOutcome } from '@/features/lessons/engine/session';
+import { analytics } from '@/services/analytics';
 import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
 
@@ -24,6 +25,12 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
   const replay = useProgressStore((state) => !!state.lessons[lesson.id]?.completed);
   const [run, setRun] = useState(0);
   const [result, setResult] = useState<{ outcome: LessonOutcome; reward: LessonReward } | null>(null);
+
+  useEffect(() => {
+    analytics.track('lesson_started', { lesson_id: lesson.id, section_id: lesson.sectionId, replay });
+    // Once per run of the lesson.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, lesson.id]);
 
   if (result) {
     return (
@@ -46,7 +53,10 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
       key={run}
       sessionId={lesson.id}
       steps={lesson.steps}
-      onExit={onExit}
+      onExit={(progress) => {
+        analytics.track('lesson_exited', { lesson_id: lesson.id, step_index: progress.stepIndex, steps: progress.steps });
+        onExit();
+      }}
       xpForStep={(outcome) => exerciseXp(outcome, replay)}
       onFinish={(session) => {
         const outcome = summarizeSession(lesson, session);
@@ -56,9 +66,33 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
           categoryResultsFor(lesson, session.outcomes),
           session.outcomes,
         );
-        if (outcome.passed) reportChallengeEvent({ type: 'lesson-completed', stars: outcome.stars });
+        if (outcome.passed) {
+          analytics.track('lesson_completed', {
+            lesson_id: lesson.id,
+            section_id: lesson.sectionId,
+            stars: outcome.stars,
+            accuracy: outcome.accuracy,
+            duration_ms: outcome.durationMs,
+            xp: reward.xpGained,
+            replay,
+            retry_count: outcome.mistakes,
+          });
+          reportChallengeEvent({ type: 'lesson-completed', stars: outcome.stars });
+        } else {
+          analytics.track('lesson_failed', {
+            lesson_id: lesson.id,
+            section_id: lesson.sectionId,
+            accuracy: outcome.accuracy,
+            duration_ms: outcome.durationMs,
+            retry_count: outcome.mistakes,
+          });
+        }
         const unlocked = reward.unlockedLessons[0];
-        if (unlocked) useCelebrationStore.getState().queueUnlock(unlocked.id);
+        if (unlocked) {
+          useCelebrationStore.getState().queueUnlock(unlocked.id);
+          const section = getSection(unlocked.sectionId);
+          if (section?.lessons[0]?.id === unlocked.id) analytics.track('section_unlocked', { section_id: section.id });
+        }
         setResult({ outcome, reward });
       }}
     />

@@ -125,6 +125,14 @@ export function ProfileScreen() {
         />
         <View style={styles.divider} />
         <ToggleRow
+          testID="setting-analytics"
+          label="Share anonymous usage data"
+          description="Helps improve lessons. No personal information is collected."
+          value={settings.analytics}
+          onChange={(analytics) => settings.update({ analytics })}
+        />
+        <View style={styles.divider} />
+        <ToggleRow
           label="Point numbers"
           description="Show 1–24 around the board"
           value={settings.showPointNumbers}

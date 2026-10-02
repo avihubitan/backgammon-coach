@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import type { MoveStep } from '@/curriculum';
 import { FeedbackPanel, type Feedback } from '@/features/lessons/components/FeedbackPanel';
 import { MoveStepView } from '@/features/lessons/components/steps/MoveStepView';
+import { analytics } from '@/services/analytics';
 import { feedback as gameFeedback } from '@/services/feedback';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
@@ -49,7 +50,13 @@ export function OnboardingScreen() {
   const completeOnboarding = useProgressStore((state) => state.completeOnboarding);
   const awardXp = useProgressStore((state) => state.awardXp);
 
+  const [skipped, setSkipped] = useState(false);
+  useEffect(() => {
+    analytics.track('onboarding_started', {});
+  }, []);
+
   const finish = () => {
+    analytics.track('onboarding_completed', { skipped_intro: skipped, challenge_mistakes: mistakes });
     awardXp(ONBOARDING_XP);
     completeOnboarding();
     router.replace('/');
@@ -72,7 +79,10 @@ export function OnboardingScreen() {
             variant="ghost"
             size="small"
             fullWidth={false}
-            onPress={() => setPage(3)}
+            onPress={() => {
+              setSkipped(true);
+              setPage(3);
+            }}
           />
         ) : null}
       </View>

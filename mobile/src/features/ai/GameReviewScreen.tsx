@@ -21,6 +21,7 @@ import { useMistakesStore } from '@/state/mistakesStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardArrow } from '@/types/board';
+import { analytics } from '@/services/analytics';
 
 export const SEVERITY_STYLE: Record<Severity, { label: string; color: string }> = {
   best: { label: 'Best', color: colors.success },
@@ -31,7 +32,13 @@ export const SEVERITY_STYLE: Record<Severity, { label: string; color: string }> 
 };
 
 /** The AI coach: what went well, the biggest lessons, and every move explained. */
-export function GameReviewScreen({ gameId }: { gameId: string }) {
+export function GameReviewScreen({
+  gameId,
+  source = 'game_result',
+}: {
+  gameId: string;
+  source?: 'game_result' | 'history';
+}) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const game = useGameStore((store) => store.finished.find((entry) => entry.id === gameId));
@@ -44,6 +51,14 @@ export function GameReviewScreen({ gameId }: { gameId: string }) {
   const [saved, setSaved] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const review = game?.review;
+
+  const reviewed = !!review;
+  const mistakeCount = review ? review.moves.filter((move) => move.severity === 'mistake' || move.severity === 'blunder').length : 0;
+  useEffect(() => {
+    if (reviewed) analytics.track('coach_opened', { source, mistakes: mistakeCount });
+    // Once, as soon as the review is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewed]);
 
   // Analyse once, after the first paint so the "analysing" state is visible.
   useEffect(() => {

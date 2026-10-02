@@ -19,6 +19,7 @@ import {
 } from '@/game';
 import { MOVE_STEP_MS } from '@/components/board/motion';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
+import { analytics } from '@/services/analytics';
 import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
@@ -74,6 +75,21 @@ export function useGameController() {
     recordedFor.current = key;
     const recorded = useGameStore.getState().finishGame();
     const xp = gameXp(game.settings.level, finishedState.result);
+    const won = finishedState.result.winner === 'player1';
+    analytics.track('game_completed', {
+      mode: 'ai',
+      level: game.settings.level,
+      won,
+      result: finishedState.result.type,
+      points: finishedState.result.points,
+      turns: finishedState.history.length,
+    });
+    analytics.track('ai_game_completed', {
+      level: game.settings.level,
+      won,
+      result: finishedState.result.type,
+      points: finishedState.result.points,
+    });
     const reward = useProgressStore.getState().awardXp(xp, useGameStore.getState().stats);
     if (finishedState.result.winner === 'player1') {
       feedback.lessonComplete();

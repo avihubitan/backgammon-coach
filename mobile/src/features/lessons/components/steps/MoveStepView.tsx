@@ -58,7 +58,10 @@ export function MoveStepView({
       // A gentle "no" on the position you made, then back to the start with the better move shown.
       timer.current = setTimeout(() => {
         setShakeKey(Date.now());
-        timer.current = setTimeout(() => onResult(false, verdict.message), WRONG_PAUSE_MS);
+        timer.current = setTimeout(
+          () => onResult(false, verdict.message, { mistakeCategory: verdict.mistakeCategory }),
+          WRONG_PAUSE_MS,
+        );
       }, SETTLE_MS);
     },
   });
