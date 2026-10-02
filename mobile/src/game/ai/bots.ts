@@ -2,7 +2,14 @@ import type { DiceRoll, Rng } from '../dice/dice';
 import { getLegalPlays, type LegalPlay } from '../rules/plays';
 import type { BoardState, CubeState, Player } from '../types';
 
-import { rankByEquity, rankByEquityDeep, winChanceOnRoll, type EquityRankedPlay } from './engine';
+import {
+  hasNetwork,
+  rankByEquity,
+  rankByEquityDeep,
+  rankByHeuristic,
+  winChanceOnRoll,
+  type EquityRankedPlay,
+} from './engine';
 import { evaluatePosition } from './evaluate';
 import { openingBookPlay } from './openings';
 
@@ -36,8 +43,12 @@ function softmaxPick(ranked: EquityRankedPlay[], temperature: number, rng: Rng):
 /**
  * Picks a play for the computer.
  * - beginner: sensible but often imprecise (human-like mistakes)
- * - intermediate: the best play by static evaluation, with the opening book
- * - advanced: also looks at every opponent reply (2-ply)
+ * - intermediate: the heuristic's best play, with the opening book
+ * - advanced: the trained network's best play (2-ply heuristic search
+ *   when no network is installed)
+ *
+ * The gentler levels stay on the heuristic on purpose: they are tuned to
+ * be beatable by someone who has just learned the rules.
  */
 export function chooseAiPlay(board: BoardState, player: Player, roll: DiceRoll, level: AiLevel, rng: Rng): LegalPlay {
   const plays = getLegalPlays(board, player, roll);
@@ -46,8 +57,9 @@ export function chooseAiPlay(board: BoardState, player: Player, roll: DiceRoll, 
     const book = openingBookPlay(board, player, roll);
     if (book) return book;
   }
-  if (level === 'beginner') return softmaxPick(rankByEquity(board, player, roll).slice(0, 8), 0.07, rng);
-  if (level === 'intermediate') return softmaxPick(rankByEquity(board, player, roll).slice(0, 3), 0.008, rng);
+  if (level === 'beginner') return softmaxPick(rankByHeuristic(board, player, roll).slice(0, 8), 0.07, rng);
+  if (level === 'intermediate') return softmaxPick(rankByHeuristic(board, player, roll).slice(0, 3), 0.008, rng);
+  if (hasNetwork()) return rankByEquity(board, player, roll)[0].play;
   return rankByEquityDeep(board, player, roll)[0].play;
 }
 

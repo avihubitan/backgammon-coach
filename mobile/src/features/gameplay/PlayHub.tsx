@@ -31,7 +31,7 @@ const LEVELS: { id: AiLevel; title: string; description: string; icon: IconName;
   {
     id: 'advanced',
     title: 'Advanced',
-    description: 'Looks ahead at your replies. Strong play.',
+    description: 'A neural network trained on 300,000 games. A real challenge.',
     icon: 'crown',
     color: colors.primary,
   },

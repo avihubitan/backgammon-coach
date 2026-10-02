@@ -5,7 +5,7 @@ import { formatPlay } from '../moves/notation';
 import { applyPlay } from '../rules/movement';
 import type { BoardState, CheckerMove, Player } from '../types';
 
-import { equityAfterMove, rankByEquity, winChanceOnRoll } from './engine';
+import { equityAfterMove, hasNetwork, rankByEquity, winChanceOnRoll } from './engine';
 import { extractFeatures } from './evaluate';
 
 /**
@@ -26,12 +26,30 @@ export type MistakeCategory =
 
 export type Severity = 'best' | 'fine' | 'inaccuracy' | 'mistake' | 'blunder';
 
-export const SEVERITY_THRESHOLDS = { fine: 0.02, inaccuracy: 0.06, mistake: 0.14 } as const;
+export interface SeverityThresholds {
+  fine: number;
+  inaccuracy: number;
+  mistake: number;
+}
 
-export function severityFor(loss: number, rank: number): Severity {
-  if (loss < SEVERITY_THRESHOLDS.fine) return rank === 1 ? 'best' : 'fine';
-  if (loss < SEVERITY_THRESHOLDS.inaccuracy) return 'inaccuracy';
-  if (loss < SEVERITY_THRESHOLDS.mistake) return 'mistake';
+/**
+ * Equity losses (points per game) at which a move stops being fine. Each
+ * evaluator has its own scale: the hand-written heuristic is flat, the
+ * trained network sees bigger (and more accurate) differences. With the
+ * network an inaccuracy costs about 2% of winning chances and a blunder
+ * over 12%, in line with how strong engines grade play.
+ */
+export const HEURISTIC_THRESHOLDS: SeverityThresholds = { fine: 0.02, inaccuracy: 0.06, mistake: 0.14 };
+export const NETWORK_THRESHOLDS: SeverityThresholds = { fine: 0.04, inaccuracy: 0.12, mistake: 0.25 };
+
+export function severityThresholds(): SeverityThresholds {
+  return hasNetwork() ? NETWORK_THRESHOLDS : HEURISTIC_THRESHOLDS;
+}
+
+export function severityFor(loss: number, rank: number, thresholds: SeverityThresholds = severityThresholds()): Severity {
+  if (loss < thresholds.fine) return rank === 1 ? 'best' : 'fine';
+  if (loss < thresholds.inaccuracy) return 'inaccuracy';
+  if (loss < thresholds.mistake) return 'mistake';
   return 'blunder';
 }
 
@@ -345,7 +363,7 @@ export function reviewGame(history: readonly TurnRecord[], player: Player = 'pla
       averageLoss: moves.length ? moves.reduce((sum, move) => sum + move.loss, 0) / moves.length : 0,
       byCategory,
       focus,
-      biggest: worst && worst.loss >= SEVERITY_THRESHOLDS.inaccuracy ? worst.index : null,
+      biggest: worst && worst.loss >= severityThresholds().inaccuracy ? worst.index : null,
     },
   };
 }

@@ -39,6 +39,16 @@ export interface EquityRankedPlay {
   equity: number;
 }
 
+/**
+ * Ranks plays with the hand-written heuristic only, on the same equity scale
+ * (2p - 1). The gentler AI levels use it whatever evaluator is installed.
+ */
+export function rankByHeuristic(board: BoardState, player: Player, roll: DiceRoll): EquityRankedPlay[] {
+  return getLegalPlays(board, player, roll)
+    .map((play) => ({ play, equity: 2 * evaluatePosition(play.board, player) - 1 }))
+    .sort((a, b) => b.equity - a.equity);
+}
+
 export function rankByEquity(board: BoardState, player: Player, roll: DiceRoll): EquityRankedPlay[] {
   return getLegalPlays(board, player, roll)
     .map((play) => ({ play, equity: equityAfterMove(play.board, player) }))

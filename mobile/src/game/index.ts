@@ -19,4 +19,5 @@ export * from './ai/bots';
 export * from './ai/openings';
 export * from './ai/engine';
 export * from './ai/network';
+export * from './ai/defaultNetwork';
 export * from './ai/analysis';

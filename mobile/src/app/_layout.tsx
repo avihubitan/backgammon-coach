@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
+import { installNetwork, loadDefaultNetwork } from '@/game';
 import { analytics, startAnalyticsSession } from '@/services/analytics';
 import { soundBank } from '@/services/feedback';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
@@ -23,6 +24,9 @@ import { useHydration } from '@/state/useHydration';
 import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// The trained network judges positions for the strongest computer level and the coach.
+installNetwork(loadDefaultNetwork());
 
 const navigationTheme = {
   ...DarkTheme,
