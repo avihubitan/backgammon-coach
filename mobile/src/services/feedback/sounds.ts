@@ -43,6 +43,13 @@ export const CATEGORY_VOLUME: Record<SoundCategory, number> = {
   music: 0.35,
 };
 
+/** Looping background tracks. Music only plays on menu screens, never during lessons or games. */
+export type MusicScene = 'menu';
+
+export const MUSIC: Record<MusicScene, { source: number; volume: number }> = {
+  menu: { source: require('../../../assets/sounds/music-menu.wav'), volume: 1 },
+};
+
 export const SOUNDS: Record<SoundId, SoundDefinition> = {
   place1: { source: require('../../../assets/sounds/place1.wav'), category: 'game', volume: 0.8 },
   place2: { source: require('../../../assets/sounds/place2.wav'), category: 'game', volume: 0.8 },

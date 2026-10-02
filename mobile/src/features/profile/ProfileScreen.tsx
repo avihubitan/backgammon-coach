@@ -110,6 +110,14 @@ export function ProfileScreen() {
         />
         <View style={styles.divider} />
         <ToggleRow
+          testID="setting-music"
+          label="Music"
+          description="Calm background music on the menus"
+          value={settings.music}
+          onChange={(music) => settings.update({ music })}
+        />
+        <View style={styles.divider} />
+        <ToggleRow
           label="Haptics"
           description="Vibration feedback on moves and answers"
           value={settings.haptics}

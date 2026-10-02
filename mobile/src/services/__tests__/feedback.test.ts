@@ -55,3 +55,30 @@ describe('SoundBank', () => {
     expect(() => bank.play('hit')).not.toThrow();
   });
 });
+
+describe('menu music', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('plays only when enabled and on a music scene, and fades out otherwise', () => {
+    const { created, create } = fakePlayers();
+    const bank = new SoundBank(create as never, () => 0);
+    bank.setMusicScene('menu');
+    expect(created).toHaveLength(0); // music is off by default
+    bank.setEnabled({ music: true });
+    expect(created).toHaveLength(1);
+    const player = created[0] as unknown as { play: jest.Mock; pause: jest.Mock; volume: number; loop: boolean };
+    player.pause = jest.fn();
+    expect(player.loop).toBe(true);
+    expect(player.play).toHaveBeenCalled();
+    jest.advanceTimersByTime(2000);
+    expect(player.volume).toBeGreaterThan(0);
+    expect(bank.isMusicPlaying()).toBe(true);
+
+    bank.setMusicScene(null);
+    jest.advanceTimersByTime(1000);
+    expect(player.volume).toBe(0);
+    expect(player.pause).toHaveBeenCalled();
+    expect(bank.isMusicPlaying()).toBe(false);
+  });
+});

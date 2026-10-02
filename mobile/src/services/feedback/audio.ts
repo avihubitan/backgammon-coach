@@ -1,7 +1,7 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Platform } from 'react-native';
 
-import { CATEGORY_VOLUME, SOUNDS, type SoundCategory, type SoundId } from './sounds';
+import { CATEGORY_VOLUME, MUSIC, SOUNDS, type MusicScene, type SoundCategory, type SoundId } from './sounds';
 
 const MIN_GAP_MS = 35;
 
@@ -17,6 +17,9 @@ export class SoundBank {
   private configured = false;
   /** Browsers refuse audio until the first user gesture. */
   private unlocked = Platform.OS !== 'web';
+  private musicScene: MusicScene | null = null;
+  private musicPlayer: { scene: MusicScene; player: AudioPlayer } | null = null;
+  private musicFade: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly create: typeof createAudioPlayer = createAudioPlayer,
@@ -25,6 +28,58 @@ export class SoundBank {
 
   setEnabled(categories: Partial<Record<SoundCategory, boolean>>) {
     this.enabled = { ...this.enabled, ...categories };
+    this.updateMusic();
+  }
+
+  /** Which music should play for what's on screen (null = silence). */
+  setMusicScene(scene: MusicScene | null) {
+    this.musicScene = scene;
+    this.updateMusic();
+  }
+
+  /** True while background music is (or is fading in to be) audible. */
+  isMusicPlaying(): boolean {
+    return !!this.musicPlayer && this.musicScene === this.musicPlayer.scene && this.enabled.music && this.unlocked;
+  }
+
+  private updateMusic() {
+    const scene = this.enabled.music && this.unlocked ? this.musicScene : null;
+    try {
+      if (scene) {
+        if (!this.musicPlayer || this.musicPlayer.scene !== scene) {
+          this.musicPlayer?.player.pause();
+          const player = this.create(MUSIC[scene].source);
+          player.loop = true;
+          player.volume = 0;
+          this.musicPlayer = { scene, player };
+        }
+        this.configure();
+        this.musicPlayer.player.play();
+        this.fadeMusic(MUSIC[scene].volume * CATEGORY_VOLUME.music, 1400);
+      } else if (this.musicPlayer) {
+        this.fadeMusic(0, 600, () => this.musicPlayer?.player.pause());
+      }
+    } catch {
+      // Music is optional; never let it break the app.
+    }
+  }
+
+  private fadeMusic(target: number, ms: number, done?: () => void) {
+    if (this.musicFade) clearInterval(this.musicFade);
+    const player = this.musicPlayer?.player;
+    if (!player) return;
+    const start = player.volume;
+    const steps = Math.max(1, Math.round(ms / 50));
+    let step = 0;
+    this.musicFade = setInterval(() => {
+      step += 1;
+      player.volume = start + (target - start) * Math.min(1, step / steps);
+      if (step >= steps) {
+        if (this.musicFade) clearInterval(this.musicFade);
+        this.musicFade = null;
+        done?.();
+      }
+    }, 50);
   }
 
   isEnabled(category: SoundCategory): boolean {
@@ -89,6 +144,7 @@ export class SoundBank {
         this.unlocked = true;
         window.removeEventListener('pointerdown', unlock);
         window.removeEventListener('keydown', unlock);
+        this.updateMusic();
       };
       window.addEventListener('pointerdown', unlock);
       window.addEventListener('keydown', unlock);

@@ -29,7 +29,14 @@ function seeded(seed: number) {
   };
 }
 
-const rand = seeded(20261002);
+let rand = seeded(20261002);
+
+/** Each sound gets its own random stream, so regenerating one never changes another. */
+function reseed(name: string) {
+  let hash = 2166136261;
+  for (const char of name) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  rand = seeded(hash >>> 0);
+}
 const between = (lo: number, hi: number) => lo + (hi - lo) * rand();
 
 const buffer = (seconds: number): Buf => new Float32Array(Math.ceil(seconds * SR));
@@ -129,12 +136,12 @@ function filter(buf: Buf, type: FilterType, freq: number | ((t: number) => numbe
 }
 
 /** A small Schroeder room so bells and chords don't sound dry and synthetic. */
-function reverb(buf: Buf, wet = 0.18, tailSeconds = 0.6): Buf {
+function reverb(buf: Buf, wet = 0.18, tailSeconds = 0.6, feedback = 0.72): Buf {
   const out = new Float32Array(buf.length + Math.round(tailSeconds * SR));
   out.set(buf);
   const combs = [0.0297, 0.0371, 0.0411, 0.0437].map((d) => ({
     delay: Math.round(d * SR),
-    feedback: 0.72,
+    feedback,
     line: new Float32Array(Math.round(d * SR)),
     index: 0,
     damp: 0,
@@ -190,7 +197,7 @@ function finish(buf: Buf, peakDb: number, fadeOutMs = 12): Buf {
   return out;
 }
 
-function writeWav(name: string, buf: Buf) {
+function writeWav(name: string, buf: Buf, rate = SR) {
   const data = Buffer.alloc(buf.length * 2);
   for (let i = 0; i < buf.length; i++) {
     const v = Math.max(-1, Math.min(1, buf[i]));
@@ -204,14 +211,14 @@ function writeWav(name: string, buf: Buf) {
   header.writeUInt32LE(16, 16);
   header.writeUInt16LE(1, 20); // PCM
   header.writeUInt16LE(1, 22); // mono
-  header.writeUInt32LE(SR, 24);
-  header.writeUInt32LE(SR * 2, 28);
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28);
   header.writeUInt16LE(2, 32);
   header.writeUInt16LE(16, 34);
   header.write('data', 36);
   header.writeUInt32LE(data.length, 40);
   writeFileSync(join(OUT_DIR, `${name}.wav`), Buffer.concat([header, data]));
-  console.log(`${name.padEnd(10)} ${(buf.length / SR).toFixed(2)}s  ${((44 + data.length) / 1024).toFixed(0)} KB`);
+  console.log(`${name.padEnd(10)} ${(buf.length / rate).toFixed(2)}s  ${((44 + data.length) / 1024).toFixed(0)} KB`);
 }
 
 const note = (name: string): number => {
@@ -546,5 +553,127 @@ function star(name: string): Buf {
   return finish(reverb(out, 0.16, 0.5), -3, 60);
 }
 
+
+// ---------------------------------------------------------------------------
+// Music: a calm menu loop (C major, 84 BPM, 8 bars) that repeats seamlessly.
+
+const MUSIC_RATE = 22050;
+
+const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
+function bassNote(freq: number, seconds: number): Buf {
+  const out = buffer(seconds + 0.6);
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SR;
+    const env = Math.min(1, t / 0.015) * Math.exp(-t / 0.9) * (t > seconds ? Math.exp(-(t - seconds) / 0.12) : 1);
+    out[i] = env * (Math.sin(2 * Math.PI * freq * t) + 0.25 * Math.sin(4 * Math.PI * freq * t));
+  }
+  return filter(out, 'lowpass', 420, 0.7);
+}
+
+function padNote(freq: number, seconds: number): Buf {
+  const out = buffer(seconds + 1.2);
+  const attack = 0.7;
+  const release = 1.0;
+  for (const detune of [-0.003, 0.003]) {
+    const f = freq * (1 + detune);
+    const phase = rand() * Math.PI * 2;
+    for (let i = 0; i < out.length; i++) {
+      const t = i / SR;
+      const rise = Math.min(1, t / attack);
+      const fall = t > seconds ? Math.max(0, 1 - (t - seconds) / release) : 1;
+      const env = rise * rise * (3 - 2 * rise) * fall * fall;
+      const w = 2 * Math.PI * f * t + phase;
+      out[i] += env * (Math.sin(w) + 0.3 * Math.sin(2 * w) + 0.12 * Math.sin(3 * w)) * 0.5;
+    }
+  }
+  envelope(out, (t) => 1 + 0.1 * Math.sin(2 * Math.PI * 0.21 * t));
+  return filter(out, 'lowpass', 1400, 0.6);
+}
+
+function kalimba(freq: number): Buf {
+  const out = modal(
+    [
+      { freq, amp: 1, tau: 0.55 },
+      { freq: freq * 3.01, amp: 0.1, tau: 0.12 },
+      { freq: freq * 6.27, amp: 0.05, tau: 0.04 },
+    ],
+    1.6,
+    0.002,
+  );
+  return filter(out, 'lowpass', 5200, 0.7);
+}
+
+function menuMusic(): Buf {
+  const beat = 60 / 84;
+  const bar = beat * 4;
+  const chords: number[][] = [
+    [48, 55, 59, 62, 64], // Cmaj9
+    [45, 52, 55, 59, 60], // Am9
+    [50, 57, 60, 64, 65], // Dm9
+    [43, 50, 53, 57, 60, 64], // G13sus
+    [48, 55, 59, 62, 64], // Cmaj9
+    [40, 52, 59, 62, 67], // Em7
+    [41, 48, 52, 55, 57], // Fmaj9
+    [43, 50, 52, 57, 60], // G6sus
+  ];
+  // Eighth-note arpeggio patterns (index into the chord's upper tones); -1 is a rest.
+  const patterns = [
+    [0, 2, 1, 3, 2, -1, 3, 1],
+    [0, -1, 2, 1, 3, 2, -1, 4],
+    [1, 3, 2, -1, 4, 3, 2, -1],
+    [0, 2, -1, 1, 3, -1, -1, -1],
+  ];
+  const loopSeconds = bar * chords.length;
+  const out = buffer(loopSeconds + bar * 1.5);
+  chords.forEach((chord, index) => {
+    const start = index * bar;
+    const root = chord[0];
+    // Keep the bass at C2 or above: phone speakers can't play much lower.
+    const bassRoot = root - 12 >= 36 ? root - 12 : root;
+    mixInto(out, bassNote(midi(bassRoot), beat * 2.1), start, 0.3);
+    mixInto(out, bassNote(midi(bassRoot + 7 >= 48 ? bassRoot - 5 : bassRoot + 7), beat * 1.8), start + beat * 2, 0.18);
+    for (const note of chord.slice(1)) mixInto(out, padNote(midi(note), bar + 0.4), start, 0.055);
+    const tones = chord
+      .slice(1)
+      .map((note) => {
+        let m = note;
+        while (m < 72) m += 12;
+        while (m >= 86) m -= 12;
+        return m;
+      })
+      .sort((a, b) => a - b);
+    const pattern = patterns[index % 4 === 3 ? 3 : index % 3];
+    pattern.forEach((step, eighth) => {
+      if (step < 0) return;
+      const at = start + eighth * (beat / 2) + (rand() - 0.5) * 0.012;
+      const accent = eighth % 4 === 0 ? 1 : eighth % 2 === 0 ? 0.85 : 0.72;
+      mixInto(out, kalimba(midi(tones[step % tones.length])), at, 0.21 * accent * (0.85 + 0.3 * rand()));
+    });
+  });
+  const wet = reverb(out, 0.3, 1.2, 0.8);
+  // Fold everything past the loop point back to the start: the loop repeats with no seam.
+  const loop = new Float32Array(Math.round(loopSeconds * SR));
+  for (let i = 0; i < wet.length; i++) loop[i % loop.length] += wet[i];
+  // Downsample to 22.05 kHz (anti-aliased) to keep the file small.
+  const smooth = filter(filter(loop, 'lowpass', 9500, 0.7), 'lowpass', 9500, 0.7);
+  const down = new Float32Array(Math.floor(smooth.length / 2));
+  for (let i = 0; i < down.length; i++) down[i] = smooth[i * 2];
+  let peak = 0;
+  for (const v of down) peak = Math.max(peak, Math.abs(v));
+  const gain = Math.pow(10, -4 / 20) / peak;
+  for (let i = 0; i < down.length; i++) down[i] *= gain;
+  return down;
+}
+
 mkdirSync(OUT_DIR, { recursive: true });
-for (const [name, make] of Object.entries(sounds)) writeWav(name, make());
+const only = process.argv[2];
+for (const [name, make] of Object.entries(sounds)) {
+  if (only && only !== name) continue;
+  reseed(name);
+  writeWav(name, make());
+}
+if (!only || only === 'music') {
+  reseed('music-menu');
+  writeWav('music-menu', menuMusic(), MUSIC_RATE);
+}
