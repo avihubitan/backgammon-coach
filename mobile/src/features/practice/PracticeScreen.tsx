@@ -10,6 +10,7 @@ import { Stars } from '@/components/ui/Stars';
 import { allLessons, curriculum, getSection } from '@/curriculum';
 import { DRILL_CATEGORIES } from '@/curriculum/drills';
 import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
@@ -25,6 +26,7 @@ export function PracticeScreen() {
   const mistakes = useMistakesStore((state) => state.mistakes);
   const unlocked = new Set(unlockedDrillCategories(lessons, curriculum).map((info) => info.id));
   const openMistakes = mistakes.filter((mistake) => !isMastered(mistake)).length;
+  const canPracticeMistakes = useFeatureAccess().canUseAdvancedTraining();
   const completed = allLessons
     .filter((lesson) => lessons[lesson.id]?.completed)
     .sort((a, b) => (lessons[a.id]?.bestStars ?? 0) - (lessons[b.id]?.bestStars ?? 0));
@@ -104,13 +106,24 @@ export function PracticeScreen() {
           </View>
         </View>
         {openMistakes > 0 ? (
-          <Button
-            testID="practice-mistakes"
-            label="Practice my mistakes"
-            icon="target"
-            size="medium"
-            onPress={() => router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes' } })}
-          />
+          canPracticeMistakes ? (
+            <Button
+              testID="practice-mistakes"
+              label="Practice my mistakes"
+              icon="target"
+              size="medium"
+              onPress={() => router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes' } })}
+            />
+          ) : (
+            <Button
+              testID="practice-mistakes-premium"
+              label="Practice them with Premium"
+              icon="crown"
+              variant="secondary"
+              size="medium"
+              onPress={() => router.push({ pathname: '/paywall', params: { source: 'mistakes' } })}
+            />
+          )
         ) : null}
       </Card>
 

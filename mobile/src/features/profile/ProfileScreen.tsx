@@ -12,6 +12,7 @@ import { ToggleRow } from '@/components/ui/Toggle';
 import { ACHIEVEMENTS } from '@/features/learning/achievements';
 import { levelInfo, visibleStreak } from '@/features/learning/progression';
 import { accuracy } from '@/features/learning/progressModel';
+import { PremiumCard } from '@/features/monetization/PremiumCard';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { resetAllProgress } from '@/state/resetAll';
 import { useSettingsStore } from '@/state/settingsStore';
@@ -48,6 +49,8 @@ export function ProfileScreen() {
           <ProgressBar progress={level.progress} height={8} style={styles.levelBar} />
         </View>
       </Card>
+
+      <PremiumCard />
 
       <AppText variant="label" color="textSecondary">
         Statistics

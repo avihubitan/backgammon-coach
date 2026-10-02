@@ -197,4 +197,9 @@ export interface Section {
   color: string;
   goal: string;
   lessons: Lesson[];
+  /**
+   * Who can open the section's lessons. The beginner course is free;
+   * advanced sections may be 'premium'. Defaults to 'free'.
+   */
+  tier?: 'free' | 'premium';
 }

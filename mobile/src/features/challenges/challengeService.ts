@@ -1,5 +1,6 @@
 import { curriculum } from '@/curriculum';
 import { isFeatureUnlocked } from '@/features/learning/progression';
+import { currentFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { isMastered } from '@/features/practice/mistakes';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { analytics } from '@/services/analytics';
@@ -21,6 +22,7 @@ export function currentChallengeContext(): ChallengeContext {
     unlockedDrills: unlockedDrillCategories(lessons, curriculum).map((info) => info.id),
     playUnlocked: isFeatureUnlocked('play', lessons),
     openMistakes: useMistakesStore.getState().mistakes.filter((mistake) => !isMastered(mistake)).length,
+    canPracticeMistakes: currentFeatureAccess().canUseAdvancedTraining(),
   };
 }
 

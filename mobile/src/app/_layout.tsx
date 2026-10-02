@@ -16,6 +16,7 @@ import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
 import { analytics, startAnalyticsSession } from '@/services/analytics';
 import { soundBank } from '@/services/feedback';
+import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { useProgressStore } from '@/state/progressStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { useHydration } from '@/state/useHydration';
@@ -50,6 +51,7 @@ export default function RootLayout() {
     if (!ready) return;
     SplashScreen.hideAsync().catch(() => {});
     soundBank.preload();
+    useEntitlementsStore.getState().refresh();
     const settings = useSettingsStore.getState();
     startAnalyticsSession(settings.installId || 'pending', Constants.expoConfig?.version ?? '0');
     const progress = useProgressStore.getState();
@@ -79,6 +81,7 @@ export default function RootLayout() {
             <Stack.Screen name="game" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
             <Stack.Screen name="review/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="practice/[kind]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+            <Stack.Screen name="paywall" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
           <ToastHost />
         </ThemeProvider>

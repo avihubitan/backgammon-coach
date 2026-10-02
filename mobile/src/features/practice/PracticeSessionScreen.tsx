@@ -10,6 +10,7 @@ import { curriculum } from '@/curriculum';
 import { DRILL_CATEGORIES, type DrillCategory } from '@/curriculum/drills';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { exerciseXp } from '@/features/learning/progression';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
 import type { Reward } from '@/features/learning/progressModel';
 import { StepSessionPlayer } from '@/features/lessons/components/StepSessionPlayer';
@@ -53,9 +54,12 @@ export interface PracticeResult {
 export function PracticeSessionScreen({ kind }: { kind: string }) {
   const insets = useSafeAreaInsets();
   const lessons = useProgressStore((state) => state.lessons);
+  const canPracticeMistakes = useFeatureAccess().canUseAdvancedTraining();
   const valid = kind === 'mistakes' || isDrill(kind);
   const unlocked =
-    kind === 'mistakes' || unlockedDrillCategories(lessons, curriculum).some((info) => info.id === kind);
+    kind === 'mistakes'
+      ? canPracticeMistakes
+      : unlockedDrillCategories(lessons, curriculum).some((info) => info.id === kind);
   const [run, setRun] = useState(() => ({ id: 0, session: valid && unlocked ? buildSession(kind as PracticeKind, Date.now()) : null }));
   const [result, setResult] = useState<PracticeResult | null>(null);
   const answered = useRef(new Set<string>());
@@ -70,6 +74,23 @@ export function PracticeSessionScreen({ kind }: { kind: string }) {
     setResult(null);
     setRun((previous) => ({ id: previous.id + 1, session: buildSession(kind as PracticeKind, Date.now()) }));
   };
+
+  if (kind === 'mistakes' && !canPracticeMistakes) {
+    return (
+      <View style={[styles.blocked, { paddingTop: insets.top + spacing.huge }]} testID="practice-premium">
+        <Icon name="crown" size={48} color={colors.primary} />
+        <AppText variant="title" align="center">
+          Practise your own mistakes
+        </AppText>
+        <AppText variant="body" color="textSecondary" align="center">
+          Positions you got wrong in your games come back until you get them right. It’s part of Premium; your
+          mistakes are saved either way.
+        </AppText>
+        <Button label="See Premium" icon="crown" onPress={() => router.replace({ pathname: '/paywall', params: { source: 'mistakes' } })} />
+        <Button label="Not now" variant="ghost" size="medium" onPress={leave} />
+      </View>
+    );
+  }
 
   if (!valid || !unlocked || !run.session) {
     const info = DRILL_CATEGORIES.find((entry) => entry.id === kind);

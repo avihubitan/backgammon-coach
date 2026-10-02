@@ -8,12 +8,19 @@ import {
   type ChallengeContext,
 } from '../challenges';
 
-const beginner: ChallengeContext = { completedSections: [], unlockedDrills: [], playUnlocked: false, openMistakes: 0 };
+const beginner: ChallengeContext = {
+  completedSections: [],
+  unlockedDrills: [],
+  playUnlocked: false,
+  openMistakes: 0,
+  canPracticeMistakes: false,
+};
 const advanced: ChallengeContext = {
   completedSections: ['board', 'moving', 'hitting', 'points', 'position', 'bearing-off'],
   unlockedDrills: ['hitting', 'safety', 'points', 'bear-off', 'race'],
   playUnlocked: true,
   openMistakes: 5,
+  canPracticeMistakes: true,
 };
 
 describe('daily challenges', () => {

@@ -22,6 +22,9 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardArrow } from '@/types/board';
 import { analytics } from '@/services/analytics';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { useEntitlementsStore } from '@/state/entitlementsStore';
+import { todayKey } from '@/state/progressStore';
 
 export const SEVERITY_STYLE: Record<Severity, { label: string; color: string }> = {
   best: { label: 'Best', color: colors.success },
@@ -44,7 +47,13 @@ export function GameReviewScreen({
   const game = useGameStore((store) => store.finished.find((entry) => entry.id === gameId));
   const saveReview = useGameStore((store) => store.saveReview);
   const addMistakes = useMistakesStore((store) => store.addFromReview);
-  const technical = useSettingsStore((store) => store.showTechnicalStats);
+  const technicalSetting = useSettingsStore((store) => store.showTechnicalStats);
+  const access = useFeatureAccess();
+  const unlockReview = useEntitlementsStore((store) => store.unlockReview);
+  const premiumCoach = access.canUseAiCoach();
+  // Free players get one full review a day; others see the summary and the biggest lesson.
+  const fullReview = access.canReviewGame(gameId);
+  const technical = technicalSetting && access.canAnalyzeGame();
   const [selected, setSelected] = useState<number | null>(null);
   const [showBest, setShowBest] = useState(true);
   const [onlyMistakes, setOnlyMistakes] = useState(false);
@@ -53,6 +62,10 @@ export function GameReviewScreen({
   const review = game?.review;
 
   const reviewed = !!review;
+  useEffect(() => {
+    if (reviewed && fullReview && !premiumCoach) unlockReview(gameId, todayKey());
+  }, [reviewed, fullReview, premiumCoach, unlockReview, gameId]);
+
   const mistakeCount = review ? review.moves.filter((move) => move.severity === 'mistake' || move.severity === 'blunder').length : 0;
   useEffect(() => {
     if (reviewed) analytics.track('coach_opened', { source, mistakes: mistakeCount });
@@ -106,7 +119,7 @@ export function GameReviewScreen({
 
   const moves = review.moves.filter((move) => !onlyMistakes || ['inaccuracy', 'mistake', 'blunder'].includes(move.severity));
   const current: MoveReview | undefined =
-    review.moves.find((move) => move.index === selected) ??
+    (fullReview ? review.moves.find((move) => move.index === selected) : undefined) ??
     review.moves.find((move) => move.index === review.summary.biggest) ??
     review.moves[0];
   const { summary } = review;
@@ -127,6 +140,19 @@ export function GameReviewScreen({
     <View style={[styles.root, { paddingTop: insets.top }]}>
       {header}
       <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.huge }]}>
+        {fullReview && !premiumCoach ? (
+          <Pressable
+            testID="free-review-banner"
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/paywall', params: { source: 'coach_review' } })}
+            style={styles.freeBanner}
+          >
+            <Icon name="gift-outline" size={18} color={colors.primary} />
+            <AppText variant="small" color="textSecondary" style={styles.flex}>
+              Today’s free full review. <AppText variant="smallStrong" color="primary">Premium</AppText> reviews every game.
+            </AppText>
+          </Pressable>
+        ) : null}
         <Card style={styles.summary} testID="review-summary">
           <View style={styles.summaryTop}>
             <View style={[styles.resultBadge, { backgroundColor: game.playerWon ? colors.success : colors.danger }]}>
@@ -215,6 +241,7 @@ export function GameReviewScreen({
                   {current.loss.toFixed(3)} · rank {current.rank}/{current.alternatives}
                 </AppText>
               ) : null}
+              {fullReview ? (
               <View style={styles.navRow}>
                 <View style={styles.flex}>
                   <Button
@@ -236,10 +263,32 @@ export function GameReviewScreen({
                   />
                 </View>
               </View>
+              ) : null}
             </Card>
           </>
         ) : null}
 
+        {!fullReview ? (
+          <Card style={styles.locked} testID="review-locked">
+            <View style={styles.lockedIcon}>
+              <Icon name="crown" size={26} color="textInverse" />
+            </View>
+            <AppText variant="heading" align="center">
+              See every move explained
+            </AppText>
+            <AppText variant="small" color="textSecondary" align="center">
+              You’ve used today’s free full review. Premium reviews every game move by move, or come back tomorrow for
+              your next free one.
+            </AppText>
+            <Button
+              testID="review-unlock"
+              label="See Premium"
+              icon="crown"
+              onPress={() => router.push({ pathname: '/paywall', params: { source: 'coach_review' } })}
+            />
+          </Card>
+        ) : (
+        <>
         <View style={styles.listHeader}>
           <AppText variant="label" color="textSecondary" style={styles.flex}>
             All your moves
@@ -280,8 +329,20 @@ export function GameReviewScreen({
           ) : null}
         </View>
 
+        </>
+        )}
+
         {summary.mistakes + summary.blunders > 0 ? (
-          <Button label="Practice my mistakes" icon="target" onPress={() => router.push('/practice/mistakes')} />
+          <Button
+            label="Practice my mistakes"
+            icon={access.canUseAdvancedTraining() ? 'target' : 'crown'}
+            variant={fullReview ? 'primary' : 'secondary'}
+            onPress={() =>
+              access.canUseAdvancedTraining()
+                ? router.push('/practice/mistakes')
+                : router.push({ pathname: '/paywall', params: { source: 'mistakes' } })
+            }
+          />
         ) : null}
       </ScrollView>
     </View>
@@ -361,6 +422,23 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radii.lg,
     backgroundColor: colors.primarySoft,
+  },
+  freeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.primarySoft,
+  },
+  locked: { alignItems: 'center', gap: spacing.md, borderColor: colors.primary },
+  lockedIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cubeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
   boardWrap: { alignItems: 'center' },

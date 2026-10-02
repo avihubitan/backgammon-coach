@@ -22,6 +22,8 @@ export interface ChallengeContext {
   playUnlocked: boolean;
   /** Unmastered mistakes from the learner's games. */
   openMistakes: number;
+  /** Whether the learner can open mistake practice (a Premium feature). */
+  canPracticeMistakes: boolean;
 }
 
 export type ChallengeAction =
@@ -130,7 +132,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     xp: 50,
     action: { kind: 'practice', category: 'mistakes' },
     progressFor: (event) => (event.type === 'mistake-fixed' ? 1 : 0),
-    available: (context) => context.openMistakes >= 3,
+    available: (context) => context.canPracticeMistakes && context.openMistakes >= 3,
   },
   ...(['hitting', 'safety', 'points', 'bear-off', 'race', 'opening'] as const).map(drillChallenge),
 ];

@@ -1,4 +1,5 @@
 import { useChallengeStore } from './challengeStore';
+import { useEntitlementsStore } from './entitlementsStore';
 import { useGameStore } from './gameStore';
 import { useMistakesStore } from './mistakesStore';
 import { usePracticeStore } from './practiceStore';
@@ -11,4 +12,6 @@ export function resetAllProgress() {
   usePracticeStore.getState().reset();
   useMistakesStore.getState().reset();
   useGameStore.getState().resetGames();
+  // Purchases are kept; only the free-review usage is cleared.
+  useEntitlementsStore.getState().reset();
 }
