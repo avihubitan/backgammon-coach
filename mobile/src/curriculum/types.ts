@@ -98,6 +98,8 @@ export interface MoveStep extends StepBase {
   hint?: string;
   /** Apply the "larger die" rule as in a real roll (default: true when two different dice). */
   realRoll?: boolean;
+  /** Explain wrong answers with the coach engine (based on the move actually played). */
+  coachFeedback?: boolean;
 }
 
 export interface ChoiceOption {

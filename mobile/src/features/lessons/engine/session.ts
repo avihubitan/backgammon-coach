@@ -1,4 +1,4 @@
-import { isScored, type Lesson } from '@/curriculum';
+import { isScored, type Lesson, type LessonStep } from '@/curriculum';
 
 /**
  * Pure state for one run through a lesson. The lesson player dispatches
@@ -87,10 +87,19 @@ export function starsForAccuracy(accuracy: number): 1 | 2 | 3 {
 }
 
 export function summarizeSession(lesson: Lesson, state: LessonSessionState): LessonOutcome {
-  const scored = lesson.steps.filter(isScored);
+  return summarizeSteps(lesson.steps, lesson.passingScore, state);
+}
+
+/** Scores any list of steps (lessons and practice sessions share this). */
+export function summarizeSteps(
+  steps: readonly LessonStep[],
+  passingScore: number,
+  state: LessonSessionState,
+): LessonOutcome {
+  const scored = steps.filter(isScored);
   const total = scored.reduce((sum, step) => sum + stepScore(state.outcomes[step.id]), 0);
   const accuracy = scored.length === 0 ? 1 : total / scored.length;
-  const passed = accuracy + 1e-9 >= lesson.passingScore;
+  const passed = accuracy + 1e-9 >= passingScore;
   return {
     accuracy,
     stars: passed ? starsForAccuracy(accuracy) : 0,

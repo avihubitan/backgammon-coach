@@ -28,6 +28,8 @@ const AI_DELAY = { roll: 700, think: 850, move: 520, end: 450, cube: 1100 } as c
 const HUMAN_STEP = 320;
 
 export interface GameOutcome {
+  /** Id of the recorded game (for the coach review). */
+  gameId: string | null;
   xp: number;
   matchOver: boolean;
   newAchievements: string[];
@@ -72,6 +74,7 @@ export function useGameController() {
     const reward = useProgressStore.getState().awardXp(xp, useGameStore.getState().stats);
     if (finishedState.result.winner === 'player1') haptics.success();
     setOutcome({
+      gameId: recorded?.finished.id ?? null,
       xp,
       matchOver: recorded?.matchOver ?? true,
       newAchievements: reward.newAchievements,

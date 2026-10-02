@@ -7,6 +7,7 @@ import {
   type AiLevel,
   type DieValue,
   type GameResult,
+  type GameReview,
   type GameState,
   type MatchScore,
   type TurnRecord,
@@ -43,8 +44,10 @@ export interface FinishedGame {
   result: GameResult;
   playerWon: boolean;
   history: TurnRecord[];
-  /** Filled in when the match containing this game ends. */
+  /** Points the match was played to (1 = single game). */
   matchLength: number;
+  /** The coach's review, computed the first time the game is reviewed. */
+  review?: GameReview;
 }
 
 export interface GameStats extends GameAchievementStats {

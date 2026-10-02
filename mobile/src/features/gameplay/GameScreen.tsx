@@ -199,6 +199,19 @@ export function GameScreen() {
           outcome={game.outcome}
           match={active.match}
           matchLength={active.settings.matchLength}
+          onReview={
+            game.outcome.gameId
+              ? () => {
+                  const outcome = game.outcome;
+                  game.clearOutcome();
+                  if (!outcome?.gameId) return;
+                  // A match in progress moves on to its next game, ready to resume from the Play tab.
+                  if (active.settings.matchLength <= 1 || outcome.matchOver) abandonGame();
+                  else continueMatch();
+                  router.replace({ pathname: '/review/[id]', params: { id: outcome.gameId } });
+                }
+              : undefined
+          }
           onNextGame={() => {
             game.clearOutcome();
             continueMatch();

@@ -33,6 +33,7 @@ interface GamesActions {
   finishGame: () => { finished: FinishedGame; matchOver: boolean } | null;
   continueMatch: () => void;
   abandonGame: () => void;
+  saveReview: (gameId: string, review: FinishedGame['review']) => void;
   resetGames: () => void;
 }
 
@@ -87,6 +88,9 @@ export const useGameStore = create<GamesData & GamesActions>()(
       },
 
       abandonGame: () => set({ active: null }),
+
+      saveReview: (gameId, review) =>
+        set({ finished: get().finished.map((game) => (game.id === gameId ? { ...game, review } : game)) }),
 
       resetGames: () => set({ active: null, finished: [], stats: emptyGameStats() }),
     }),

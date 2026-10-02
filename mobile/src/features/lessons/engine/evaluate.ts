@@ -5,6 +5,7 @@ import {
   checkersAt,
   countAt,
   createBoard,
+  explainDifference,
   findPlayForDice,
   positionKey,
   type BoardState,
@@ -88,7 +89,12 @@ export function evaluateMoveStep(
   const specific = step.wrongPlays?.find((entry) =>
     entry.plays.some((play) => positionKey(applyNotation(start, LEARNER, play)) === key),
   );
-  return { correct: false, message: specific?.text ?? step.wrong };
+  if (specific) return { correct: false, message: specific.text };
+  if (step.coachFeedback) {
+    const explained = explainDifference(start, LEARNER, moves, solutionMoves(step, start), false);
+    return { correct: false, message: `${explained.explanation} ${step.wrong}`.trim() };
+  }
+  return { correct: false, message: step.wrong };
 }
 
 /** Whether the lesson's dice should follow the real-roll "larger die" rule. */
