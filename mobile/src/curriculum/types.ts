@@ -184,7 +184,7 @@ export interface Lesson {
   steps: LessonStep[];
   /** Fraction (0..1) of scored steps needed to pass. 0 means finishing is enough. */
   passingScore: number;
-  /** Base XP for completing the lesson. */
+  /** One-time bonus XP for completing the lesson (exercises earn their own XP). */
   xp: number;
 }
 

@@ -1,6 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Path, Polygon } from 'react-native-svg';
 
 import {
@@ -14,10 +21,14 @@ import {
   type Player,
   type PointNumber,
 } from '@/game';
+import { ImpactRing } from '@/components/fx/ImpactRing';
+import { ParticleBurst } from '@/components/fx/ParticleBurst';
+import { feedback } from '@/services/feedback';
 import { boardColors, colors, fontFamilies } from '@/theme';
 
+import { AnimatedChecker } from './AnimatedChecker';
 import { BoardArt } from './BoardArt';
-import { CheckerFace, CheckerSlab } from './Checker';
+import { CheckerFace } from './Checker';
 import { RollingDie } from './Die';
 import {
   barRect,
@@ -29,12 +40,12 @@ import {
   isTopPoint,
   pointRect,
   QUADRANT_POINTS,
-  slabRectInTray,
   trayRect,
   type BoardMetrics,
   type Point2D,
 } from './geometry';
-import { diffLayout, layoutFromBoard, stackKey, stackSizes, type PlacedChecker } from './layout';
+import { diffLayout, layoutFromBoard, stackSizes, type PlacedChecker } from './layout';
+import { checkerCenter, EMPTY_PLAN, mergeCues, planMotions, type MotionPlan, type SoundCueKind } from './motion';
 import type { BoardArrow, BoardCube, BoardDice, BoardHighlight, BoardRegion, HighlightTone } from './types';
 
 export interface BackgammonBoardProps {
@@ -56,10 +67,14 @@ export interface BackgammonBoardProps {
   onPressBar?: () => void;
   onPressOff?: () => void;
   disabled?: boolean;
+  /** Change to give the board a gentle "no" shake (wrong answers). */
+  shakeKey?: string | number | null;
+  /** Change to celebrate a good move: the checkers at `spots` glow and sparkle. */
+  celebrate?: { key: string | number; spots: MoveTarget[] } | null;
+  /** Play move, hit and dice sounds for this board (on by default). */
+  sounds?: boolean;
   testID?: string;
 }
-
-const MOVE_DURATION = 300;
 
 const TONES: Record<HighlightTone, { fill: string; border: string; text: string }> = {
   info: { fill: 'rgba(98, 182, 255, 0.22)', border: 'rgba(98, 182, 255, 0.9)', text: '#0B1B2B' },
@@ -86,6 +101,18 @@ const PULSE = {
   animationTimingFunction: 'ease-in-out',
 } as const;
 
+/** Movable checkers breathe gently to invite a tap. */
+const MOVABLE_PULSE = {
+  animationName: {
+    '0%': { opacity: 0.55 },
+    '100%': { opacity: 1 },
+  },
+  animationDuration: 900,
+  animationIterationCount: 'infinite',
+  animationDirection: 'alternate',
+  animationTimingFunction: 'ease-in-out',
+} as const;
+
 const toStyle = (rect: { x: number; y: number; width: number; height: number }) => ({
   left: rect.x,
   top: rect.y,
@@ -94,16 +121,6 @@ const toStyle = (rect: { x: number; y: number; width: number; height: number }) 
 });
 
 const compareIds = (a: PlacedChecker, b: PlacedChecker) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-
-function checkerCenter(m: BoardMetrics, checker: PlacedChecker, sizes: Map<string, number>): Point2D {
-  const count = sizes.get(stackKey(checker)) ?? 1;
-  if (checker.location.kind === 'point') {
-    return checkerCenterOnPoint(m, checker.location.point, checker.index, count);
-  }
-  if (checker.location.kind === 'bar') return checkerCenterOnBar(m, checker.player, checker.index, count);
-  const slab = slabRectInTray(m, checker.player, checker.index);
-  return { x: slab.x + slab.width / 2, y: slab.y + slab.height / 2 };
-}
 
 /** Where the next checker would land on a point for `player` (hits land on the blot). */
 function landingCenter(m: BoardMetrics, board: BoardState, player: Player, point: PointNumber): Point2D {
@@ -180,31 +197,99 @@ export function BackgammonBoard({
   onPressBar,
   onPressOff,
   disabled,
+  shakeKey,
+  celebrate,
+  sounds = true,
   testID,
 }: BackgammonBoardProps) {
   const m = computeMetrics(width);
   const boardKey = positionKey(board);
+  const reduceMotion = useReducedMotion();
 
   // Keep checker identities between renders so moves animate (React's
-  // "adjust state when a prop changes" pattern).
+  // "adjust state when a prop changes" pattern), and plan the choreography.
   const [tracked, setTracked] = useState(() => ({
     layoutKey,
     boardKey,
     layout: layoutFromBoard(board),
+    plan: EMPTY_PLAN as MotionPlan,
+    updateId: 0,
   }));
-  let layout = tracked.layout;
+  let { layout, plan, updateId } = tracked;
   if (tracked.layoutKey !== layoutKey || tracked.boardKey !== boardKey) {
-    layout = tracked.layoutKey !== layoutKey ? layoutFromBoard(board) : diffLayout(tracked.layout, board);
-    setTracked({ layoutKey, boardKey, layout });
+    const fresh = tracked.layoutKey !== layoutKey;
+    layout = fresh ? layoutFromBoard(board) : diffLayout(tracked.layout, board);
+    updateId = tracked.updateId + 1;
+    plan = fresh ? EMPTY_PLAN : planMotions(tracked.layout, layout, m, updateId);
+    setTracked({ layoutKey, boardKey, layout, plan, updateId });
   }
   const sizes = stackSizes(layout);
 
+  // Landing sounds, timed to the choreography. Pending sounds survive later
+  // updates (those checkers are still flying) and are cleared on unmount.
+  const soundTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => {
+    if (!sounds || plan.cues.length === 0) return;
+    for (const cue of mergeCues(plan.cues)) {
+      soundTimers.current.push(setTimeout(() => playCue(cue.kind), cue.at));
+    }
+  }, [plan, sounds]);
+  useEffect(() => () => soundTimers.current.forEach(clearTimeout), []);
+
+  // Hits and wrong answers shake the whole board a little.
+  const shake = useSharedValue(0);
+  const firstImpact = plan.impacts[0]?.delay;
+  useEffect(() => {
+    if (firstImpact === undefined || reduceMotion) return;
+    shake.value = withDelay(
+      firstImpact,
+      withSequence(
+        withTiming(-4, { duration: 40 }),
+        withTiming(4, { duration: 60 }),
+        withTiming(-2.5, { duration: 60 }),
+        withTiming(1.5, { duration: 50 }),
+        withTiming(0, { duration: 40 }),
+      ),
+    );
+  }, [plan, firstImpact, reduceMotion, shake]);
+  const nudge = useSharedValue(0);
+  const lastShakeKey = useRef(shakeKey);
+  useEffect(() => {
+    if (shakeKey === lastShakeKey.current) return;
+    lastShakeKey.current = shakeKey;
+    if (shakeKey === null || shakeKey === undefined || reduceMotion) return;
+    nudge.value = withSequence(
+      withTiming(-7, { duration: 55 }),
+      withTiming(7, { duration: 80 }),
+      withTiming(-5, { duration: 80 }),
+      withTiming(4, { duration: 70 }),
+      withTiming(-2, { duration: 60 }),
+      withTiming(0, { duration: 50 }),
+    );
+  }, [shakeKey, reduceMotion, nudge]);
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value + nudge.value }] }));
+
+  // The checker the player has picked up.
+  const liftedId =
+    selected === undefined || selected === null
+      ? null
+      : (layout
+          .filter(
+            (checker) =>
+              checker.player === movingPlayer &&
+              (selected === 'bar'
+                ? checker.location.kind === 'bar'
+                : checker.location.kind === 'point' && checker.location.point === selected),
+          )
+          .sort((a, b) => b.index - a.index)[0]?.id ?? null);
+
   const interactive = !disabled && (onPressPoint || onPressBar || onPressOff);
+  const opponent = movingPlayer === 'player1' ? 'player2' : 'player1';
 
   return (
-    <View
+    <Animated.View
       testID={testID}
-      style={[styles.root, { width: m.width, height: m.height }]}
+      style={[styles.root, { width: m.width, height: m.height }, shakeStyle]}
       accessibilityLabel="Backgammon board"
     >
       <BoardArt metrics={m} />
@@ -255,15 +340,47 @@ export function BackgammonBoard({
           ))
         : null}
 
-      {/* Render in a stable id order: re-ordering DOM nodes would cancel CSS transitions on web. */}
+      {/* Ghost checkers preview where the picked-up checker can go. */}
+      {targets.map((to) => {
+        if (to === 'off') return null;
+        const isHit = ownerAt(board, to) === opponent && countAt(board, to) === 1;
+        if (isHit) return null;
+        const c = landingCenter(m, board, movingPlayer, to);
+        return (
+          <Animated.View
+            key={`ghost-${to}`}
+            pointerEvents="none"
+            style={[
+              styles.abs,
+              {
+                left: c.x - m.checker / 2,
+                top: c.y - m.checker / 2,
+                zIndex: 5,
+                animationName: { from: { opacity: 0, transform: [{ scale: 0.6 }] }, to: { opacity: 0.42, transform: [{ scale: 1 }] } },
+                animationDuration: 220,
+                animationFillMode: 'forwards',
+              },
+            ]}
+          >
+            <CheckerFace player={movingPlayer} size={m.checker} />
+          </Animated.View>
+        );
+      })}
+
+      {/* Render in a stable id order: re-ordering DOM nodes would cancel animations on web. */}
       {[...layout].sort(compareIds).map((checker) => {
-        const center = checkerCenter(m, checker, sizes);
+        const lifted = checker.id === liftedId;
         return (
           <AnimatedChecker
             key={`${layoutKey}-${checker.id}`}
             checker={checker}
-            center={center}
+            center={checkerCenter(m, checker, sizes)}
+            motion={plan.motions[checker.id]}
+            updateId={updateId}
+            lifted={lifted}
             metrics={m}
+            reduceMotion={reduceMotion}
+            zIndex={lifted ? 75 : checker.moved ? 40 + checker.index : 10 + checker.index}
           />
         );
       })}
@@ -292,7 +409,7 @@ export function BackgammonBoard({
           const c = sourceCenter(m, board, movingPlayer, source);
           const size = m.checker + 6;
           return (
-            <View
+            <Animated.View
               key={`mv-${String(source)}`}
               testID={`movable-${String(source)}`}
               pointerEvents="none"
@@ -304,38 +421,14 @@ export function BackgammonBoard({
                   top: c.y - size / 2,
                   width: size,
                   height: size,
+                  zIndex: 60,
                   borderColor: boardColors.movable,
                 },
+                MOVABLE_PULSE,
               ]}
             />
           );
         })}
-
-      {selected !== undefined && selected !== null ? (
-        (() => {
-          const c = sourceCenter(m, board, movingPlayer, selected);
-          const size = m.checker + 8;
-          return (
-            <Animated.View
-              key={`sel-${String(selected)}`}
-              pointerEvents="none"
-              style={[
-                styles.abs,
-                styles.ring,
-                {
-                  left: c.x - size / 2,
-                  top: c.y - size / 2,
-                  width: size,
-                  height: size,
-                  borderWidth: 3,
-                  borderColor: boardColors.selected,
-                  boxShadow: `0px 0px 10px ${boardColors.selected}`,
-                },
-              ]}
-            />
-          );
-        })()
-      ) : null}
 
       {targets.map((to) => {
         if (to === 'off') {
@@ -356,14 +449,16 @@ export function BackgammonBoard({
                   borderWidth: 2.5,
                   borderColor: boardColors.target,
                   backgroundColor: boardColors.targetFill,
+                  zIndex: 65,
                 },
                 PULSE,
               ]}
             />
           );
         }
+        const isHit = ownerAt(board, to) === opponent && countAt(board, to) === 1;
         const c = landingCenter(m, board, movingPlayer, to);
-        const size = m.checker;
+        const size = isHit ? m.checker + 8 : m.checker;
         return (
           <Animated.View
             key={`t-${to}`}
@@ -377,9 +472,11 @@ export function BackgammonBoard({
                 top: c.y - size / 2,
                 width: size,
                 height: size,
-                borderWidth: 2.5,
-                borderColor: boardColors.target,
-                backgroundColor: boardColors.targetFill,
+                zIndex: 65,
+                borderWidth: isHit ? 3 : 2.5,
+                borderColor: isHit ? boardColors.hitTarget : boardColors.target,
+                backgroundColor: isHit ? 'rgba(255, 107, 92, 0.18)' : 'transparent',
+                boxShadow: `0px 0px 10px ${isHit ? boardColors.hitTarget : boardColors.target}`,
               },
               PULSE,
             ]}
@@ -388,7 +485,7 @@ export function BackgammonBoard({
       })}
 
       {arrows.length > 0 ? (
-        <Svg width={m.width} height={m.height} style={styles.abs} pointerEvents="none">
+        <Svg width={m.width} height={m.height} style={[styles.abs, { zIndex: 85 }]} pointerEvents="none">
           {arrows.map((arrow, index) => (
             <ArrowPath key={`a-${index}`} arrow={arrow} board={board} metrics={m} />
           ))}
@@ -423,7 +520,28 @@ export function BackgammonBoard({
           );
         })}
 
-      {dice ? <DiceRow dice={dice} metrics={m} /> : null}
+      {plan.impacts.map((impact) => (
+        <View key={impact.id} pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 96 }]}>
+          <ImpactRing x={impact.at.x} y={impact.at.y} size={m.checker * 1.3} delay={impact.delay} color="#FFE6A8" />
+          <ParticleBurst
+            x={impact.at.x}
+            y={impact.at.y}
+            delay={impact.delay}
+            count={10}
+            radius={m.checker * 1.8}
+            size={Math.max(4, m.checker * 0.22)}
+            gravity={m.checker * 0.6}
+            duration={520}
+            shapes={['spark', 'circle']}
+            colors={['#FFE6A8', '#FFFFFF', impact.victim === 'player1' ? boardColors.lightCheckerFace : '#8E8A96']}
+            seed={impact.id.length + updateId}
+          />
+        </View>
+      ))}
+
+      {celebrate ? <Celebration key={String(celebrate.key)} spots={celebrate.spots} board={board} player={movingPlayer} metrics={m} /> : null}
+
+      {dice ? <DiceRow dice={dice} metrics={m} sounds={sounds} /> : null}
       {cube ? <CubeView cube={cube} metrics={m} /> : null}
 
       {interactive ? (
@@ -437,7 +555,7 @@ export function BackgammonBoard({
                 accessibilityRole="button"
                 accessibilityLabel={`Point ${point}`}
                 onPress={onPressPoint ? () => onPressPoint(point) : undefined}
-                style={[styles.abs, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
+                style={[styles.abs, styles.touch, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
               />
             );
           })}
@@ -446,7 +564,7 @@ export function BackgammonBoard({
             accessibilityRole="button"
             accessibilityLabel="Bar"
             onPress={onPressBar}
-            style={[styles.abs, toStyle(barRect(m))]}
+            style={[styles.abs, styles.touch, toStyle(barRect(m))]}
           />
           <Pressable
             testID="bear-off-tray"
@@ -455,69 +573,87 @@ export function BackgammonBoard({
             onPress={onPressOff}
             style={[
               styles.abs,
+              styles.touch,
               { left: m.trayX - 2, top: m.innerTop, width: m.trayWidth + m.frameX + 2, height: m.innerBottom - m.innerTop },
             ]}
           />
         </>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
-function AnimatedChecker({
-  checker,
-  center,
+function playCue(kind: SoundCueKind) {
+  if (kind === 'hit') feedback.hit();
+  else if (kind === 'bearoff') feedback.bearOff();
+  else feedback.checkerMove();
+}
+
+/** A good move: the checkers that just landed glow, with a burst of sparkles. */
+function Celebration({
+  spots,
+  board,
+  player,
   metrics: m,
 }: {
-  checker: PlacedChecker;
-  center: Point2D;
+  spots: MoveTarget[];
+  board: BoardState;
+  player: Player;
   metrics: BoardMetrics;
 }) {
-  const isOff = checker.location.kind === 'off';
-  // Borne-off checkers slide into the tray as discs and then turn into slabs.
-  const offToken = isOff ? `${checker.index}:${checker.moved}` : null;
-  const [settledToken, setSettledToken] = useState<string | null>(null);
-  useEffect(() => {
-    if (!offToken || !checker.moved) return;
-    const timer = setTimeout(() => setSettledToken(offToken), MOVE_DURATION);
-    return () => clearTimeout(timer);
-  }, [offToken, checker.moved]);
-
-  const size = m.checker;
-  const slabRect = slabRectInTray(m, checker.player, checker.index);
-  const showSlab = isOff && (!checker.moved || settledToken === offToken);
-  const w = showSlab ? slabRect.width : size;
-  const h = showSlab ? slabRect.height : size;
+  const centers = spots.map((spot) => {
+    if (spot === 'off') {
+      const rect = trayRect(m);
+      return { x: rect.x + rect.width / 2, y: player === 'player1' ? m.innerBottom - m.checker : m.innerTop + m.checker };
+    }
+    const count = Math.max(1, checkersAt(board, spot, player));
+    return checkerCenterOnPoint(m, spot, count - 1, count);
+  });
+  const last = centers[centers.length - 1];
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.abs,
-        {
-          left: 0,
-          top: 0,
-          width: w,
-          height: h,
-          zIndex: checker.moved ? 40 + checker.index : 10 + checker.index,
-          transform: [{ translateX: center.x - w / 2 }, { translateY: center.y - h / 2 }],
-          transitionProperty: 'transform',
-          transitionDuration: MOVE_DURATION,
-          transitionTimingFunction: 'ease-in-out',
-        },
-        checker.appeared
-          ? {
-              animationName: { from: { opacity: 0 }, to: { opacity: 1 } },
-              animationDuration: 260,
-            }
-          : null,
-      ]}
-    >
-      {showSlab ? (
-        <CheckerSlab player={checker.player} width={w} height={h} />
-      ) : (
-        <CheckerFace player={checker.player} size={size} />
-      )}
-    </Animated.View>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 97 }]}>
+      {centers.map((c, index) => (
+        <Animated.View
+          key={index}
+          style={[
+            styles.abs,
+            styles.ring,
+            {
+              left: c.x - (m.checker + 10) / 2,
+              top: c.y - (m.checker + 10) / 2,
+              width: m.checker + 10,
+              height: m.checker + 10,
+              borderWidth: 3,
+              borderColor: colors.success,
+              boxShadow: `0px 0px 14px ${colors.success}`,
+              animationName: {
+                '0%': { opacity: 0, transform: [{ scale: 0.6 }] },
+                '25%': { opacity: 1, transform: [{ scale: 1.12 }] },
+                '70%': { opacity: 0.9, transform: [{ scale: 1 }] },
+                '100%': { opacity: 0, transform: [{ scale: 1.25 }] },
+              },
+              animationDuration: 1100,
+              animationDelay: index * 70,
+              animationFillMode: 'both',
+            },
+          ]}
+        />
+      ))}
+      {last ? (
+        <ParticleBurst
+          x={last.x}
+          y={last.y}
+          count={16}
+          radius={m.checker * 2.6}
+          size={Math.max(5, m.checker * 0.26)}
+          gravity={m.checker * 0.8}
+          duration={850}
+          shapes={['star', 'circle', 'confetti']}
+          colors={[colors.success, '#B9FFE0', colors.star, '#FFFFFF']}
+          seed={spots.length * 31 + (typeof spots[0] === 'number' ? spots[0] : 0)}
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -572,12 +708,16 @@ function ArrowPath({ arrow, board, metrics: m }: { arrow: BoardArrow; board: Boa
   );
 }
 
-function DiceRow({ dice, metrics: m }: { dice: BoardDice; metrics: BoardMetrics }) {
+function DiceRow({ dice, metrics: m, sounds }: { dice: BoardDice; metrics: BoardMetrics; sounds: boolean }) {
   const center = diceCenter(m, dice.player);
   const many = dice.values.length > 2;
   const size = many ? Math.round(m.dieSize * 0.78) : m.dieSize;
   const gap = size * 0.28;
   const total = dice.values.length * size + (dice.values.length - 1) * gap;
+  const rollKey = dice.animate ? `${dice.rollId ?? 'd'}` : null;
+  useEffect(() => {
+    if (rollKey !== null && sounds) feedback.diceRoll();
+  }, [rollKey, sounds]);
   return (
     <View
       pointerEvents="none"
@@ -591,7 +731,9 @@ function DiceRow({ dice, metrics: m }: { dice: BoardDice; metrics: BoardMetrics 
           player={dice.player}
           used={dice.used?.[index] ?? false}
           animate={dice.animate ?? false}
-          delay={index * 60}
+          index={index}
+          delay={index * 50}
+          onSettle={index === 0 && sounds ? feedback.diceLand : undefined}
         />
       ))}
     </View>
@@ -637,6 +779,7 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   ring: { borderRadius: 999, borderWidth: 2 },
+  touch: { zIndex: 100 },
   countBadge: {
     width: 18,
     height: 16,

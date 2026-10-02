@@ -16,6 +16,8 @@ export interface PlacedChecker {
   moved: boolean;
   /** True if the checker did not exist in the previous layout. */
   appeared: boolean;
+  /** Where a moved checker came from. */
+  from?: CheckerLocation;
 }
 
 const keyOf = (location: CheckerLocation) =>
@@ -51,6 +53,10 @@ function idNumber(id: string): number {
 
 export function layoutFromBoard(board: BoardState): PlacedChecker[] {
   return diffLayout([], board).map((checker) => ({ ...checker, appeared: false }));
+}
+
+export function locationKey(location: CheckerLocation): string {
+  return keyOf(location);
 }
 
 export function diffLayout(previous: readonly PlacedChecker[], board: BoardState): PlacedChecker[] {
@@ -91,7 +97,7 @@ export function diffLayout(previous: readonly PlacedChecker[], board: BoardState
     vacancies.forEach((key, i) => {
       const mover = movers[i];
       const checker: PlacedChecker = mover
-        ? { ...mover.checker, location: locationFromKey(key), moved: true, appeared: false }
+        ? { ...mover.checker, from: mover.checker.location, location: locationFromKey(key), moved: true, appeared: false }
         : {
             id: `${player}-${nextId++}`,
             player,
@@ -107,7 +113,7 @@ export function diffLayout(previous: readonly PlacedChecker[], board: BoardState
 
     for (const key of new Set([...kept.keys(), ...arrivals.keys()])) {
       const stack = [
-        ...(kept.get(key) ?? []).map((checker) => ({ ...checker, moved: false, appeared: false })),
+        ...(kept.get(key) ?? []).map((checker) => ({ ...checker, moved: false, appeared: false, from: undefined })),
         ...(arrivals.get(key) ?? []),
       ];
       stack.forEach((checker, index) => result.push({ ...checker, index }));

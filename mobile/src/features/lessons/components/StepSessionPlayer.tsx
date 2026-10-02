@@ -1,17 +1,21 @@
-import { useReducer, useState } from 'react';
+import { useReducer, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FlyingXp, type ScreenPoint } from '@/components/fx/FlyingXp';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { XpPill } from '@/components/ui/XpPill';
 import { isScored, type LessonStep } from '@/curriculum';
 import {
   lessonSessionReducer,
   startSession,
   type LessonSessionState,
+  type StepOutcome,
 } from '@/features/lessons/engine/session';
+import { feedback as gameFeedback } from '@/services/feedback';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { FeedbackPanel, praise, type Feedback } from './FeedbackPanel';
@@ -33,8 +37,17 @@ interface StepSessionPlayerProps {
   onExit: () => void;
   /** Called for every answer (practice uses it to track individual items). */
   onAnswer?: (step: LessonStep, correct: boolean, firstTry: boolean) => void;
+  /** XP a solved step earns; when set, the player shows an XP counter and flying rewards. */
+  xpForStep?: (outcome: StepOutcome) => number;
   exitTitle?: string;
   exitMessage?: string;
+}
+
+interface XpFlight {
+  id: number;
+  amount: number;
+  from: ScreenPoint;
+  to: ScreenPoint;
 }
 
 /**
@@ -47,6 +60,7 @@ export function StepSessionPlayer({
   onFinish,
   onExit,
   onAnswer,
+  xpForStep,
   exitTitle = 'Leave this lesson?',
   exitMessage = 'You’ll lose your progress in this lesson. It only takes a couple of minutes to finish.',
 }: StepSessionPlayerProps) {
@@ -58,6 +72,12 @@ export function StepSessionPlayer({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [confirmExit, setConfirmExit] = useState(false);
+  const [combo, setCombo] = useState(0);
+  const [shownXp, setShownXp] = useState(0);
+  const [xpBump, setXpBump] = useState(0);
+  const [flights, setFlights] = useState<XpFlight[]>([]);
+  const pillRef = useRef<View>(null);
+  const flightId = useRef(0);
 
   const step = steps[session.stepIndex];
   const mistakes = session.outcomes[step.id]?.mistakes ?? 0;
@@ -67,14 +87,50 @@ export function StepSessionPlayer({
   const handleResult = (correct: boolean, message: string) => {
     const wasShowing = status === 'showing';
     const previous = session.outcomes[step.id];
+    const updated = lessonSessionReducer(session, { type: 'answer', stepId: step.id, correct });
     dispatch({ type: 'answer', stepId: step.id, correct });
-    onAnswer?.(step, correct, !previous && correct && !wasShowing);
+    const firstTry = !previous && correct && !wasShowing;
+    onAnswer?.(step, correct, firstTry);
+    const nextCombo = firstTry ? combo + 1 : correct ? combo : 0;
+    setCombo(nextCombo);
+    if (correct && !wasShowing) gameFeedback.success();
+    if (!correct) gameFeedback.error();
+    const outcome = updated.outcomes[step.id];
+    const xp = correct && xpForStep && outcome ? xpForStep(outcome) : 0;
     setStatus(correct ? 'correct' : 'wrong');
     setFeedback({
       tone: correct ? 'correct' : 'wrong',
-      title: correct ? (wasShowing ? 'Here’s how' : praise(session.stepIndex + attempt)) : 'Not quite',
+      title: correct
+        ? wasShowing
+          ? 'Here’s how'
+          : nextCombo >= 3
+            ? `${nextCombo} in a row!`
+            : praise(session.stepIndex + attempt)
+        : 'Not quite',
       message,
+      xp,
     });
+  };
+
+  const launchXp = (from: ScreenPoint) => {
+    const amount = feedback?.xp ?? 0;
+    if (amount <= 0) return;
+    pillRef.current?.measureInWindow((x, y, width, height) => {
+      if (width <= 0) {
+        setShownXp((value) => value + amount);
+        return;
+      }
+      flightId.current += 1;
+      const flight = { id: flightId.current, amount, from, to: { x: x + width / 2, y: y + height / 2 } };
+      setFlights((list) => [...list, flight]);
+    });
+  };
+
+  const landXp = (flight: XpFlight) => {
+    setFlights((list) => list.filter((candidate) => candidate.id !== flight.id));
+    setShownXp((value) => value + flight.amount);
+    setXpBump((value) => value + 1);
+    gameFeedback.xp();
   };
 
   const next = () => {
@@ -109,6 +165,7 @@ export function StepSessionPlayer({
         <View style={styles.progress}>
           <ProgressBar progress={progress} color={colors.success} height={14} accessibilityLabel="Progress" />
         </View>
+        {xpForStep ? <XpPill ref={pillRef} value={shownXp} bumpKey={xpBump} testID="session-xp" /> : null}
       </View>
 
       <ScrollView
@@ -130,7 +187,9 @@ export function StepSessionPlayer({
 
       {feedback ? (
         <FeedbackPanel
+          key={`${step.id}-${attempt}-${feedback.tone}`}
           feedback={feedback}
+          onXpLaunch={launchXp}
           onContinue={next}
           onRetry={step.kind === 'choice' || step.kind === 'cube' ? undefined : retry}
           onShowMe={step.kind === 'move' ? showMe : undefined}
@@ -140,6 +199,12 @@ export function StepSessionPlayer({
           <Button testID="lesson-continue" label="Continue" onPress={next} />
         </View>
       ) : null}
+
+      <View pointerEvents="none" style={styles.fxLayer}>
+        {flights.map((flight) => (
+          <FlyingXp key={flight.id} from={flight.from} to={flight.to} amount={flight.amount} onArrive={() => landXp(flight)} />
+        ))}
+      </View>
 
       <ConfirmDialog
         visible={confirmExit}
@@ -202,6 +267,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   progress: { flex: 1 },
+  fxLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 200 },
   scroll: { flex: 1 },
   content: { paddingTop: spacing.sm },
   inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },

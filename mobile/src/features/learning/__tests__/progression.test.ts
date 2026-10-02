@@ -4,10 +4,12 @@ import {
   dayKey,
   emptyLessonRecord,
   emptyStreak,
+  exerciseXp,
   isFeatureUnlocked,
   lessonStatus,
-  lessonXp,
+  lessonXpBreakdown,
   levelInfo,
+  maxLessonXp,
   nextLesson,
   pruneDays,
   registerActivity,
@@ -37,17 +39,58 @@ describe('levels', () => {
 });
 
 describe('lesson XP', () => {
-  const lesson = { xp: 20 } as Lesson;
-  it('pays full XP plus a perfect bonus on first completion', () => {
-    expect(lessonXp(lesson, 3, true, true)).toBe(25);
-    expect(lessonXp(lesson, 2, true, true)).toBe(20);
+  const firstTry = { mistakes: 0, solved: true, revealed: false };
+  const retried = { mistakes: 2, solved: true, revealed: false };
+  const shown = { mistakes: 1, solved: true, revealed: true };
+  const lesson = {
+    xp: 20,
+    steps: [
+      { id: 'a', kind: 'explain' },
+      { id: 'b', kind: 'choice' },
+      { id: 'c', kind: 'move' },
+      { id: 'd', kind: 'tap' },
+    ],
+  } as unknown as Lesson;
+
+  it('pays per exercise: full on the first try, half after a mistake, none when shown', () => {
+    expect(exerciseXp(firstTry)).toBe(10);
+    expect(exerciseXp(retried)).toBe(5);
+    expect(exerciseXp(shown)).toBe(0);
+    expect(exerciseXp(undefined)).toBe(0);
+    expect(exerciseXp({ mistakes: 1, solved: false, revealed: false })).toBe(0);
   });
-  it('pays reduced XP for replays', () => {
-    expect(lessonXp(lesson, 2, true, false)).toBe(8);
-    expect(lessonXp(lesson, 3, true, false)).toBe(10);
+
+  it('adds the lesson bonus and a perfect bonus on the first completion', () => {
+    const results = { b: firstTry, c: firstTry, d: firstTry };
+    expect(lessonXpBreakdown(lesson, results, { passed: true, stars: 3 }, true, false)).toEqual({
+      exercises: 30,
+      completion: 20,
+      perfect: 5,
+      total: 55,
+    });
+    expect(maxLessonXp(lesson)).toBe(55);
+    const mixed = { b: firstTry, c: retried, d: shown };
+    expect(lessonXpBreakdown(lesson, mixed, { passed: true, stars: 2 }, true, false).total).toBe(35);
   });
-  it('pays nothing for a failed attempt', () => {
-    expect(lessonXp(lesson, 0, false, true)).toBe(0);
+
+  it('pays half for replays and no bonuses', () => {
+    const results = { b: firstTry, c: retried, d: firstTry };
+    expect(lessonXpBreakdown(lesson, results, { passed: true, stars: 3 }, false, true)).toEqual({
+      exercises: 13,
+      completion: 0,
+      perfect: 0,
+      total: 13,
+    });
+  });
+
+  it('keeps exercise XP but no bonuses for a failed attempt', () => {
+    const results = { b: firstTry };
+    expect(lessonXpBreakdown(lesson, results, { passed: false, stars: 0 }, false, false)).toEqual({
+      exercises: 10,
+      completion: 0,
+      perfect: 0,
+      total: 10,
+    });
   });
 });
 

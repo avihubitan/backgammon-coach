@@ -5,7 +5,6 @@ import { AppText } from '@/components/ui/AppText';
 import type { TapStep, TapTarget } from '@/curriculum';
 import { boardFromSetup, isCorrectTap, tapFeedback } from '@/features/lessons/engine/evaluate';
 import { createBoard } from '@/game';
-import { haptics } from '@/services/haptics';
 import { SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardHighlight } from '@/types/board';
 
@@ -16,6 +15,7 @@ import type { StepViewProps } from './types';
 /** "Tap the 6-point": position recognition on the board. */
 export function TapStepView({ step, boardWidth, status, mistakes, onResult }: StepViewProps<TapStep>) {
   const [tapped, setTapped] = useState<TapTarget | null>(null);
+  const [shakeKey, setShakeKey] = useState(0);
   const board = boardFromSetup(step.board);
   const solved = status === 'correct';
   const shownBoard = solved && step.reveal ? createBoard(step.reveal) : board;
@@ -24,10 +24,9 @@ export function TapStepView({ step, boardWidth, status, mistakes, onResult }: St
     if (status !== 'active') return;
     setTapped(target);
     if (isCorrectTap(step, target)) {
-      haptics.success();
       onResult(true, step.correct);
     } else {
-      haptics.error();
+      setShakeKey((value) => value + 1);
       onResult(false, tapFeedback(step, target, board));
     }
   };
@@ -50,6 +49,8 @@ export function TapStepView({ step, boardWidth, status, mistakes, onResult }: St
         highlights={highlights}
         dice={step.board.dice ? { values: step.board.dice, player: 'player1' } : null}
         disabled={status !== 'active'}
+        shakeKey={shakeKey || null}
+        celebrate={solved && tapped?.kind === 'point' ? { key: step.id, spots: [tapped.point] } : null}
         onPressPoint={(point) => handle({ kind: 'point', point })}
         onPressBar={() => handle({ kind: 'bar' })}
         onPressOff={() => handle({ kind: 'off' })}

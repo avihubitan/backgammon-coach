@@ -15,7 +15,6 @@ import {
   type BoardState,
   type TurnState,
 } from '@/game';
-import { haptics } from '@/services/haptics';
 import { SCREEN_GUTTER, spacing } from '@/theme';
 
 import { StepBoard } from '../StepBoard';
@@ -35,12 +34,10 @@ export function ChallengeStepView({ step, boardWidth, status, onResult }: StepVi
 
   const finishTurn = (turn: TurnState) => {
     if (goalReached(step, turn.board)) {
-      haptics.success();
       setTimeout(() => onResult(true, step.success), 450);
       return;
     }
     if (round.index + 1 >= step.rolls.length) {
-      haptics.error();
       setTimeout(() => onResult(false, step.failure), 450);
       return;
     }

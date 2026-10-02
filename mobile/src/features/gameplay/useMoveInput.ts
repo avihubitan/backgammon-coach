@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { MOVE_STEP_MS } from '@/components/board/motion';
 import { isTurnComplete, playMove, undoLastMove, type CheckerMove, type MoveSource, type TurnState } from '@/game';
+import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
 /** Time between the steps of a multi-step move, matching the board's checker animation. */
-export const STEP_DELAY = 320;
+export const STEP_DELAY = MOVE_STEP_MS;
 
 interface Options {
   enabled?: boolean;
@@ -41,7 +43,6 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
     moves.forEach((move, index) => {
       const step = () => {
         current = playMove(current, move);
-        haptics.light();
         onMove?.(move, current);
         if (index === moves.length - 1) {
           setBusy(false);
@@ -62,7 +63,7 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
     const result = resolveTap(turn, selected, place);
     switch (result.kind) {
       case 'select':
-        haptics.tap();
+        feedback.checkerSelect();
         setMessage(null);
         setSelected(result.source);
         break;
@@ -115,7 +116,7 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
           current = playMove(current, move);
           setTurn(current);
           if (index === moves.length - 1) setBusy(false);
-        }, 450 + STEP_DELAY * 1.6 * index),
+        }, 450 + STEP_DELAY * 1.25 * index),
       );
     });
     if (moves.length === 0) setBusy(false);

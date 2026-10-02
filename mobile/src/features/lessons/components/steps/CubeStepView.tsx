@@ -4,7 +4,6 @@ import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import type { CubeAnswer, CubeStep } from '@/curriculum';
 import { boardFromSetup } from '@/features/lessons/engine/evaluate';
-import { haptics } from '@/services/haptics';
 import { SCREEN_GUTTER, spacing } from '@/theme';
 
 import { StepBoard } from '../StepBoard';
@@ -27,8 +26,6 @@ export function CubeStepView({ step, boardWidth, status, onResult }: StepViewPro
     if (status !== 'active') return;
     setChosen(answer);
     const correct = answer === step.answer;
-    if (correct) haptics.success();
-    else haptics.error();
     onResult(correct, step.explanations[answer] ?? '');
   };
 

@@ -101,6 +101,14 @@ export function ProfileScreen() {
       </AppText>
       <Card style={styles.settings}>
         <ToggleRow
+          testID="setting-sound"
+          label="Sound effects"
+          description="Dice, checkers and rewards. Follows your silent switch."
+          value={settings.sound}
+          onChange={(sound) => settings.update({ sound })}
+        />
+        <View style={styles.divider} />
+        <ToggleRow
           label="Haptics"
           description="Vibration feedback on moves and answers"
           value={settings.haptics}

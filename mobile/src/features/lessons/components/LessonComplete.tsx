@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedStar } from '@/components/fx/AnimatedStar';
+import { AnimatedUnlock } from '@/components/fx/AnimatedUnlock';
+import { LevelUpOverlay } from '@/components/fx/LevelUpOverlay';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -28,18 +32,6 @@ function formatDuration(ms: number): string {
   return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
 }
 
-const popIn = (delay: number) => ({
-  animationName: {
-    '0%': { transform: [{ scale: 0.2 }], opacity: 0 },
-    '65%': { transform: [{ scale: 1.2 }], opacity: 1 },
-    '100%': { transform: [{ scale: 1 }], opacity: 1 },
-  },
-  animationDuration: 480,
-  animationDelay: delay,
-  animationFillMode: 'backwards' as const,
-  animationTimingFunction: 'ease-out' as const,
-});
-
 const riseIn = (delay: number) => ({
   animationName: {
     from: { transform: [{ translateY: 16 }], opacity: 0 },
@@ -50,27 +42,52 @@ const riseIn = (delay: number) => ({
   animationFillMode: 'backwards' as const,
 });
 
-/** Celebrates a finished lesson: stars, XP, streak, unlocks and achievements. */
+/** When each beat of the celebration lands (ms). */
+const BEAT = {
+  stars: 350,
+  starGap: 300,
+  stats: 1150,
+  xp: 1250,
+  extras: 1500,
+  levelUp: 2100,
+  unlock: 1800,
+} as const;
+
+/** Celebrates a finished lesson: stars, XP, level ups, streaks, unlocks and achievements. */
 export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, onNextLesson }: LessonCompleteProps) {
   const insets = useSafeAreaInsets();
-  const xp = useCountUp(reward.xpGained, 900, 700);
+  const xp = useCountUp(reward.xpGained, 800, BEAT.xp);
   const section = getSection(lesson.sectionId);
   const lastInSection = section?.lessons[section.lessons.length - 1]?.id === lesson.id;
   const next = reward.unlockedLessons[0];
   const passed = outcome.passed;
+  const leveledUp = reward.levelAfter > reward.levelBefore;
+  const [levelUp, setLevelUp] = useState<'waiting' | 'showing' | 'done'>(leveledUp ? 'waiting' : 'done');
+
+  useEffect(() => {
+    if (levelUp !== 'waiting') return;
+    const timer = setTimeout(() => setLevelUp('showing'), BEAT.levelUp);
+    return () => clearTimeout(timer);
+  }, [levelUp]);
 
   const extras: { icon: IconName; color: string; text: string }[] = [];
   if (reward.streakExtended && reward.streak > 0) {
     extras.push({ icon: 'fire', color: colors.streak, text: `${reward.streak}-day streak!` });
   }
   if (reward.dailyGoalReached) extras.push({ icon: 'target', color: colors.success, text: 'Daily goal reached' });
-  if (reward.levelAfter > reward.levelBefore) {
+  if (leveledUp) {
     extras.push({ icon: 'arrow-up-bold-circle', color: colors.primary, text: `Level ${reward.levelAfter} reached!` });
   }
   for (const id of reward.newAchievements) {
     const achievement = getAchievement(id);
     if (achievement) extras.push({ icon: achievement.icon, color: colors.info, text: `Achievement: ${achievement.title}` });
   }
+
+  const breakdown = [
+    { label: 'Exercises', value: reward.xp.exercises },
+    { label: 'First completion', value: reward.xp.completion },
+    { label: 'Perfect', value: reward.xp.perfect },
+  ].filter((part) => part.value > 0);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + spacing.xl }]}>
@@ -84,19 +101,20 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
           </AppText>
         </Animated.View>
 
-        <View style={styles.stars} accessibilityLabel={`${outcome.stars} of 3 stars`}>
+        <View style={styles.stars} accessibilityLabel={`${outcome.stars} of 3 stars`} testID="lesson-stars">
           {[0, 1, 2].map((index) => (
-            <Animated.View key={index} style={[index === 1 && styles.middleStar, popIn(250 + index * 180)]}>
-              <Icon
-                name="star"
+            <View key={index} style={index === 1 ? styles.middleStar : undefined}>
+              <AnimatedStar
+                earned={index < outcome.stars}
                 size={index === 1 ? 84 : 64}
-                color={index < outcome.stars ? colors.star : colors.starEmpty}
+                delay={BEAT.stars + index * BEAT.starGap}
+                index={index + 1}
               />
-            </Animated.View>
+            </View>
           ))}
         </View>
 
-        <Animated.View style={[styles.statsRow, riseIn(600)]}>
+        <Animated.View style={[styles.statsRow, riseIn(BEAT.stats)]}>
           <Stat label="XP earned" value={`+${xp}`} color={colors.xp} icon="lightning-bolt" testID="xp-earned" />
           <Stat
             label="Accuracy"
@@ -107,8 +125,23 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
           <Stat label="Time" value={formatDuration(outcome.durationMs)} color={colors.info} icon="timer-outline" />
         </Animated.View>
 
+        {breakdown.length > 1 ? (
+          <Animated.View style={[styles.breakdown, riseIn(BEAT.stats + 150)]} testID="xp-breakdown">
+            {breakdown.map((part) => (
+              <View key={part.label} style={styles.breakdownChip}>
+                <AppText variant="caption" color="textSecondary">
+                  {part.label}
+                </AppText>
+                <AppText variant="smallStrong" color={colors.xp}>
+                  +{part.value}
+                </AppText>
+              </View>
+            ))}
+          </Animated.View>
+        ) : null}
+
         {!passed ? (
-          <Animated.View style={[styles.card, riseIn(800)]}>
+          <Animated.View style={[styles.card, riseIn(BEAT.extras)]}>
             <AppText variant="bodyStrong">
               This lesson needs {Math.round(lesson.passingScore * 100)}% to pass. You’re close. Each try makes the
               patterns easier to spot.
@@ -116,16 +149,9 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
           </Animated.View>
         ) : null}
 
-        {extras.map((extra, index) => (
-          <Animated.View key={extra.text} style={[styles.extra, riseIn(850 + index * 120)]}>
-            <Icon name={extra.icon} size={22} color={extra.color} />
-            <AppText variant="bodyStrong">{extra.text}</AppText>
-          </Animated.View>
-        ))}
-
         {passed && next ? (
-          <Animated.View style={[styles.card, styles.nextCard, riseIn(1000)]}>
-            <Icon name="lock-open-variant" size={22} color="primary" />
+          <Animated.View style={[styles.card, styles.nextCard, riseIn(BEAT.unlock - 300)]} testID="unlocked-card">
+            <AnimatedUnlock size={24} delay={leveledUp ? 350 : BEAT.unlock} paused={levelUp !== 'done'} />
             <View style={styles.nextText}>
               <AppText variant="caption" color="textSecondary">
                 UNLOCKED
@@ -134,6 +160,13 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
             </View>
           </Animated.View>
         ) : null}
+
+        {extras.map((extra, index) => (
+          <Animated.View key={extra.text} style={[styles.extra, riseIn(BEAT.extras + index * 120)]}>
+            <Icon name={extra.icon} size={22} color={extra.color} />
+            <AppText variant="bodyStrong">{extra.text}</AppText>
+          </Animated.View>
+        ))}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
@@ -157,6 +190,8 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
           </>
         )}
       </View>
+
+      {levelUp === 'showing' ? <LevelUpOverlay level={reward.levelAfter} onClose={() => setLevelUp('done')} /> : null}
     </View>
   );
 }
@@ -204,7 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'flex-end',
-    gap: spacing.sm,
+    gap: spacing.md,
     marginVertical: spacing.lg,
   },
   middleStar: { marginBottom: spacing.md },
@@ -229,6 +264,18 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: spacing.md,
   },
+  breakdown: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: -spacing.xs },
+  breakdownChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.xl,
@@ -236,7 +283,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
   },
-  nextCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  nextCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.primary },
   nextText: { flex: 1 },
   extra: {
     flexDirection: 'row',

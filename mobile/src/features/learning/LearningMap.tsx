@@ -1,24 +1,28 @@
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { curriculum, sectionNumber, type Lesson, type Section } from '@/curriculum';
+import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
-import { colors, radii, spacing } from '@/theme';
+import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
-import { LessonNode } from './components/LessonNode';
 import { LessonSheet } from './components/LessonSheet';
+import { SectionPath } from './components/SectionPath';
 import { lessonStatus, nextLesson, sectionProgress } from './progression';
-
-/** Horizontal offsets that make the path wind gently left and right. */
-const WIGGLE = [0, 52, 78, 52, 0, -52, -78, -52];
 
 export function LearningMap() {
   const lessons = useProgressStore((state) => state.lessons);
+  const pendingUnlock = useCelebrationStore((state) => state.pendingUnlock);
+  const clearUnlock = useCelebrationStore((state) => state.clearUnlock);
+  const focused = useIsFocused();
+  const { width: windowWidth } = useWindowDimensions();
+  const [pathWidth, setPathWidth] = useState(() => Math.min(windowWidth, MAX_CONTENT_WIDTH) - SCREEN_GUTTER * 2);
   const [selected, setSelected] = useState<{ lesson: Lesson; section: Section } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const currentNodeRef = useRef<View>(null);
@@ -27,15 +31,18 @@ export function LearningMap() {
   const completedLessons = Object.values(lessons).filter((record) => record.completed).length;
   const totalStars = Object.values(lessons).reduce((sum, record) => sum + record.bestStars, 0);
 
-  // Bring the next lesson into view when the map opens.
+  // Only reveal a fresh unlock while the map is actually on screen.
+  const revealing = focused ? pendingUnlock : null;
+
+  // Bring the next lesson into view when the map opens, and when a new lesson unlocks.
   useEffect(() => {
     const timer = setTimeout(() => {
       currentNodeRef.current?.measureInWindow((_x, y) => {
-        if (y > 420) scrollRef.current?.scrollTo({ y: y - 320, animated: false });
+        if (y > 420 || y < 80) scrollRef.current?.scrollTo({ y: Math.max(0, y - 320), animated: !!revealing });
       });
     }, 60);
     return () => clearTimeout(timer);
-  }, []);
+  }, [revealing]);
 
   const start = (lesson: Lesson) => {
     setSelected(null);
@@ -68,15 +75,28 @@ export function LearningMap() {
     >
       {curriculum.map((section) => {
         const stats = sectionProgress(section, lessons);
+        const sectionRevealing = !!revealing && section.lessons[0]?.id === revealing;
         return (
           <View key={section.id} style={styles.section}>
-            <View
+            <Animated.View
               style={[
                 styles.banner,
                 {
                   backgroundColor: stats.unlocked ? section.color : colors.surface,
                   borderColor: stats.unlocked ? section.color : colors.border,
                 },
+                sectionRevealing
+                  ? {
+                      animationName: {
+                        '0%': { opacity: 0.4, transform: [{ scale: 0.96 }] },
+                        '60%': { opacity: 1, transform: [{ scale: 1.03 }] },
+                        '100%': { opacity: 1, transform: [{ scale: 1 }] },
+                      },
+                      animationDuration: 600,
+                      animationDelay: 900,
+                      animationFillMode: 'backwards',
+                    }
+                  : null,
               ]}
               testID={`section-${section.id}`}
             >
@@ -115,40 +135,23 @@ export function LearningMap() {
                   color={stats.unlocked ? 'rgba(16,14,10,0.8)' : colors.textMuted}
                 />
               </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.path}>
-              {section.lessons.map((lesson, index) => {
-                const status = lessonStatus(lesson.id, lessons);
-                const current = upNext?.id === lesson.id;
-                return (
-                  <View
-                    key={lesson.id}
-                    ref={current ? currentNodeRef : undefined}
-                    style={[styles.nodeRow, { transform: [{ translateX: WIGGLE[index % WIGGLE.length] }] }]}
-                  >
-                    <LessonNode
-                      testID={`lesson-node-${lesson.id}`}
-                      icon={lesson.icon}
-                      status={status}
-                      stars={lessons[lesson.id]?.bestStars ?? 0}
-                      color={section.color}
-                      current={current}
-                      label={lesson.title}
-                      onPress={() => setSelected({ lesson, section })}
-                    />
-                    <AppText
-                      variant="caption"
-                      color={status === 'locked' ? 'textMuted' : 'textSecondary'}
-                      align="center"
-                      style={styles.nodeLabel}
-                      numberOfLines={2}
-                    >
-                      {lesson.title}
-                    </AppText>
-                  </View>
-                );
-              })}
+            <View onLayout={(event) => setPathWidth(event.nativeEvent.layout.width)}>
+              <SectionPath
+                section={section}
+                width={pathWidth}
+                currentRef={currentNodeRef}
+                stops={section.lessons.map((lesson) => ({
+                  lesson,
+                  status: lessonStatus(lesson.id, lessons),
+                  stars: lessons[lesson.id]?.bestStars ?? 0,
+                  current: upNext?.id === lesson.id,
+                  revealing: revealing === lesson.id,
+                }))}
+                onPress={(lesson) => setSelected({ lesson, section })}
+                onRevealed={(lesson) => clearUnlock(lesson.id)}
+              />
             </View>
           </View>
         );
@@ -208,9 +211,6 @@ const styles = StyleSheet.create({
   },
   bannerIconLocked: { backgroundColor: colors.surfaceRaised },
   flex: { flex: 1 },
-  path: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  nodeRow: { alignItems: 'center', paddingTop: 44 },
-  nodeLabel: { width: 120, marginTop: 2 },
   finish: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xxl },
   trophy: {
     width: 84,

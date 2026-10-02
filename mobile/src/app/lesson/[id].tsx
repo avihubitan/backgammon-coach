@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { getLesson } from '@/curriculum';
 import { lessonStatus } from '@/features/learning/progression';
 import { LessonPlayer } from '@/features/lessons/components/LessonPlayer';
+import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
@@ -16,6 +18,10 @@ export default function LessonRoute() {
   const lesson = id ? getLesson(id) : undefined;
   const lessons = useProgressStore((state) => state.lessons);
   const insets = useSafeAreaInsets();
+  // Opening a freshly unlocked lesson counts as having seen it unlock.
+  useEffect(() => {
+    if (lesson) useCelebrationStore.getState().clearUnlock(lesson.id);
+  }, [lesson]);
 
   const leave = () => {
     if (router.canGoBack()) router.back();

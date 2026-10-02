@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { iconFont } from '@/components/ui/Icon';
+import { soundBank } from '@/services/feedback';
 import { useHydration } from '@/state/useHydration';
 import { colors } from '@/theme';
 
@@ -41,7 +42,9 @@ export default function RootLayout() {
   const ready = (fontsLoaded || !!fontError) && hydrated;
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
+    if (!ready) return;
+    SplashScreen.hideAsync().catch(() => {});
+    soundBank.preload();
   }, [ready]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;

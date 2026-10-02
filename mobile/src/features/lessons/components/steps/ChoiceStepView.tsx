@@ -22,8 +22,6 @@ export function ChoiceStepView({ step, boardWidth, status, onResult }: StepViewP
     const option = step.options.find((candidate) => candidate.id === id);
     if (!option) return;
     setChosen(id);
-    if (option.correct) haptics.success();
-    else haptics.error();
     onResult(!!option.correct, option.explanation);
   };
 

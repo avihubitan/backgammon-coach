@@ -1,4 +1,4 @@
-import { allLessons, curriculum, type Lesson, type Section } from '@/curriculum';
+import { allLessons, curriculum, isScored, type Lesson, type Section } from '@/curriculum';
 
 /**
  * Pure progression rules: XP, levels, unlocking and streaks. Stores call these;
@@ -30,12 +30,54 @@ export const emptyLessonRecord = (): LessonRecord => ({
 // ---------------------------------------------------------------------------
 // XP and levels
 
-/** XP awarded for finishing a lesson. Replays still reward practice, at a lower rate. */
-export function lessonXp(lesson: Lesson, stars: number, passed: boolean, firstCompletion: boolean): number {
-  if (!passed) return 0;
-  const perfectBonus = stars === 3 ? 5 : 0;
-  if (firstCompletion) return lesson.xp + perfectBonus;
-  return Math.ceil(lesson.xp * 0.4) + (stars === 3 ? 2 : 0);
+/**
+ * XP is earned exercise by exercise, so the "+10 XP" a learner sees after a
+ * good answer is exactly what lands on their total. Finishing a lesson for
+ * the first time adds the lesson's bonus (`lesson.xp`), a flawless run adds
+ * a little more, and replays still reward practice at half rate.
+ */
+export const EXERCISE_XP = 10;
+export const PERFECT_BONUS_XP = 5;
+
+/** How one exercise went (structurally the lesson session's step outcome). */
+export interface ExerciseResult {
+  mistakes: number;
+  solved: boolean;
+  revealed: boolean;
+}
+
+export function exerciseXp(result: ExerciseResult | undefined, replay = false): number {
+  if (!result || !result.solved || result.revealed) return 0;
+  const base = result.mistakes === 0 ? EXERCISE_XP : EXERCISE_XP / 2;
+  return replay ? Math.ceil(base / 2) : base;
+}
+
+export interface LessonXpBreakdown {
+  exercises: number;
+  /** One-time bonus for finishing the lesson for the first time. */
+  completion: number;
+  perfect: number;
+  total: number;
+}
+
+export function lessonXpBreakdown(
+  lesson: Lesson,
+  results: Record<string, ExerciseResult>,
+  outcome: { passed: boolean; stars: number },
+  firstCompletion: boolean,
+  replay: boolean,
+): LessonXpBreakdown {
+  const exercises = lesson.steps
+    .filter(isScored)
+    .reduce((sum, step) => sum + exerciseXp(results[step.id], replay), 0);
+  const completion = outcome.passed && firstCompletion ? lesson.xp : 0;
+  const perfect = outcome.passed && outcome.stars === 3 && !replay ? PERFECT_BONUS_XP : 0;
+  return { exercises, completion, perfect, total: exercises + completion + perfect };
+}
+
+/** The most a first, flawless run of a lesson can earn. */
+export function maxLessonXp(lesson: Lesson): number {
+  return lesson.steps.filter(isScored).length * EXERCISE_XP + lesson.xp + PERFECT_BONUS_XP;
 }
 
 /** Total XP needed to reach `level` (level 1 needs 0). Each level asks for 15 XP more than the last. */

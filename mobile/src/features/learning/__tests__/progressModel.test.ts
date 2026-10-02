@@ -1,4 +1,4 @@
-import { allLessons } from '@/curriculum';
+import { allLessons, isScored } from '@/curriculum';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
 
 import { applyLessonResult, grantXp, initialProgress } from '../progressModel';
@@ -38,6 +38,15 @@ describe('applying lesson results', () => {
     expect(reward.newAchievements).toContain('first-steps');
     expect(reward.newAchievements).toContain('perfectionist');
     expect(data.achievements['first-steps']).toBe('2026-03-10');
+  });
+
+  it('awards the XP earned exercise by exercise, plus the bonuses', () => {
+    const scored = first.steps.filter(isScored);
+    const results = Object.fromEntries(scored.map((step) => [step.id, { mistakes: 0, solved: true, revealed: false }]));
+    const { data, reward } = applyLessonResult(initialProgress(), first.id, outcome(), '2026-03-10', [], results);
+    expect(reward.xp).toEqual({ exercises: scored.length * 10, completion: first.xp, perfect: 5, total: scored.length * 10 + first.xp + 5 });
+    expect(reward.xpGained).toBe(reward.xp.total);
+    expect(data.xp).toBe(reward.xp.total);
   });
 
   it('gives reduced XP and no unlocks when replaying', () => {

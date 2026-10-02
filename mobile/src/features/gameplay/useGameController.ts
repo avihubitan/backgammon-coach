@@ -17,6 +17,8 @@ import {
   type GameState,
   type MoveSource,
 } from '@/game';
+import { MOVE_STEP_MS } from '@/components/board/motion';
+import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
 import { useProgressStore } from '@/state/progressStore';
@@ -25,7 +27,7 @@ import { gameXp } from './gameModel';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
 const AI_DELAY = { roll: 700, think: 850, move: 520, end: 450, cube: 1100 } as const;
-const HUMAN_STEP = 320;
+const HUMAN_STEP = MOVE_STEP_MS;
 
 export interface GameOutcome {
   /** Id of the recorded game (for the coach review). */
@@ -72,7 +74,7 @@ export function useGameController() {
     const recorded = useGameStore.getState().finishGame();
     const xp = gameXp(game.settings.level, finishedState.result);
     const reward = useProgressStore.getState().awardXp(xp, useGameStore.getState().stats);
-    if (finishedState.result.winner === 'player1') haptics.success();
+    if (finishedState.result.winner === 'player1') feedback.lessonComplete();
     setOutcome({
       gameId: recorded?.finished.id ?? null,
       xp,
@@ -157,10 +159,7 @@ export function useGameController() {
           aiPlan.current = chooseAiPlay(current.board, 'player2', current.turn.roll!, level, Math.random).moves.slice();
         }
         const move = aiPlan.current.shift();
-        if (move) {
-          dispatch({ type: 'move', move });
-          haptics.light();
-        }
+        if (move) dispatch({ type: 'move', move });
       }
     }, delay);
     return () => clearTimeout(timer);
@@ -185,7 +184,6 @@ export function useGameController() {
     const current = latestState();
     if (!current || current.phase !== 'opening') return;
     const dice: [ReturnType<typeof rollDie>, ReturnType<typeof rollDie>] = [rollDie(), rollDie()];
-    haptics.medium();
     const next = dispatch({ type: 'opening-roll', dice }, { openingRoll: { player1: dice[0], player2: dice[1] } });
     setRollId((id) => id + 1);
     if (dice[0] === dice[1]) setMessage(`You both rolled ${dice[0]}. Roll again!`);
@@ -197,7 +195,6 @@ export function useGameController() {
   const roll = () => {
     const current = latestState();
     if (!current || current.phase !== 'rolling' || current.currentPlayer !== 'player1') return;
-    haptics.medium();
     setMessage(null);
     setLastAiPlay(null);
     const next = dispatch({ type: 'roll', dice: rollDice() });
@@ -224,7 +221,6 @@ export function useGameController() {
     moves.forEach((move, index) => {
       const step = () => {
         const next = dispatch({ type: 'move', move });
-        haptics.light();
         if (index === moves.length - 1) {
           setBusy(false);
           autoSelect(next);
@@ -244,7 +240,7 @@ export function useGameController() {
     const result = resolveTap(current.turn, selected, place);
     switch (result.kind) {
       case 'select':
-        haptics.tap();
+        feedback.checkerSelect();
         setMessage(null);
         setSelected(result.source);
         break;

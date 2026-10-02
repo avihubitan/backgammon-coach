@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -13,8 +13,8 @@ import {
   solutionMoves,
   usesRealRoll,
 } from '@/features/lessons/engine/evaluate';
-import { startCustomTurn, startTurn, type DiceRoll } from '@/game';
-import { haptics } from '@/services/haptics';
+import { chainMoves, finalSpots } from '@/features/lessons/engine/moves';
+import { startCustomTurn, startTurn, type CheckerMove, type DiceRoll } from '@/game';
 import { SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardArrow } from '@/types/board';
 
@@ -22,7 +22,10 @@ import { StepBoard } from '../StepBoard';
 import { StepHeader } from '../StepHeader';
 import type { StepStatus, StepViewProps } from './types';
 
-const SETTLE_MS = 380;
+/** Lets the last checker land before the verdict appears. */
+const SETTLE_MS = 470;
+/** How long a wrong position stays (shaking) before resetting. */
+const WRONG_PAUSE_MS = 420;
 
 /** "Move this checker 5 spaces", "Make your 5-point"…: the learner plays on a real board. */
 export function MoveStepView({
@@ -38,14 +41,23 @@ export function MoveStepView({
     : startCustomTurn(start, 'player1', expandDice(step.board.dice));
   const solution = solutionMoves(step, start);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [shakeKey, setShakeKey] = useState<number | null>(null);
+  const [played, setPlayed] = useState<CheckerMove[]>([]);
 
   const input = useMoveInput(initial, {
     enabled: status === 'active',
     onComplete: (turn) => {
       const verdict = evaluateMoveStep(step, start, turn.board, turn.moves);
-      if (verdict.correct) haptics.success();
-      else haptics.error();
-      timer.current = setTimeout(() => onResult(verdict.correct, verdict.message), SETTLE_MS);
+      setPlayed(turn.moves);
+      if (verdict.correct) {
+        timer.current = setTimeout(() => onResult(true, verdict.message), SETTLE_MS);
+        return;
+      }
+      // A gentle "no" on the position you made, then back to the start with the better move shown.
+      timer.current = setTimeout(() => {
+        setShakeKey(Date.now());
+        timer.current = setTimeout(() => onResult(false, verdict.message), WRONG_PAUSE_MS);
+      }, SETTLE_MS);
     },
   });
 
@@ -57,17 +69,26 @@ export function MoveStepView({
   useEffect(() => {
     if (status !== 'showing') return;
     autoplay(solution, initial);
-    const duration = 450 + STEP_DELAY * 1.6 * Math.max(0, solution.length - 1) + 650;
+    const duration = 450 + STEP_DELAY * 1.25 * Math.max(0, solution.length - 1) + STEP_DELAY + 250;
     const done = setTimeout(() => onResult(true, step.correct), duration);
     return () => clearTimeout(done);
     // Only start the demonstration when entering the "showing" state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  const showArrows =
-    status === 'wrong' || (status === 'active' && mistakes > 0 && input.turn.moves.length === 0);
-  const arrows: BoardArrow[] = showArrows ? solution.map((move) => ({ from: move.from, to: move.to, tone: 'hint' })) : [];
-  const board = status === 'wrong' ? start : input.turn.board;
+  const wrong = status === 'wrong';
+  const showHint = wrong || (status === 'active' && mistakes > 0 && input.turn.moves.length === 0);
+  const arrows: BoardArrow[] = [];
+  const bestTrips = chainMoves(solution);
+  if (wrong) {
+    // What you played (red) against the better move (green), from the starting position.
+    for (const trip of chainMoves(played)) {
+      const alsoInSolution = bestTrips.some((best) => best.from === trip.from && best.to === trip.to);
+      if (!alsoInSolution) arrows.push({ ...trip, tone: 'wrong' });
+    }
+  }
+  if (showHint) arrows.push(...bestTrips.map((trip): BoardArrow => ({ ...trip, tone: 'hint' })));
+  const board = wrong ? start : input.turn.board;
 
   return (
     <View style={styles.container}>
@@ -80,13 +101,17 @@ export function MoveStepView({
         dice={{
           values: step.board.dice,
           player: 'player1',
-          used: status === 'wrong' ? undefined : expandedUsed(step.board.dice, usedDice(input.turn)),
+          used: wrong ? undefined : expandedUsed(step.board.dice, usedDice(input.turn)),
+          rollId: step.id,
+          animate: mistakes === 0,
         }}
         selected={input.selected}
         movable={status === 'active' && input.selected === null ? input.movable : []}
         targets={input.targets}
         arrows={arrows}
         disabled={status !== 'active'}
+        shakeKey={shakeKey}
+        celebrate={status === 'correct' && played.length > 0 ? { key: step.id, spots: finalSpots(played) } : null}
         onPressPoint={input.tap}
         onPressBar={() => input.tap('bar')}
         onPressOff={() => input.tap('off')}

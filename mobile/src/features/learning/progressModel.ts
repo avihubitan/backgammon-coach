@@ -5,13 +5,15 @@ import { ACHIEVEMENTS, type AchievementContext } from './achievements';
 import {
   emptyLessonRecord,
   emptyStreak,
-  lessonXp,
+  lessonXpBreakdown,
   levelInfo,
   newlyUnlockedLessons,
   pruneDays,
   registerActivity,
   visibleStreak,
+  type ExerciseResult,
   type LessonRecords,
+  type LessonXpBreakdown,
   type StreakState,
 } from './progression';
 
@@ -75,6 +77,7 @@ export interface Reward {
 }
 
 export interface LessonReward extends Reward {
+  xp: LessonXpBreakdown;
   firstCompletion: boolean;
   unlockedLessons: Lesson[];
   stars: number;
@@ -130,11 +133,13 @@ export function applyLessonResult(
   outcome: LessonOutcome,
   today: string,
   categoryResults: { category: SkillCategory; firstTry: boolean }[] = [],
+  exerciseResults: Record<string, ExerciseResult> = {},
 ): { data: ProgressData; reward: LessonReward } {
   const lesson = getLesson(lessonId);
   if (!lesson) throw new Error(`Unknown lesson ${lessonId}`);
   const previous = data.lessons[lessonId] ?? emptyLessonRecord();
   const firstCompletion = outcome.passed && !previous.completed;
+  const replay = previous.completed;
   const record = {
     ...previous,
     attempts: previous.attempts + 1,
@@ -167,12 +172,13 @@ export function applyLessonResult(
     },
   };
 
-  const xp = lessonXp(lesson, outcome.stars, outcome.passed, firstCompletion);
-  const granted = grantXp(withLesson, xp, today);
+  const xp = lessonXpBreakdown(lesson, exerciseResults, outcome, firstCompletion, replay);
+  const granted = grantXp(withLesson, xp.total, today);
   return {
     data: granted.data,
     reward: {
       ...granted.reward,
+      xp,
       firstCompletion,
       unlockedLessons: firstCompletion ? newlyUnlockedLessons(lessonId) : [],
       stars: outcome.stars,

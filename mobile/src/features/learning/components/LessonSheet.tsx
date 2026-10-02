@@ -9,7 +9,7 @@ import { Stars } from '@/components/ui/Stars';
 import { allLessons, isScored, type Lesson } from '@/curriculum';
 import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
-import type { LessonRecord, LessonStatus } from '../progression';
+import { maxLessonXp, type LessonRecord, type LessonStatus } from '../progression';
 
 interface LessonSheetProps {
   lesson: Lesson | null;
@@ -56,7 +56,11 @@ export function LessonSheet({ lesson, status, record, color, onStart, onClose }:
             </View>
 
             <View style={styles.meta}>
-              <Meta icon="lightning-bolt" color={colors.xp} text={`${lesson.xp} XP`} />
+              <Meta
+                icon="lightning-bolt"
+                color={colors.xp}
+                text={record?.completed ? 'Replay for practice XP' : `Up to ${maxLessonXp(lesson)} XP`}
+              />
               <Meta icon="puzzle-outline" color={colors.info} text={`${exercises} exercises`} />
               {record?.completed ? <Stars count={record.bestStars} size={18} /> : null}
             </View>

@@ -74,6 +74,7 @@ export const boardColors = {
 
   selected: '#F3B847',
   target: '#7CF2C0',
+  hitTarget: '#FF7A5C',
   targetFill: 'rgba(124, 242, 192, 0.28)',
   movable: 'rgba(243, 184, 71, 0.55)',
   hintArrow: '#7CF2C0',
