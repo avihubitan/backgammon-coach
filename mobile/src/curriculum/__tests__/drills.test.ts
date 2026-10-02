@@ -1,6 +1,6 @@
 import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json';
 
-import { buildDrillSession, dailyChallengeFor, drillToStep, raceQuestion } from '@/features/practice/practiceModel';
+import { buildDrillSession, drillToStep, raceQuestion } from '@/features/practice/practiceModel';
 import { boardFromSetup, goalMet, solutionMoves } from '@/features/lessons/engine/evaluate';
 import { applyMove, createBoard, createRng, getLegalPlays, validateBoard } from '@/game';
 
@@ -60,13 +60,5 @@ describe('practice sessions', () => {
       const board = boardFromSetup(question.board);
       expect(validateBoard(board)).toEqual([]);
     }
-  });
-
-  it('picks the same daily challenge all day, only from unlocked drills', () => {
-    const unlocked = DRILL_CATEGORIES.slice(0, 2);
-    const first = dailyChallengeFor('2026-10-02', unlocked);
-    expect(first).toEqual(dailyChallengeFor('2026-10-02', unlocked));
-    expect(unlocked.map((category) => category.id)).toContain(first?.category);
-    expect(dailyChallengeFor('2026-10-02', [])).toBeNull();
   });
 });

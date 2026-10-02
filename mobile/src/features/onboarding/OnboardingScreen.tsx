@@ -4,17 +4,17 @@ import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackgammonBoard } from '@/components/board/BackgammonBoard';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import type { MoveStep } from '@/curriculum';
-import { START } from '@/curriculum/builders';
 import { FeedbackPanel, type Feedback } from '@/features/lessons/components/FeedbackPanel';
 import { MoveStepView } from '@/features/lessons/components/steps/MoveStepView';
-import { createBoard } from '@/game';
+import { feedback as gameFeedback } from '@/services/feedback';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
+
+import { AttractBoard, DemoMoveBoard } from './AttractBoards';
 
 const CHALLENGE: MoveStep = {
   id: 'onboarding-challenge',
@@ -91,7 +91,7 @@ export function OnboardingScreen() {
                 The 5,000-year-old game of luck and skill.
               </AppText>
             </View>
-            <BackgammonBoard board={createBoard(START)} width={boardWidth} showPointNumbers={false} />
+            <AttractBoard width={boardWidth} />
           </Animated.View>
         ) : null}
 
@@ -125,24 +125,7 @@ export function OnboardingScreen() {
                 Interactive lessons.{'\n'}Real positions.{'\n'}Instant feedback.
               </AppText>
             </View>
-            <View>
-              <BackgammonBoard
-                board={createBoard(START)}
-                width={boardWidth}
-                showPointNumbers={false}
-                arrows={[
-                  { from: 8, to: 5, tone: 'hint' },
-                  { from: 6, to: 5, tone: 'hint' },
-                ]}
-                dice={{ values: [3, 1], player: 'player1' }}
-              />
-              <View style={styles.badge}>
-                <Icon name="check-bold" size={16} color="textInverse" />
-                <AppText variant="smallStrong" color="textInverse">
-                  Great move! You made your 5-point.
-                </AppText>
-              </View>
-            </View>
+            <DemoMoveBoard width={boardWidth} />
           </Animated.View>
         ) : null}
 
@@ -163,7 +146,14 @@ export function OnboardingScreen() {
               onResult={(correct, message) => {
                 if (!correct) setMistakes((value) => value + 1);
                 setStatus(correct ? 'correct' : 'wrong');
-                setFeedback({ tone: correct ? 'correct' : 'wrong', title: correct ? 'You’re a natural!' : 'Not quite', message });
+                setFeedback({
+                  tone: correct ? 'correct' : 'wrong',
+                  title: correct ? 'You’re a natural!' : 'Not quite',
+                  message,
+                  xp: correct ? ONBOARDING_XP : undefined,
+                });
+                if (correct) gameFeedback.success();
+                else gameFeedback.error();
               }}
             />
           </Animated.View>
@@ -257,19 +247,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   pathIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  badge: {
-    position: 'absolute',
-    bottom: -18,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.success,
-    boxShadow: '0px 6px 16px rgba(0,0,0,0.45)',
-  },
   challenge: { gap: spacing.lg, paddingTop: spacing.lg, width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
   challengeTitle: { paddingHorizontal: SCREEN_GUTTER, gap: spacing.xs },
   footer: {

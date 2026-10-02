@@ -13,6 +13,7 @@ import {
   solutionMoves,
   usesRealRoll,
 } from '@/features/lessons/engine/evaluate';
+import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { chainMoves, finalSpots } from '@/features/lessons/engine/moves';
 import { startCustomTurn, startTurn, type CheckerMove, type DiceRoll } from '@/game';
 import { SCREEN_GUTTER, spacing } from '@/theme';
@@ -50,6 +51,7 @@ export function MoveStepView({
       const verdict = evaluateMoveStep(step, start, turn.board, turn.moves);
       setPlayed(turn.moves);
       if (verdict.correct) {
+        for (const move of turn.moves) if (move.hit) reportChallengeEvent({ type: 'hit' });
         timer.current = setTimeout(() => onResult(true, verdict.message), SETTLE_MS);
         return;
       }

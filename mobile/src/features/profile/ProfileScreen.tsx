@@ -13,6 +13,7 @@ import { ACHIEVEMENTS } from '@/features/learning/achievements';
 import { levelInfo, visibleStreak } from '@/features/learning/progression';
 import { accuracy } from '@/features/learning/progressModel';
 import { todayKey, useProgressStore } from '@/state/progressStore';
+import { resetAllProgress } from '@/state/resetAll';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, radii, spacing } from '@/theme';
 
@@ -135,14 +136,14 @@ export function ProfileScreen() {
       <ConfirmDialog
         visible={confirmReset}
         title="Reset all progress?"
-        message="This erases your lessons, XP, streak and achievements on this device. It can’t be undone."
+        message="This erases your lessons, XP, streak, achievements, games and practice history on this device. It can’t be undone."
         confirmLabel="Erase everything"
         cancelLabel="Keep my progress"
         destructive
         onCancel={() => setConfirmReset(false)}
         onConfirm={() => {
           setConfirmReset(false);
-          progress.resetProgress();
+          resetAllProgress();
         }}
       />
     </Screen>

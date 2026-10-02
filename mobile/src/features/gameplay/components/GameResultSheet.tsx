@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LevelUpOverlay } from '@/components/fx/LevelUpOverlay';
+import { ParticleBurst } from '@/components/fx/ParticleBurst';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -35,6 +38,7 @@ export function GameResultSheet({
   onDone,
 }: GameResultSheetProps) {
   const insets = useSafeAreaInsets();
+  const [showLevelUp, setShowLevelUp] = useState(!!outcome.levelUp);
   const won = result.winner === 'player1';
   const isMatch = matchLength > 1;
   const matchWon = isMatch && outcome.matchOver && match.player1 >= matchLength;
@@ -63,8 +67,42 @@ export function GameResultSheet({
             },
           ]}
         >
-          <View style={[styles.badge, { backgroundColor: won ? colors.primary : colors.surfaceRaised }]}>
-            <Icon name={won ? 'trophy' : 'emoticon-neutral-outline'} size={40} color={won ? 'textInverse' : 'textSecondary'} />
+          <View style={styles.badgeWrap}>
+            <Animated.View
+              style={[
+                styles.badge,
+                { backgroundColor: won ? colors.primary : colors.surfaceRaised },
+                won
+                  ? {
+                      animationName: {
+                        '0%': { transform: [{ scale: 0.2 }, { rotate: '-40deg' }] },
+                        '60%': { transform: [{ scale: 1.2 }, { rotate: '8deg' }] },
+                        '100%': { transform: [{ scale: 1 }, { rotate: '0deg' }] },
+                      },
+                      animationDuration: 560,
+                      animationDelay: 200,
+                      animationFillMode: 'backwards',
+                    }
+                  : null,
+              ]}
+            >
+              <Icon name={won ? 'trophy' : 'emoticon-neutral-outline'} size={40} color={won ? 'textInverse' : 'textSecondary'} />
+            </Animated.View>
+            {won ? (
+              <ParticleBurst
+                x={38}
+                y={38}
+                delay={420}
+                count={22}
+                radius={140}
+                size={8}
+                gravity={90}
+                duration={1100}
+                shapes={['confetti', 'star', 'circle']}
+                colors={[colors.primary, colors.success, colors.info, '#FFFFFF']}
+                seed={result.points}
+              />
+            ) : null}
           </View>
           <AppText variant="display" align="center">
             {isMatch && outcome.matchOver ? (matchWon ? 'Match won!' : 'Match lost') : won ? 'You won!' : 'You lost'}
@@ -93,16 +131,43 @@ export function GameResultSheet({
               </AppText>
             </AppText>
           ) : null}
-          {outcome.levelUp ? (
-            <AppText variant="bodyStrong" color="primary" align="center">
-              Level {outcome.levelUp} reached!
-            </AppText>
+          {outcome.newAchievements.length > 0 ? (
+            <View style={styles.achievements} testID="game-achievements">
+              {outcome.newAchievements.slice(0, 3).map((id, index) => {
+                const achievement = getAchievement(id);
+                if (!achievement) return null;
+                return (
+                  <Animated.View
+                    key={id}
+                    style={[
+                      styles.achievement,
+                      {
+                        animationName: {
+                          from: { opacity: 0, transform: [{ scale: 0.7 }] },
+                          to: { opacity: 1, transform: [{ scale: 1 }] },
+                        },
+                        animationDuration: 300,
+                        animationDelay: 450 + index * 120,
+                        animationFillMode: 'backwards',
+                      },
+                    ]}
+                  >
+                    <Icon name={achievement.icon} size={16} color={colors.info} />
+                    <AppText variant="caption" color="text">
+                      {achievement.title}
+                    </AppText>
+                  </Animated.View>
+                );
+              })}
+              {outcome.newAchievements.length > 3 ? (
+                <View style={styles.achievement}>
+                  <AppText variant="caption" color="textSecondary">
+                    +{outcome.newAchievements.length - 3} more
+                  </AppText>
+                </View>
+              ) : null}
+            </View>
           ) : null}
-          {outcome.newAchievements.map((id) => (
-            <AppText key={id} variant="bodyStrong" color="info" align="center">
-              Achievement unlocked: {getAchievement(id)?.title}
-            </AppText>
-          ))}
           <View style={styles.actions}>
             {isMatch && !outcome.matchOver ? (
               <Button testID="next-game" label="Next game" icon="play" onPress={onNextGame} />
@@ -115,6 +180,9 @@ export function GameResultSheet({
             <Button testID="game-done" label="Done" variant="ghost" size="medium" onPress={onDone} />
           </View>
         </Animated.View>
+        {showLevelUp && outcome.levelUp ? (
+          <LevelUpOverlay level={outcome.levelUp} onClose={() => setShowLevelUp(false)} />
+        ) : null}
       </View>
     </Modal>
   );
@@ -133,6 +201,17 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
+  },
+  badgeWrap: { alignSelf: 'center', width: 76, height: 76 },
+  achievements: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.xs },
+  achievement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.infoSoft,
   },
   badge: {
     alignSelf: 'center',

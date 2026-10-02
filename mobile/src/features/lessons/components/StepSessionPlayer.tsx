@@ -9,6 +9,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { XpPill } from '@/components/ui/XpPill';
 import { isScored, type LessonStep } from '@/curriculum';
+import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import {
   lessonSessionReducer,
   startSession,
@@ -93,7 +94,10 @@ export function StepSessionPlayer({
     onAnswer?.(step, correct, firstTry);
     const nextCombo = firstTry ? combo + 1 : correct ? combo : 0;
     setCombo(nextCombo);
-    if (correct && !wasShowing) gameFeedback.success();
+    if (correct && !wasShowing) {
+      gameFeedback.success();
+      reportChallengeEvent({ type: 'exercise-correct', firstTry });
+    }
     if (!correct) gameFeedback.error();
     const outcome = updated.outcomes[step.id];
     const xp = correct && xpForStep && outcome ? xpForStep(outcome) : 0;

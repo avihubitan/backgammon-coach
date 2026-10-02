@@ -9,10 +9,12 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { StatChip } from '@/components/ui/StatChip';
 import { curriculum, sectionNumber } from '@/curriculum';
+import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
 import {
   currentSection,
   isFeatureUnlocked,
   levelInfo,
+  maxLessonXp,
   nextLesson,
   sectionProgress,
   visibleStreak,
@@ -65,7 +67,7 @@ export function HomeScreen() {
         </View>
       }
     >
-      <Card style={styles.levelCard}>
+      <Card style={styles.levelCard} enterDelay={0}>
         <View style={styles.levelBadge}>
           <AppText variant="caption" color="textInverse">
             LEVEL
@@ -86,7 +88,7 @@ export function HomeScreen() {
       </Card>
 
       {lesson ? (
-        <Card tone="accent" style={styles.continueCard} testID="continue-card">
+        <Card tone="accent" style={styles.continueCard} testID="continue-card" enterDelay={90}>
           <View style={styles.continueTop}>
             <View style={[styles.sectionIcon, { backgroundColor: section.color }]}>
               <Icon name={section.icon} size={26} color="textInverse" />
@@ -106,9 +108,17 @@ export function HomeScreen() {
             accessibilityLabel={`${Math.round(sectionStats.fraction * 100)}% of section complete`}
           />
           <View>
-            <AppText variant="caption" color="textSecondary">
-              {startedPath ? 'NEXT UP' : 'START HERE'}
-            </AppText>
+            <View style={styles.nextRow}>
+              <AppText variant="caption" color="textSecondary">
+                {startedPath ? 'NEXT UP' : 'START HERE'}
+              </AppText>
+              <View style={styles.xpChip}>
+                <Icon name="lightning-bolt" size={13} color={colors.xp} />
+                <AppText variant="caption" color={colors.xp}>
+                  Up to {maxLessonXp(lesson)} XP
+                </AppText>
+              </View>
+            </View>
             <AppText variant="title" testID="next-lesson-title">
               {lesson.title}
             </AppText>
@@ -124,7 +134,7 @@ export function HomeScreen() {
           />
         </Card>
       ) : (
-        <Card tone="accent" style={styles.continueCard}>
+        <Card tone="accent" style={styles.continueCard} enterDelay={90}>
           <Icon name="trophy" size={40} color="primary" />
           <AppText variant="title">Path complete!</AppText>
           <AppText variant="body" color="textSecondary">
@@ -134,7 +144,9 @@ export function HomeScreen() {
         </Card>
       )}
 
-      <Card style={styles.dailyCard}>
+      <DailyChallengeCard enterDelay={180} compact />
+
+      <Card style={styles.dailyCard} enterDelay={240}>
         <View style={styles.dailyTop}>
           <View style={[styles.flame, { backgroundColor: streak > 0 ? 'rgba(255,138,61,0.15)' : colors.surfaceRaised }]}>
             <Icon name="fire" size={30} color={streak > 0 ? colors.streak : colors.textMuted} />
@@ -164,6 +176,7 @@ export function HomeScreen() {
 
       <Card
         style={styles.playCard}
+        enterDelay={300}
         onPress={() => router.push('/play')}
         accessibilityLabel={playUnlocked ? 'Play against the computer' : 'Play against the computer, locked'}
       >
@@ -215,6 +228,16 @@ const styles = StyleSheet.create({
   levelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   continueCard: { gap: spacing.lg, padding: spacing.xl },
   continueTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  nextRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  xpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(243, 184, 71, 0.12)',
+  },
   sectionIcon: {
     width: 48,
     height: 48,

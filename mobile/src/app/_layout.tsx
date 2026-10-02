@@ -11,6 +11,7 @@ import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
 import { soundBank } from '@/services/feedback';
 import { useHydration } from '@/state/useHydration';
@@ -69,7 +70,9 @@ export default function RootLayout() {
             />
             <Stack.Screen name="game" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
             <Stack.Screen name="review/[id]" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="practice/[kind]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
           </Stack>
+          <ToastHost />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

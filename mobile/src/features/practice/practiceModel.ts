@@ -180,36 +180,3 @@ export function unlockedDrillCategories(records: LessonRecords, sections: { id: 
     return !!section && section.lessons.length > 0 && section.lessons.every((lesson) => records[lesson.id]?.completed);
   });
 }
-
-// ---------------------------------------------------------------------------
-// Daily challenge
-
-export interface DailyChallenge {
-  id: string;
-  category: DrillCategory;
-  title: string;
-  target: number;
-  xp: number;
-}
-
-const CHALLENGE_TITLES: Record<DrillCategory, string> = {
-  hitting: 'Make 5 correct moves involving hitting',
-  safety: 'Find 5 safe plays',
-  points: 'Make 5 points in drills',
-  'bear-off': 'Ace 5 bear-off drills',
-  race: 'Answer 5 race questions correctly',
-  opening: 'Play 5 opening moves correctly',
-};
-
-function hashDay(day: string): number {
-  let hash = 2166136261;
-  for (const char of day) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return hash >>> 0;
-}
-
-/** Today's challenge: picked deterministically from the drills the learner has unlocked. */
-export function dailyChallengeFor(day: string, unlocked: DrillCategoryInfo[]): DailyChallenge | null {
-  if (unlocked.length === 0) return null;
-  const info = unlocked[hashDay(day) % unlocked.length];
-  return { id: `${day}:${info.id}`, category: info.id, title: CHALLENGE_TITLES[info.id], target: 5, xp: 50 };
-}

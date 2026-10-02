@@ -18,6 +18,7 @@ import {
   type MoveSource,
 } from '@/game';
 import { MOVE_STEP_MS } from '@/components/board/motion';
+import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
@@ -74,7 +75,10 @@ export function useGameController() {
     const recorded = useGameStore.getState().finishGame();
     const xp = gameXp(game.settings.level, finishedState.result);
     const reward = useProgressStore.getState().awardXp(xp, useGameStore.getState().stats);
-    if (finishedState.result.winner === 'player1') feedback.lessonComplete();
+    if (finishedState.result.winner === 'player1') {
+      feedback.lessonComplete();
+      reportChallengeEvent({ type: 'game-won' });
+    }
     setOutcome({
       gameId: recorded?.finished.id ?? null,
       xp,
@@ -273,6 +277,8 @@ export function useGameController() {
     const current = latestState();
     if (!current || !canEndTurn(current) || current.currentPlayer !== 'player1') return;
     haptics.tap();
+    // Hits count once the move is confirmed (undo can't farm them).
+    for (const move of current.turn?.moves ?? []) if (move.hit) reportChallengeEvent({ type: 'hit' });
     setSelected(null);
     dispatch({ type: 'end-turn' });
   };

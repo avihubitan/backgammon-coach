@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
 
+import { usePressScale } from '@/components/fx/usePressScale';
 import { haptics } from '@/services/haptics';
 import { colors, radii } from '@/theme';
 
@@ -62,6 +64,7 @@ export function Button({
     : VARIANTS[variant];
   const metrics = SIZES[size];
   const hasEdge = variant !== 'ghost';
+  const press = usePressScale(0.97);
 
   return (
     <Pressable
@@ -71,15 +74,20 @@ export function Button({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       disabled={disabled || loading}
-      onPressIn={() => haptics.tap()}
+      onPressIn={() => {
+        haptics.tap();
+        press.onPressIn();
+      }}
+      onPressOut={press.onPressOut}
       onPress={onPress}
       style={[fullWidth ? styles.fullWidth : styles.inline, style]}
     >
       {({ pressed }) => {
         const sink = hasEdge && pressed ? metrics.edge - 1 : 0;
         return (
-          <View
+          <Animated.View
             style={[
+              press.style,
               styles.edge,
               {
                 backgroundColor: hasEdge ? palette.edge : 'transparent',
@@ -120,7 +128,7 @@ export function Button({
                 </>
               )}
             </View>
-          </View>
+          </Animated.View>
         );
       }}
     </Pressable>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { Lesson } from '@/curriculum';
+import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { categoryResultsFor, type LessonReward } from '@/features/learning/progressModel';
 import { exerciseXp } from '@/features/learning/progression';
 import { summarizeSession, type LessonOutcome } from '@/features/lessons/engine/session';
@@ -55,6 +56,7 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
           categoryResultsFor(lesson, session.outcomes),
           session.outcomes,
         );
+        if (outcome.passed) reportChallengeEvent({ type: 'lesson-completed', stars: outcome.stars });
         const unlocked = reward.unlockedLessons[0];
         if (unlocked) useCelebrationStore.getState().queueUnlock(unlocked.id);
         setResult({ outcome, reward });
