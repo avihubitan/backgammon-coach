@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 
+import { useGameStore } from './gameStore';
 import { useProgressStore } from './progressStore';
 import { useSettingsStore } from './settingsStore';
 
-const stores = [useProgressStore, useSettingsStore];
+const stores = [useProgressStore, useSettingsStore, useGameStore];
 
 /** True once every persisted store has loaded from storage. */
 export function useHydration(): boolean {

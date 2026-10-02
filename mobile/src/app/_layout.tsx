@@ -64,6 +64,8 @@ export default function RootLayout() {
               name="lesson/[id]"
               options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
             />
+            <Stack.Screen name="game" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+            <Stack.Screen name="review/[id]" options={{ animation: 'slide_from_right' }} />
           </Stack>
         </ThemeProvider>
       </SafeAreaProvider>

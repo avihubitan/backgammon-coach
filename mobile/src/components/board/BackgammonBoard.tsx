@@ -294,6 +294,7 @@ export function BackgammonBoard({
           return (
             <View
               key={`mv-${String(source)}`}
+              testID={`movable-${String(source)}`}
               pointerEvents="none"
               style={[
                 styles.abs,
@@ -342,6 +343,7 @@ export function BackgammonBoard({
           return (
             <Animated.View
               key="t-off"
+              testID="target-off"
               pointerEvents="none"
               style={[
                 styles.abs,
@@ -365,6 +367,7 @@ export function BackgammonBoard({
         return (
           <Animated.View
             key={`t-${to}`}
+            testID={`target-${to}`}
             pointerEvents="none"
             style={[
               styles.abs,
