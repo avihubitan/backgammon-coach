@@ -37,7 +37,9 @@ export function reportChallengeEvent(event: ChallengeEvent) {
   if (!result.completed) return;
   const challenge = getChallenge(result.state.id);
   if (!challenge) return;
-  useProgressStore.getState().awardXp(challenge.xp);
+  useProgressStore.getState().awardXp(challenge.xp, {
+    challengesCompleted: Object.keys(useChallengeStore.getState().completedDays).length,
+  });
   analytics.track('daily_challenge_completed', { challenge_id: challenge.id, xp: challenge.xp });
   useToastStore.getState().show({
     icon: challenge.icon,

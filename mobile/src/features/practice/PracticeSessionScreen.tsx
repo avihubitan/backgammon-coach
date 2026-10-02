@@ -152,8 +152,9 @@ export function PracticeSessionScreen({ kind }: { kind: string }) {
         const outcome = summarizeSteps(session.steps, 0, state);
         const xp = session.steps.reduce((sum, step) => sum + practiceXp(state.outcomes[step.id] ?? EMPTY), 0);
         const progress = useProgressStore.getState();
-        const reward = progress.awardXp(xp);
+        // Count the session first so practice achievements see it.
         progress.recordPracticeSession();
+        const reward = progress.awardXp(xp);
         usePracticeStore.getState().recordSession(kind as PracticeKind, outcome.firstTryCorrect);
         reportChallengeEvent({ type: 'practice-session', category: kind as PracticeKind });
         analytics.track('practice_session_completed', {

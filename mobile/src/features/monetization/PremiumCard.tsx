@@ -42,7 +42,7 @@ export function PremiumCard() {
         <View style={styles.flex}>
           <AppText variant="subheading">Go Premium</AppText>
           <AppText variant="small" color="textSecondary">
-            Unlimited coach reviews and practice built from your own games.
+            Every advanced course, unlimited coach reviews and practice from your own games.
           </AppText>
         </View>
         <Icon name="chevron-right" size={22} color="textMuted" />

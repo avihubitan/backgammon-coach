@@ -38,6 +38,24 @@ describe('applying lesson results', () => {
     expect(reward.unlockedLessons.map((lesson) => lesson.id)).toEqual([third.id]);
   });
 
+  it('unlocks achievements for practice and daily challenges as they happen', () => {
+    const practised = { ...initialProgress(), stats: { ...initialProgress().stats, practiceSessions: 5 } };
+    expect(grantXp(practised, 10, '2026-03-10').reward.newAchievements).toContain('drill-sergeant');
+    const { reward } = grantXp(initialProgress(), 35, '2026-03-10', { challengesCompleted: 5 });
+    expect(reward.newAchievements).toContain('challenger');
+    expect(grantXp(initialProgress(), 35, '2026-03-10', { challengesCompleted: 4 }).reward.newAchievements).not.toContain(
+      'challenger',
+    );
+  });
+
+  it('awards Graduate for finishing the beginner course', () => {
+    const beginner = allLessons.slice(0, allLessons.findIndex((lesson) => lesson.sectionId === 'openings'));
+    let data = initialProgress();
+    for (const lesson of beginner) data = applyLessonResult(data, lesson.id, outcome(), '2026-03-10').data;
+    expect(data.achievements.graduate).toBe('2026-03-10');
+    expect(data.achievements['opening-book']).toBeUndefined();
+  });
+
   it('starts a streak and unlocks the first achievement', () => {
     const { data, reward } = applyLessonResult(initialProgress(), first.id, outcome(), '2026-03-10');
     expect(reward.streak).toBe(1);

@@ -13,6 +13,8 @@ export interface GameAchievementStats {
 export interface AchievementContext {
   progress: ProgressData;
   games?: GameAchievementStats;
+  /** Daily challenges completed recently (the store keeps about two months). */
+  challengesCompleted?: number;
 }
 
 export interface Achievement {
@@ -52,6 +54,20 @@ export const ACHIEVEMENTS: Achievement[] = [
     description: 'Finish the “Meet the Board” section.',
     icon: 'map-check',
     isUnlocked: ({ progress }) => sectionDone(progress, 'board'),
+  },
+  {
+    id: 'graduate',
+    title: 'Graduate',
+    description: 'Finish the beginner course.',
+    icon: 'certificate',
+    isUnlocked: ({ progress }) => sectionDone(progress, 'winning'),
+  },
+  {
+    id: 'opening-book',
+    title: 'Opening Book',
+    description: 'Finish the “Opening Moves” section.',
+    icon: 'book-open-page-variant',
+    isUnlocked: ({ progress }) => sectionDone(progress, 'openings'),
   },
   {
     id: 'perfectionist',
@@ -94,6 +110,27 @@ export const ACHIEVEMENTS: Achievement[] = [
     description: 'Earn 500 XP.',
     icon: 'school',
     isUnlocked: ({ progress }) => progress.xp >= 500,
+  },
+  {
+    id: 'sharp-eye',
+    title: 'Sharp Eye',
+    description: 'Get 50 lesson exercises right on the first try.',
+    icon: 'eye-check-outline',
+    isUnlocked: ({ progress }) => progress.stats.exercisesFirstTry >= 50,
+  },
+  {
+    id: 'drill-sergeant',
+    title: 'Drill Sergeant',
+    description: 'Finish 5 practice sessions.',
+    icon: 'whistle',
+    isUnlocked: ({ progress }) => progress.stats.practiceSessions >= 5,
+  },
+  {
+    id: 'challenger',
+    title: 'Challenger',
+    description: 'Complete 5 daily challenges.',
+    icon: 'calendar-star',
+    isUnlocked: ({ challengesCompleted }) => (challengesCompleted ?? 0) >= 5,
   },
   {
     id: 'first-win',

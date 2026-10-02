@@ -90,7 +90,7 @@ export function useGameController() {
       result: finishedState.result.type,
       points: finishedState.result.points,
     });
-    const reward = useProgressStore.getState().awardXp(xp, useGameStore.getState().stats);
+    const reward = useProgressStore.getState().awardXp(xp, { games: useGameStore.getState().stats });
     if (finishedState.result.winner === 'player1') {
       feedback.lessonComplete();
       reportChallengeEvent({ type: 'game-won' });

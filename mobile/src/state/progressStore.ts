@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { SkillCategory } from '@/curriculum';
-import type { GameAchievementStats } from '@/features/learning/achievements';
+import type { AchievementContext } from '@/features/learning/achievements';
 import { dayKey, type ExerciseResult, type LessonAccess } from '@/features/learning/progression';
 import {
   applyLessonResult,
@@ -26,8 +26,8 @@ interface ProgressActions {
     /** Which lessons the learner can open, so unlocks skip premium ones they can't. */
     canAccess?: LessonAccess,
   ) => LessonReward;
-  /** XP from practice drills, games or challenges. */
-  awardXp: (amount: number, games?: GameAchievementStats) => Reward;
+  /** XP from practice drills, games or challenges, with what achievements need to know about them. */
+  awardXp: (amount: number, context?: Omit<AchievementContext, 'progress'>) => Reward;
   recordPracticeSession: () => void;
   setDailyGoal: (xp: number) => void;
   resetProgress: () => void;
@@ -62,8 +62,8 @@ export const useProgressStore = create<ProgressStore>()(
         return reward;
       },
 
-      awardXp: (amount, games) => {
-        const { data, reward } = grantXp(get(), amount, dayKey(clock()), { games });
+      awardXp: (amount, context = {}) => {
+        const { data, reward } = grantXp(get(), amount, dayKey(clock()), context);
         set(data);
         return reward;
       },

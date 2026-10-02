@@ -9,14 +9,23 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { ToggleRow } from '@/components/ui/Toggle';
+import { curriculum } from '@/curriculum';
 import { ACHIEVEMENTS } from '@/features/learning/achievements';
 import { levelInfo, visibleStreak } from '@/features/learning/progression';
 import { accuracy } from '@/features/learning/progressModel';
 import { PremiumCard } from '@/features/monetization/PremiumCard';
+import { unlockedDrillCategories } from '@/features/practice/practiceModel';
+import { useGameStore } from '@/state/gameStore';
+import { useMistakesStore } from '@/state/mistakesStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { resetAllProgress } from '@/state/resetAll';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, radii, spacing } from '@/theme';
+
+import { GamesCard } from './components/GamesCard';
+import { SkillBreakdown } from './components/SkillBreakdown';
+import { WeeklyXpChart } from './components/WeeklyXpChart';
+import { coachSummary, focusSkill, lastSevenDays, skillRows } from './profileStats';
 
 export function ProfileScreen() {
   const progress = useProgressStore();
@@ -27,6 +36,14 @@ export function ProfileScreen() {
   const completed = records.filter((record) => record.completed).length;
   const mastered = records.filter((record) => record.bestStars === 3).length;
   const unlockedCount = ACHIEVEMENTS.filter((achievement) => progress.achievements[achievement.id]).length;
+  const gameStats = useGameStore((state) => state.stats);
+  const mistakes = useMistakesStore((state) => state.mistakes);
+  const today = todayKey();
+  // Each block appears once there is something real to show.
+  const skills = skillRows(progress.stats.byCategory);
+  const focus = focusSkill(skills);
+  const focusDrillOpen =
+    !!focus?.drill && unlockedDrillCategories(progress.lessons, curriculum).some((info) => info.id === focus.drill);
 
   return (
     <Screen
@@ -52,11 +69,13 @@ export function ProfileScreen() {
 
       <PremiumCard />
 
+      <WeeklyXpChart days={lastSevenDays(progress.xpByDay, today)} goal={progress.dailyGoalXp} />
+
       <AppText variant="label" color="textSecondary">
         Statistics
       </AppText>
       <View style={styles.grid}>
-        <StatTile icon="fire" color={colors.streak} value={visibleStreak(progress.streak, todayKey())} label="Day streak" />
+        <StatTile icon="fire" color={colors.streak} value={visibleStreak(progress.streak, today)} label="Day streak" />
         <StatTile icon="calendar-star" color={colors.streak} value={progress.streak.longest} label="Best streak" />
         <StatTile icon="book-open-variant" color={colors.info} value={completed} label="Lessons done" />
         <StatTile icon="star" color={colors.star} value={mastered} label="Mastered" />
@@ -68,6 +87,24 @@ export function ProfileScreen() {
           label="First-try accuracy"
         />
       </View>
+
+      {skills.length > 0 ? (
+        <>
+          <AppText variant="label" color="textSecondary">
+            Your skills · first-try accuracy
+          </AppText>
+          <SkillBreakdown rows={skills} focus={focus} drillUnlocked={focusDrillOpen} />
+        </>
+      ) : null}
+
+      {gameStats.gamesPlayed > 0 ? (
+        <>
+          <AppText variant="label" color="textSecondary">
+            Games vs computer
+          </AppText>
+          <GamesCard stats={gameStats} coach={mistakes.length > 0 ? coachSummary(mistakes) : null} />
+        </>
+      ) : null}
 
       <View style={styles.sectionTitle}>
         <AppText variant="label" color="textSecondary">
