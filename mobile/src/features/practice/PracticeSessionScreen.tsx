@@ -111,7 +111,7 @@ export function PracticeSessionScreen({ kind, focus }: { kind: string; focus?: s
           {!valid
             ? 'It may have moved in an update.'
             : kind === 'mistakes'
-              ? 'Play a game and review it: positions you got wrong are collected here so you can fix them.'
+              ? 'Play a game: your coach saves the positions you got wrong here, so you can fix them.'
               : `Finish “${section?.title ?? 'the previous section'}” on your path to unlock it.`}
         </AppText>
         <Button label="Back to practice" onPress={() => router.replace('/practice')} />

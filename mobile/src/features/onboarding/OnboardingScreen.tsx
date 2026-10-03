@@ -40,7 +40,9 @@ const PATH: { icon: IconName; label: string; color: string }[] = [
 
 export function OnboardingScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  // Short phones (iPhone SE): tighter spacing so the whole path fits above the button.
+  const compact = height < 740;
   const boardWidth = Math.min(width, MAX_CONTENT_WIDTH) - SCREEN_GUTTER * 2;
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<'active' | 'correct' | 'wrong'>('active');
@@ -106,7 +108,7 @@ export function OnboardingScreen() {
         ) : null}
 
         {page === 1 ? (
-          <Animated.View key="p1" style={[styles.page, fadeUp]}>
+          <Animated.View key="p1" style={[styles.page, compact && styles.pageCompact, fadeUp]}>
             <View style={styles.hero}>
               <AppText variant="display" align="center">
                 Start from zero.{'\n'}Become a real player.
@@ -115,9 +117,9 @@ export function OnboardingScreen() {
                 Short lessons build on each other, one idea at a time.
               </AppText>
             </View>
-            <View style={styles.path}>
+            <View style={[styles.path, compact && styles.pathCompact]}>
               {PATH.map((stop, index) => (
-                <Animated.View key={stop.label} style={[styles.pathRow, riseIn(150 + index * 110)]}>
+                <Animated.View key={stop.label} style={[styles.pathRow, compact && styles.pathRowCompact, riseIn(150 + index * 110)]}>
                   <View style={[styles.pathIcon, { backgroundColor: stop.color }]}>
                     <Icon name={stop.icon} size={22} color="textInverse" />
                   </View>
@@ -244,7 +246,10 @@ const styles = StyleSheet.create({
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: 'center',
   },
+  pageCompact: { gap: spacing.xl, paddingTop: spacing.lg },
   hero: { alignItems: 'center', gap: spacing.md },
+  pathCompact: { gap: spacing.sm },
+  pathRowCompact: { paddingVertical: spacing.sm },
   path: { gap: spacing.md, alignSelf: 'stretch', paddingHorizontal: spacing.xl },
   pathRow: {
     flexDirection: 'row',

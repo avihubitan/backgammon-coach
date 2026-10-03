@@ -86,8 +86,6 @@ export function ProfileScreen() {
         </View>
       </Card>
 
-      <PremiumCard />
-
       <WeeklyXpChart days={lastSevenDays(progress.xpByDay, today)} goal={progress.dailyGoalXp} />
 
       <AppText variant="label" color="textSecondary">
@@ -125,6 +123,8 @@ export function ProfileScreen() {
           <PlayQualityCard trend={trend} pending={pendingReviews(finishedGames)} premium={access.canAnalyzeGame()} />
         </>
       ) : null}
+
+      <PremiumCard />
 
       <View style={styles.sectionTitle}>
         <AppText variant="label" color="textSecondary">

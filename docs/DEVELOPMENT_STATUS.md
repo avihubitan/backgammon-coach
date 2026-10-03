@@ -23,7 +23,8 @@ What remains is mostly outside the code (accounts, store setup, physical-device 
   review shows what could have happened (shots; winning chances with Premium) and "Practise this
   position"; Coach's pick ranks recent patterns and weak skills and has a "done for today" state.
 - **Accessibility:** board points described for screen readers; text scales up to 1.6×.
-- **Small screens:** the game board narrows on short screens so coach messages fit.
+- **Small screens:** the game board narrows on short screens so coach messages fit; onboarding's
+  path fits above the button on an iPhone SE; Profile shows progress before the Premium card.
 - **Backend:** requires MongoDB in production, `TRUST_PROXY`, DB-pinging health check, Dockerfile.
 - **Docs:** README for new developers, release checklist with privacy model and device test list.
 
@@ -33,8 +34,6 @@ What remains is mostly outside the code (accounts, store setup, physical-device 
 2. Store and RevenueCat setup (sections 2–4), then a TestFlight / internal-testing build.
 3. Pick a crash reporter and an analytics vendor; update the privacy model when they're connected.
 4. A backup deletion endpoint before public launch.
-5. Polish candidates from the audit: Profile shows "Go Premium" second for brand-new players;
-   onboarding's path list needs a scroll on the smallest phones.
 
 ### Known blockers outside the code
 - EAS project (`eas init`), Apple Developer and Play Console accounts, store products, RevenueCat
