@@ -16,6 +16,7 @@ export async function createApp(config: AppConfig): Promise<NestExpressApplicati
   app.setGlobalPrefix('v1');
   app.enableCors({ origin: config.corsOrigins.length > 0 ? config.corsOrigins : false });
   app.disable('x-powered-by');
+  if (config.trustProxy !== false) app.set('trust proxy', config.trustProxy);
   app.enableShutdownHooks();
   return app;
 }

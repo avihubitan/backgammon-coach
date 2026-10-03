@@ -31,6 +31,10 @@ export interface ProgressRepository {
   put(accountId: string, baseRevision: number, snapshot: Record<string, unknown>, now: Date): Promise<PutResult>;
 }
 
+/** Checks the storage can be reached (for the health check). */
+export const STORAGE_PING = Symbol('STORAGE_PING');
+export type StoragePing = () => Promise<boolean>;
+
 export const ACCOUNT_REPOSITORY = Symbol('ACCOUNT_REPOSITORY');
 export const PROGRESS_REPOSITORY = Symbol('PROGRESS_REPOSITORY');
 /** 'memory' or 'mongo', for the health check. */

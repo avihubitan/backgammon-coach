@@ -4,7 +4,7 @@ import { MongoClient } from 'mongodb';
 import type { AppConfig } from '../config';
 import { MemoryAccountRepository, MemoryProgressRepository } from './memory.repositories';
 import { MongoAccountRepository, MongoProgressRepository } from './mongo.repositories';
-import { ACCOUNT_REPOSITORY, PROGRESS_REPOSITORY, STORAGE_KIND } from './repositories';
+import { ACCOUNT_REPOSITORY, PROGRESS_REPOSITORY, STORAGE_KIND, STORAGE_PING, type StoragePing } from './repositories';
 
 const MONGO_CLIENT = Symbol('MONGO_CLIENT');
 
@@ -62,9 +62,22 @@ export class StorageModule {
             client ? new MongoProgressRepository(client.db(config.mongoDb)) : new MemoryProgressRepository(),
           inject: [MONGO_CLIENT],
         },
+        {
+          provide: STORAGE_PING,
+          useFactory: (client: MongoClient | null): StoragePing => async () => {
+            if (!client) return true;
+            try {
+              await client.db(config.mongoDb).command({ ping: 1 });
+              return true;
+            } catch {
+              return false;
+            }
+          },
+          inject: [MONGO_CLIENT],
+        },
         MongoLifecycle,
       ],
-      exports: [ACCOUNT_REPOSITORY, PROGRESS_REPOSITORY, STORAGE_KIND],
+      exports: [ACCOUNT_REPOSITORY, PROGRESS_REPOSITORY, STORAGE_KIND, STORAGE_PING],
     };
   }
 }
