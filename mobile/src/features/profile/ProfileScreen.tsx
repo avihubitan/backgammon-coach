@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
@@ -20,8 +20,9 @@ import { useMistakesStore } from '@/state/mistakesStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { resetAllProgress } from '@/state/resetAll';
 import { useSettingsStore } from '@/state/settingsStore';
-import { colors, radii, spacing } from '@/theme';
+import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
+import { BoardStylePicker } from './components/BoardStylePicker';
 import { CloudBackupCard } from './components/CloudBackupCard';
 import { GamesCard } from './components/GamesCard';
 import { SkillBreakdown } from './components/SkillBreakdown';
@@ -38,6 +39,9 @@ export function ProfileScreen() {
   const mastered = records.filter((record) => record.bestStars === 3).length;
   const unlockedCount = ACHIEVEMENTS.filter((achievement) => progress.achievements[achievement.id]).length;
   const gameStats = useGameStore((state) => state.stats);
+  const { width: windowWidth } = useWindowDimensions();
+  // Two style previews per row, inside the card padding and border.
+  const previewWidth = Math.floor((Math.min(windowWidth, MAX_CONTENT_WIDTH) - SCREEN_GUTTER * 2 - spacing.sm) / 2 - spacing.sm * 2 - 4);
   const mistakes = useMistakesStore((state) => state.mistakes);
   const today = todayKey();
   // Each block appears once there is something real to show.
@@ -137,6 +141,11 @@ export function ProfileScreen() {
           );
         })}
       </View>
+
+      <AppText variant="label" color="textSecondary">
+        Board style
+      </AppText>
+      <BoardStylePicker previewWidth={previewWidth} />
 
       <CloudBackupCard />
 

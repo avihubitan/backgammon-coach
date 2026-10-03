@@ -66,6 +66,8 @@ export interface AnalyticsEvents {
   backup_enabled: { restored: boolean };
   backup_disabled: Record<string, never>;
   backup_failed: { action: 'enable' | 'restore' | 'sync'; status: number | null };
+
+  board_style_selected: { style: string };
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

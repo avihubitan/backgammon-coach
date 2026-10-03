@@ -3,7 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import type { DieValue, Player } from '@/game';
-import { boardColors } from '@/theme';
+
+import { useBoardPalette } from './palette';
 
 const PIPS: Record<DieValue, [number, number][]> = {
   1: [[1, 1]],
@@ -22,6 +23,7 @@ interface DieFaceProps {
 }
 
 export function DieFace({ value, size, player = 'player1', used = false }: DieFaceProps) {
+  const boardColors = useBoardPalette();
   const light = player === 'player1';
   const pip = size * 0.18;
   const pad = size * 0.17;

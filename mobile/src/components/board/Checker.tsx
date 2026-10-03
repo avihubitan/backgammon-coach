@@ -1,7 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
 import type { Player } from '@/game';
-import { boardColors } from '@/theme';
+
+import { useBoardPalette } from './palette';
 
 interface CheckerFaceProps {
   player: Player;
@@ -10,6 +11,7 @@ interface CheckerFaceProps {
 
 /** A turned-wood style checker: rim, face, inner ring and a soft highlight. */
 export function CheckerFace({ player, size }: CheckerFaceProps) {
+  const boardColors = useBoardPalette();
   const light = player === 'player1';
   const face = light ? boardColors.lightCheckerFace : boardColors.darkCheckerFace;
   const rim = light ? boardColors.lightCheckerRim : boardColors.darkCheckerRim;
@@ -64,6 +66,7 @@ export function CheckerFace({ player, size }: CheckerFaceProps) {
 
 /** Side view of a borne-off checker in the tray. */
 export function CheckerSlab({ player, width, height }: { player: Player; width: number; height: number }) {
+  const boardColors = useBoardPalette();
   const light = player === 'player1';
   return (
     <View

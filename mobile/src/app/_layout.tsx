@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
+import { BoardThemeProvider } from '@/features/settings/BoardThemeProvider';
 import { installNetwork, loadDefaultNetwork } from '@/game';
 import { analytics, startAnalyticsSession } from '@/services/analytics';
 import { soundBank } from '@/services/feedback';
@@ -71,26 +72,28 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaProvider>
         <ThemeProvider value={navigationTheme}>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.bg },
-              animation: 'fade',
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-            <Stack.Screen
-              name="lesson/[id]"
-              options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
-            />
-            <Stack.Screen name="game" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-            <Stack.Screen name="review/[id]" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="practice/[kind]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-            <Stack.Screen name="paywall" options={{ animation: 'slide_from_bottom' }} />
-          </Stack>
-          <ToastHost />
+          <BoardThemeProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.bg },
+                animation: 'fade',
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+              <Stack.Screen
+                name="lesson/[id]"
+                options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
+              />
+              <Stack.Screen name="game" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+              <Stack.Screen name="review/[id]" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="practice/[kind]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+              <Stack.Screen name="paywall" options={{ animation: 'slide_from_bottom' }} />
+            </Stack>
+            <ToastHost />
+          </BoardThemeProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

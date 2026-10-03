@@ -1,4 +1,5 @@
 import { getLesson, getSection } from '@/curriculum';
+import { getBoardTheme } from '@/theme/boardThemes';
 
 import type { Entitlements } from './entitlements';
 
@@ -22,6 +23,8 @@ export interface FeatureAccess {
   canAnalyzeGame(): boolean;
   /** Practising your own mistakes and other advanced training. */
   canUseAdvancedTraining(): boolean;
+  /** Board styles: free ones for everyone, the rest with Premium. Purely cosmetic. */
+  canUseBoardTheme(themeId: string): boolean;
 }
 
 export interface AccessPolicy {
@@ -76,6 +79,9 @@ export function createFeatureAccess(
     },
     canUseAdvancedTraining() {
       return entitlements.hasAdvancedTraining;
+    },
+    canUseBoardTheme(themeId) {
+      return getBoardTheme(themeId).tier === 'free' || !!entitlements.hasCosmetics;
     },
   };
 }

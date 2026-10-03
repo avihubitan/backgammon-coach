@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import { analytics, newAnalyticsId } from '@/services/analytics';
 import { configureFeedback } from '@/services/feedback';
+import { DEFAULT_BOARD_THEME, type BoardThemeId } from '@/theme/boardThemes';
 
 import { persistStorage } from './storage';
 
@@ -21,6 +22,8 @@ export interface SettingsData {
   analytics: boolean;
   /** Random id for this install, used only to group anonymous analytics. */
   installId: string;
+  /** Board style (cosmetic). */
+  boardTheme: BoardThemeId;
 }
 
 interface SettingsActions {
@@ -36,6 +39,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   showTechnicalStats: false,
   analytics: true,
   installId: '',
+  boardTheme: DEFAULT_BOARD_THEME,
 };
 
 const pickSettings = (state: SettingsData): SettingsData => ({
@@ -47,6 +51,7 @@ const pickSettings = (state: SettingsData): SettingsData => ({
   showTechnicalStats: state.showTechnicalStats,
   analytics: state.analytics,
   installId: state.installId,
+  boardTheme: state.boardTheme,
 });
 
 function apply(settings: SettingsData) {
@@ -67,10 +72,10 @@ export const useSettingsStore = create<SettingsData & SettingsActions>()(
     }),
     {
       name: 'bg-coach/settings',
-      version: 3,
+      version: 4,
       storage: persistStorage,
       partialize: (state): SettingsData => pickSettings(state),
-      // Older versions had no sound, music or analytics settings.
+      // Older versions had no sound, music, analytics or board style settings.
       migrate: (persisted) => ({ ...DEFAULT_SETTINGS, ...(persisted as Partial<SettingsData>) }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

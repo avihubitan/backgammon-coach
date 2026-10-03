@@ -33,6 +33,7 @@ import { boardColors, colors, fontFamilies } from '@/theme';
 import { AnimatedChecker } from './AnimatedChecker';
 import { BoardArt } from './BoardArt';
 import { CheckerFace } from './Checker';
+import { useBoardPalette } from './palette';
 import { RollingDie } from './Die';
 import {
   barRect,
@@ -251,6 +252,7 @@ export function BackgammonBoard({
   testID,
 }: BackgammonBoardProps) {
   const m = computeMetrics(width);
+  const palette = useBoardPalette();
   const boardKey = positionKey(board);
   const reduceMotion = useReducedMotion();
 
@@ -538,6 +540,7 @@ export function BackgammonBoard({
                   left: columnCenterX(m, point) - 12,
                   top: isTopPoint(point) ? (m.frameY - 12) / 2 : m.innerBottom + (m.frameY - 12) / 2,
                   fontSize: Math.max(8, Math.min(11, m.col * 0.36)),
+                  color: palette.frameNumber,
                 },
                 { pointerEvents: 'none' },
               ]}
@@ -739,7 +742,7 @@ export function BackgammonBoard({
             gravity={m.checker * 0.6}
             duration={520}
             shapes={['spark', 'circle']}
-            colors={['#FFE6A8', '#FFFFFF', impact.victim === 'player1' ? boardColors.lightCheckerFace : '#8E8A96']}
+            colors={['#FFE6A8', '#FFFFFF', impact.victim === 'player1' ? palette.lightCheckerFace : palette.darkCheckerRing]}
             seed={impact.id.length + updateId}
           />
         </View>

@@ -53,6 +53,7 @@ export const PREMIUM_BENEFITS: { icon: string; title: string; text: string }[] =
   { icon: 'auto-fix', title: 'Practise your own mistakes', text: 'Positions you got wrong come back until you get them right.' },
   { icon: 'chart-line', title: 'Advanced analysis', text: 'Win chances and equity behind every coaching tip.' },
   { icon: 'book-open-page-variant', title: 'Advanced courses', text: 'The middle game, racing, the doubling cube and advanced strategy.' },
+  { icon: 'palette', title: 'Board styles', text: 'Play on the Midnight and Royal boards. Purely cosmetic.' },
 ];
 
 /** What stays free for everyone: the promise that keeps the paywall honest. */

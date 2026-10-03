@@ -7,6 +7,8 @@ export interface Entitlements {
   hasAiCoach: boolean;
   hasAdvancedAnalysis: boolean;
   hasAdvancedTraining: boolean;
+  /** Premium board styles (cosmetic only). */
+  hasCosmetics: boolean;
   source: 'free' | 'subscription' | 'lifetime';
   productId: ProductId | null;
   /** ISO date when access ends (null for free or lifetime). */
@@ -21,6 +23,7 @@ export const FREE_ENTITLEMENTS: Entitlements = {
   hasAiCoach: false,
   hasAdvancedAnalysis: false,
   hasAdvancedTraining: false,
+  hasCosmetics: false,
   source: 'free',
   productId: null,
   expiresAt: null,
@@ -44,6 +47,7 @@ export function entitlementsFor(purchase: ActivePurchase | null, now: Date = new
     hasAiCoach: true,
     hasAdvancedAnalysis: true,
     hasAdvancedTraining: true,
+    hasCosmetics: true,
     source: purchase.period === 'lifetime' ? 'lifetime' : 'subscription',
     productId: purchase.productId,
     expiresAt: purchase.expiresAt,

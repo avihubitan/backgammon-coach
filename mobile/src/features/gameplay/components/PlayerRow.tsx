@@ -3,7 +3,8 @@ import Animated from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
-import { boardColors, colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
+import { useBoardPalette } from '@/components/board/palette';
+import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 interface PlayerRowProps {
   name: string;
@@ -17,12 +18,13 @@ interface PlayerRowProps {
 }
 
 export function PlayerRow({ name, light, pips, borneOff, score, active, thinking, ownsCube }: PlayerRowProps) {
+  const palette = useBoardPalette();
   return (
     <View style={styles.row} accessibilityLabel={`${name}: ${pips} pips, ${borneOff} borne off`}>
       <View
         style={[
           styles.chip,
-          { backgroundColor: light ? boardColors.lightCheckerFace : boardColors.darkCheckerFace },
+          { backgroundColor: light ? palette.lightCheckerFace : palette.darkCheckerFace },
           active && styles.chipActive,
         ]}
       />
