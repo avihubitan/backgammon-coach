@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,8 +8,11 @@ import { ParticleBurst } from '@/components/fx/ParticleBurst';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { isPersonalBest, moveQuality, qualityBand } from '@/features/coach/playQuality';
+import { BAND_COLOR } from '@/features/coach/qualityStyle';
 import { getAchievement } from '@/features/learning/achievements';
 import type { GameResult, MatchScore } from '@/game';
+import { useGameStore } from '@/state/gameStore';
 import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 import type { GameOutcome } from '../useGameController';
@@ -123,6 +126,7 @@ export function GameResultSheet({
               </AppText>
             </View>
           </View>
+          {outcome.gameId ? <MoveQualityLine gameId={outcome.gameId} /> : null}
           {isMatch ? (
             <AppText variant="heading" align="center">
               You {match.player1} – {match.player2} Computer
@@ -188,7 +192,74 @@ export function GameResultSheet({
   );
 }
 
+/** The coach's quick verdict, as soon as the background review is done. */
+function MoveQualityLine({ gameId }: { gameId: string }) {
+  const finished = useGameStore((store) => store.finished);
+  const game = finished.find((entry) => entry.id === gameId);
+  const review = game?.review;
+  const quality = review ? moveQuality(review) : null;
+  // Nothing to score: no moves (resigned at once) or too few real decisions.
+  if (!game || game.history.length === 0 || (review && quality === null)) return null;
+  if (quality === null) {
+    return (
+      <View style={styles.quality}>
+        <ActivityIndicator size="small" color={colors.textMuted} />
+        <AppText variant="small" color="textSecondary">
+          Your coach is scoring your moves…
+        </AppText>
+      </View>
+    );
+  }
+  const band = qualityBand(quality);
+  const best = isPersonalBest(finished, gameId);
+  return (
+    <View style={styles.qualityBlock}>
+      <Animated.View
+        testID="result-quality"
+        accessibilityLabel={`Move quality ${quality} out of 100, ${band.label}`}
+        style={[styles.quality, pop(0)]}
+      >
+        <Icon name="school" size={18} color={colors.info} />
+        <AppText variant="smallStrong">Move quality {quality}</AppText>
+        <AppText variant="smallStrong" color={BAND_COLOR[band.band]}>
+          · {band.label}
+        </AppText>
+      </Animated.View>
+      {best ? (
+        <Animated.View testID="result-personal-best" style={[styles.best, pop(260)]}>
+          <Icon name="star-shooting" size={16} color={colors.star} />
+          <AppText variant="caption" color="star">
+            New personal best!
+          </AppText>
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
+
+const pop = (delay: number) => ({
+  animationName: {
+    '0%': { opacity: 0, transform: [{ scale: 0.8 }] },
+    '70%': { opacity: 1, transform: [{ scale: 1.06 }] },
+    '100%': { opacity: 1, transform: [{ scale: 1 }] },
+  },
+  animationDuration: 320,
+  animationDelay: delay,
+  animationFillMode: 'backwards' as const,
+});
+
 const styles = StyleSheet.create({
+  qualityBlock: { alignItems: 'center', gap: spacing.xs },
+  quality: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: 24 },
+  best: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoft,
+  },
   backdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,

@@ -21,7 +21,9 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 - **Play:** three computer levels. The advanced level is a TD-Gammon-style network trained on 300,000
   self-play games (`scripts/train-network.ts`); the gentler levels use a heuristic.
 - **Coach:**
-  - Reviews every game and explains the biggest mistakes in plain words.
+  - Reviews every game in the background and explains the biggest mistakes in plain words.
+  - Scores each game's move quality (0 to 100: how close your moves came to the best ones) and shows
+    whether it is rising, game by game.
   - Mistakes are saved and come back as practice until you fix them twice.
 - **Practice:** skill drills, a daily challenge, and lesson replays.
 - **Progress:** XP and levels, stars, a streak, a daily goal and achievements. Everything is stored
@@ -40,7 +42,8 @@ Premium adds:
 - the rest of the advanced courses (Middle Game, Racing, Doubling Cube, Advanced Strategy);
 - unlimited coach reviews;
 - mistake practice;
-- the numbers behind each tip.
+- the numbers behind each tip, and your move-quality trend;
+- two extra board styles (cosmetic only).
 
 There is no paywall on first launch and nothing pay-to-win. One file decides access:
 `features/monetization/access.ts`. Screens ask `FeatureAccess`; they never check products or prices

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -10,10 +10,13 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { ToggleRow } from '@/components/ui/Toggle';
 import { curriculum } from '@/curriculum';
+import { pendingReviews, qualityTrend } from '@/features/coach/playQuality';
+import { reviewPendingGames } from '@/features/coach/reviewQueue';
 import { ACHIEVEMENTS } from '@/features/learning/achievements';
 import { levelInfo, visibleStreak } from '@/features/learning/progression';
 import { accuracy } from '@/features/learning/progressModel';
 import { PremiumCard } from '@/features/monetization/PremiumCard';
+import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useGameStore } from '@/state/gameStore';
 import { useMistakesStore } from '@/state/mistakesStore';
@@ -25,6 +28,7 @@ import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/them
 import { BoardStylePicker } from './components/BoardStylePicker';
 import { CloudBackupCard } from './components/CloudBackupCard';
 import { GamesCard } from './components/GamesCard';
+import { PlayQualityCard } from './components/PlayQualityCard';
 import { SkillBreakdown } from './components/SkillBreakdown';
 import { WeeklyXpChart } from './components/WeeklyXpChart';
 import { coachSummary, focusSkill, lastSevenDays, skillRows } from './profileStats';
@@ -39,6 +43,8 @@ export function ProfileScreen() {
   const mastered = records.filter((record) => record.bestStars === 3).length;
   const unlockedCount = ACHIEVEMENTS.filter((achievement) => progress.achievements[achievement.id]).length;
   const gameStats = useGameStore((state) => state.stats);
+  const finishedGames = useGameStore((state) => state.finished);
+  const access = useFeatureAccess();
   const { width: windowWidth } = useWindowDimensions();
   // Two style previews per row, inside the card padding and border.
   const previewWidth = Math.floor((Math.min(windowWidth, MAX_CONTENT_WIDTH) - SCREEN_GUTTER * 2 - spacing.sm) / 2 - spacing.sm * 2 - 4);
@@ -47,6 +53,13 @@ export function ProfileScreen() {
   // Each block appears once there is something real to show.
   const skills = skillRows(progress.stats.byCategory);
   const focus = focusSkill(skills);
+  const trend = qualityTrend(finishedGames);
+
+  // Games finished before background reviews existed get reviewed here, for the trend.
+  useEffect(() => {
+    void reviewPendingGames();
+  }, []);
+
   const focusDrillOpen =
     !!focus?.drill && unlockedDrillCategories(progress.lessons, curriculum).some((info) => info.id === focus.drill);
 
@@ -108,6 +121,7 @@ export function ProfileScreen() {
             Games vs computer
           </AppText>
           <GamesCard stats={gameStats} coach={mistakes.length > 0 ? coachSummary(mistakes) : null} />
+          <PlayQualityCard trend={trend} pending={pendingReviews(finishedGames)} premium={access.canAnalyzeGame()} />
         </>
       ) : null}
 

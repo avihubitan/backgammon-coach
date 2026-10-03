@@ -51,7 +51,7 @@ export function productConfig(id: ProductId): ProductConfig | undefined {
 export const PREMIUM_BENEFITS: { icon: string; title: string; text: string }[] = [
   { icon: 'school', title: 'Unlimited coach reviews', text: 'A full move-by-move review of every game, explained in plain words.' },
   { icon: 'auto-fix', title: 'Practise your own mistakes', text: 'Positions you got wrong come back until you get them right.' },
-  { icon: 'chart-line', title: 'Advanced analysis', text: 'Win chances and equity behind every coaching tip.' },
+  { icon: 'chart-line', title: 'Advanced analysis', text: 'Win chances behind every tip, and your move quality game by game.' },
   { icon: 'book-open-page-variant', title: 'Advanced courses', text: 'The middle game, racing, the doubling cube and advanced strategy.' },
   { icon: 'palette', title: 'Board styles', text: 'Play on the Midnight and Royal boards. Purely cosmetic.' },
 ];

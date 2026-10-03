@@ -18,6 +18,7 @@ import {
   type MoveSource,
 } from '@/game';
 import { MOVE_STEP_MS } from '@/components/board/motion';
+import { scheduleReviews } from '@/features/coach/reviewQueue';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { analytics } from '@/services/analytics';
 import { feedback } from '@/services/feedback';
@@ -74,6 +75,8 @@ export function useGameController() {
     if (recordedFor.current === key) return;
     recordedFor.current = key;
     const recorded = useGameStore.getState().finishGame();
+    // The coach reviews the game in the background (move quality, mistakes to practise).
+    scheduleReviews();
     const xp = gameXp(game.settings.level, finishedState.result);
     const won = finishedState.result.winner === 'player1';
     analytics.track('game_completed', {

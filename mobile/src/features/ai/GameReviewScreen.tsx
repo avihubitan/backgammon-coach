@@ -47,6 +47,8 @@ export function GameReviewScreen({
   const game = useGameStore((store) => store.finished.find((entry) => entry.id === gameId));
   const saveReview = useGameStore((store) => store.saveReview);
   const addMistakes = useMistakesStore((store) => store.addFromReview);
+  // Usually saved by the background review before this screen opens.
+  const saved = useMistakesStore((store) => store.mistakes.filter((mistake) => mistake.gameId === gameId).length);
   const technicalSetting = useSettingsStore((store) => store.showTechnicalStats);
   const access = useFeatureAccess();
   const unlockReview = useEntitlementsStore((store) => store.unlockReview);
@@ -57,7 +59,6 @@ export function GameReviewScreen({
   const [selected, setSelected] = useState<number | null>(null);
   const [showBest, setShowBest] = useState(true);
   const [onlyMistakes, setOnlyMistakes] = useState(false);
-  const [saved, setSaved] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const review = game?.review;
 
@@ -79,7 +80,7 @@ export function GameReviewScreen({
     const timer = setTimeout(() => {
       const result = reviewGame(game.history, 'player1');
       saveReview(game.id, result);
-      setSaved(addMistakes(game.id, result));
+      addMistakes(game.id, result);
     }, 60);
     return () => clearTimeout(timer);
   }, [game, saveReview, addMistakes]);
