@@ -53,13 +53,25 @@ docker run -p 3000:3000 -e MONGODB_URI="mongodb+srv://…" -e TRUST_PROXY=1 back
 ```
 
 - **Database:** a managed MongoDB (for example Atlas) with backups enabled. The API creates its
-  indexes at startup.
+  indexes at startup. When the database can't be reached, requests fail after 5 seconds and the
+  health check answers 503 within 3 seconds; the API recovers on its own when it comes back.
 - **Behind a load balancer:** set `TRUST_PROXY` to the number of proxies (usually 1), otherwise
-  every client shares one rate limit.
-- **Health:** point the platform's health check at `/v1/health`.
+  every client shares one rate limit. Don't set it without a proxy: clients could then choose
+  their own address. Rate limits are kept per instance, in memory.
+- **Health:** point the platform's health check at `/v1/health`. The image also has a Docker
+  `HEALTHCHECK`.
 - **Secrets:** only `MONGODB_URI`. Backup codes are never stored, only their hashes; logs contain
   no codes or progress.
-- **Logs:** Nest's logger to stdout (start-up, storage choice, errors).
+- **Logs:** JSON lines on stdout in production: start-up, one line per request (method, path,
+  status, duration; no IP addresses, headers or bodies; successful health checks are skipped) and
+  errors.
+
+**Checked with Docker** (image built from this Dockerfile, MongoDB 7 in a second container): the
+image runs as the non-root `node` user and turns healthy; accounts, uploads, conflicts (409) and
+reads work against MongoDB and survive restarting the API; oversized uploads get 413 and the sixth
+account in a minute 429; stopping MongoDB gives 503 from `/v1/health` and starting it again
+recovers; without `MONGODB_URI` the container refuses to start; `docker stop` exits at once.
+Not checked yet: a managed MongoDB (TLS, `mongodb+srv`), a real HTTPS domain, a hosting platform.
 
 ## Checks
 

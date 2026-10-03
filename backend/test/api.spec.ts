@@ -93,6 +93,16 @@ describe('Backgammon Coach API', () => {
     }
   });
 
+  it('answers malformed JSON with 400', async () => {
+    const { code } = await newAccount();
+    await http()
+      .put('/v1/progress')
+      .set('Authorization', `Bearer ${code}`)
+      .set('Content-Type', 'application/json')
+      .send('{"baseRevision": 0, "snap')
+      .expect(400);
+  });
+
   it('refuses oversized uploads', async () => {
     const { code } = await newAccount();
     const huge = { ...snapshot(1), padding: 'x'.repeat(600 * 1024) };

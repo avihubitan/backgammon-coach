@@ -1,12 +1,17 @@
 import { Global, Inject, Logger, Module, type DynamicModule, type OnApplicationShutdown } from '@nestjs/common';
 import { MongoClient } from 'mongodb';
 
+import { withTimeout } from '../common/timeout';
 import type { AppConfig } from '../config';
 import { MemoryAccountRepository, MemoryProgressRepository } from './memory.repositories';
 import { MongoAccountRepository, MongoProgressRepository } from './mongo.repositories';
 import { ACCOUNT_REPOSITORY, PROGRESS_REPOSITORY, STORAGE_KIND, STORAGE_PING, type StoragePing } from './repositories';
 
 const MONGO_CLIENT = Symbol('MONGO_CLIENT');
+/** How long a request waits for an unreachable database before failing (the driver's default is 30 s). */
+const SERVER_SELECTION_TIMEOUT_MS = 5_000;
+/** The health check answers within this, even while the database hangs. */
+const PING_TIMEOUT_MS = 3_000;
 
 /** Closes the MongoDB connection when the app shuts down. */
 class MongoLifecycle implements OnApplicationShutdown {
@@ -36,7 +41,7 @@ export class StorageModule {
               logger.warn('MONGODB_URI is not set: keeping data in memory. Do not use this in production.');
               return null;
             }
-            const client = new MongoClient(config.mongoUri);
+            const client = new MongoClient(config.mongoUri, { serverSelectionTimeoutMS: SERVER_SELECTION_TIMEOUT_MS });
             await client.connect();
             return client;
           },
@@ -66,12 +71,12 @@ export class StorageModule {
           provide: STORAGE_PING,
           useFactory: (client: MongoClient | null): StoragePing => async () => {
             if (!client) return true;
-            try {
-              await client.db(config.mongoDb).command({ ping: 1 });
-              return true;
-            } catch {
-              return false;
-            }
+            const ping = client
+              .db(config.mongoDb)
+              .command({ ping: 1 })
+              .then(() => true)
+              .catch(() => false);
+            return withTimeout(ping, PING_TIMEOUT_MS, false);
           },
           inject: [MONGO_CLIENT],
         },
