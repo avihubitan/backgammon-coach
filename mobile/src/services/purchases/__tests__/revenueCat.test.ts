@@ -7,6 +7,7 @@ import {
   productIdFor,
   RevenueCatSubscriptionService,
   type RevenueCatSdk,
+  usableApiKey,
 } from '../revenueCatProvider';
 
 const pkg = (
@@ -196,5 +197,16 @@ describe('entitlements from RevenueCat', () => {
     expect(effectiveEntitlements(premium, new Date(end + (OFFLINE_GRACE_DAYS + 1) * day))).toEqual(FREE_ENTITLEMENTS);
     const lifetime = entitlementsFromCustomerInfo(info({ expirationDate: null }));
     expect(effectiveEntitlements(lifetime, new Date('2040-01-01'))).toBe(lifetime);
+  });
+});
+
+describe('RevenueCat key', () => {
+  it('keeps Test Store keys out of store builds', () => {
+    expect(usableApiKey('test_abc', 'development')).toBe('test_abc');
+    expect(usableApiKey('test_abc', 'preview')).toBe('test_abc');
+    expect(usableApiKey('test_abc', 'production')).toBeNull();
+    expect(usableApiKey(' appl_abc ', 'production')).toBe('appl_abc');
+    expect(usableApiKey('', 'production')).toBeNull();
+    expect(usableApiKey(undefined, 'development')).toBeNull();
   });
 });

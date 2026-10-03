@@ -23,6 +23,19 @@ import type { PurchaseResult, StoreProduct, SubscriptionService } from './types'
  */
 export const PREMIUM_ENTITLEMENT = 'premium';
 
+/**
+ * The SDK key a build may use. RevenueCat's Test Store keys (`test_…`) make
+ * purchases that cost nothing: fine in development and preview builds, never
+ * in a store build, where it would give Premium away (the paywall then says
+ * Premium isn't on sale instead).
+ */
+export function usableApiKey(key: string | undefined, variant: string): string | null {
+  const trimmed = key?.trim();
+  if (!trimmed) return null;
+  if (variant === 'production' && trimmed.startsWith('test_')) return null;
+  return trimmed;
+}
+
 /** The part of the RevenueCat SDK used here (lets tests pass a fake). */
 export interface RevenueCatSdk {
   configure(configuration: PurchasesConfiguration): void;
