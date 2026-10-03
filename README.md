@@ -184,6 +184,9 @@ The engine (`game/`) is deterministic and fully tested. The network weights are 
 
 - `train-network`: trains the TD network by self-play.
 - `benchmark-ai`: plays the levels against each other and grades the coach.
+- `benchmark-speed`: times the engine work done on the JavaScript thread (computer moves, Coach
+  Watch, hints, cube decisions, reviews). Bundled with esbuild, it also runs under a Hermes CLI,
+  which interprets like the phones do.
 - `generate-sounds`: renders the sound effects and music.
 
 ## Curriculum

@@ -145,6 +145,9 @@ export function GameReviewScreen({
   // What each move leads to (only worked out for the move on screen).
   const outcome = current && current.severity !== 'best' && current.severity !== 'fine' ? moveOutcome(current) : null;
   // The shots line, unless the explanation already compares them.
+  // Winning chances only when the coach's move wins more often: when the difference is
+  // about gammons instead, two near-equal percentages would only confuse.
+  const showWinChances = !!outcome && Math.round(outcome.winChance.best * 100) > Math.round(outcome.winChance.played * 100);
   const showShots =
     !!outcome &&
     outcome.shots.played > outcome.shots.best &&
@@ -246,7 +249,7 @@ export function GameReviewScreen({
               <AppText variant="body" color="textSecondary">
                 {current.explanation}
               </AppText>
-              {outcome && (showShots || access.canAnalyzeGame()) ? (
+              {outcome && (showShots || (showWinChances && access.canAnalyzeGame())) ? (
                 <View style={styles.outcomes} testID="review-outcome">
                   {showShots ? (
                     <View style={styles.outcomeRow}>
@@ -256,7 +259,7 @@ export function GameReviewScreen({
                       </AppText>
                     </View>
                   ) : null}
-                  {access.canAnalyzeGame() ? (
+                  {access.canAnalyzeGame() && showWinChances ? (
                     <View style={styles.outcomeRow}>
                       <Icon name="chart-line" size={16} color={colors.info} />
                       <AppText variant="small" color="textSecondary" style={styles.flex}>

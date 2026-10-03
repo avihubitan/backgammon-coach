@@ -5,7 +5,7 @@ import { formatPlay } from '../moves/notation';
 import { applyPlay, hasBorneOffAll } from '../rules/movement';
 import type { BoardState, CheckerMove, Player } from '../types';
 
-import { equityAfterMove, hasNetwork, rankByEquity, winChanceOnRoll } from './engine';
+import { equityAfterMove, hasNetwork, rankByEquity, winChanceOnRoll, winProbabilityAfterMove } from './engine';
 import { extractFeatures } from './evaluate';
 
 /**
@@ -316,11 +316,11 @@ export interface MoveOutcome {
 }
 
 export function moveOutcome(move: Pick<MoveReview, 'boardBefore' | 'player' | 'played' | 'best'>): MoveOutcome {
-  const opponent = opponentOf(move.player);
   const after = (moves: readonly CheckerMove[]) => applyPlay(move.boardBefore, move.player, moves);
   const shots = (board: BoardState) => extractFeatures(board, move.player).exposure.hittingRolls;
-  // After a move the opponent is to roll: our chance is what they don't win.
-  const win = (board: BoardState) => (hasBorneOffAll(board, move.player) ? 1 : 1 - winChanceOnRoll(board, opponent));
+  // The same judge that ranked the moves, so the numbers agree with the verdict (a look
+  // ahead over all 21 rolls disagreed with it more often, at a few hundred times the cost).
+  const win = (board: BoardState) => (hasBorneOffAll(board, move.player) ? 1 : winProbabilityAfterMove(board, move.player));
   const played = after(move.played);
   const best = after(move.best);
   return { shots: { played: shots(played), best: shots(best) }, winChance: { played: win(played), best: win(best) } };
