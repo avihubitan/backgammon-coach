@@ -129,3 +129,8 @@ export const useProgressStore = create<ProgressStore>()(
 export function todayKey(): string {
   return dayKey(clock());
 }
+
+/** The time now according to the store's clock. */
+export function currentTime(): Date {
+  return clock();
+}

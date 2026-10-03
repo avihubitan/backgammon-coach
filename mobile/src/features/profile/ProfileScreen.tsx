@@ -23,7 +23,8 @@ import { ReminderSettings } from '@/features/reminders/ReminderSettings';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useGameStore } from '@/state/gameStore';
 import { useMistakesStore } from '@/state/mistakesStore';
-import { todayKey, useProgressStore } from '@/state/progressStore';
+import { useProgressStore } from '@/state/progressStore';
+import { useToday } from '@/state/useToday';
 import { feedbackConfigured } from '@/services/analytics';
 import { buildInfo, versionLabel } from '@/services/buildInfo';
 import { resetAllProgress } from '@/state/resetAll';
@@ -56,7 +57,7 @@ export function ProfileScreen() {
   // Two style previews per row, inside the card padding and border.
   const previewWidth = Math.floor((Math.min(windowWidth, MAX_CONTENT_WIDTH) - SCREEN_GUTTER * 2 - spacing.sm) / 2 - spacing.sm * 2 - 4);
   const mistakes = useMistakesStore((state) => state.mistakes);
-  const today = todayKey();
+  const { day: today } = useToday();
   // Each block appears once there is something real to show.
   const skills = skillRows(progress.stats.byCategory);
   const focus = focusSkill(skills);

@@ -11,7 +11,8 @@ import { analytics } from '@/services/analytics';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore } from '@/state/practiceStore';
-import { todayKey, useProgressStore } from '@/state/progressStore';
+import { useProgressStore } from '@/state/progressStore';
+import { useToday } from '@/state/useToday';
 import { colors, radii, spacing } from '@/theme';
 
 import { coachPlan, type CoachPick } from './coachPick';
@@ -32,6 +33,7 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
   const lessons = useProgressStore((state) => state.lessons);
   const practiced = usePracticeStore((state) => state.records);
   const access = useFeatureAccess();
+  const { day: today } = useToday();
   const plan = coachPlan({
     mistakes,
     byCategory,
@@ -39,7 +41,7 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
     unlockedDrills: unlockedDrillCategories(lessons, curriculum).map((info) => info.id),
     canPracticeMistakes: access.canUseAdvancedTraining(),
     canAccessLesson: access.canAccessLesson,
-    today: todayKey(),
+    today,
     practiced,
   });
   if (!plan) return null;

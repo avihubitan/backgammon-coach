@@ -25,14 +25,15 @@ import {
 import { todayXp } from '@/features/learning/progressModel';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { ReminderPromptCard } from '@/features/reminders/ReminderPromptCard';
-import { todayKey, useProgressStore } from '@/state/progressStore';
+import { useProgressStore } from '@/state/progressStore';
+import { useToday } from '@/state/useToday';
 import { colors, radii, spacing } from '@/theme';
 
 import { StreakCard } from './StreakCard';
 
 export function HomeScreen() {
   const progress = useProgressStore();
-  const today = todayKey();
+  const { day: today, hour } = useToday();
   const level = levelInfo(progress.xp);
   const streakNow = streakStatus(progress.streak, today);
   const streak = streakNow.days;
@@ -58,7 +59,7 @@ export function HomeScreen() {
               Backgammon Coach
             </AppText>
             <AppText variant="title" numberOfLines={1}>
-              {greeting()}
+              {greeting(hour)}
             </AppText>
           </View>
           <View style={styles.chips}>
@@ -222,8 +223,7 @@ export function HomeScreen() {
   );
 }
 
-function greeting(): string {
-  const hour = new Date().getHours();
+function greeting(hour: number): string {
   if (hour < 5) return 'Up late?';
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';

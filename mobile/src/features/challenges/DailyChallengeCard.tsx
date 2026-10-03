@@ -12,7 +12,8 @@ import { nextLesson } from '@/features/learning/progression';
 import { currentFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
 import { useChallengeStore } from '@/state/challengeStore';
-import { todayKey, useProgressStore } from '@/state/progressStore';
+import { useProgressStore } from '@/state/progressStore';
+import { useToday } from '@/state/useToday';
 import { colors, radii, spacing } from '@/theme';
 
 import { currentChallengeContext } from './challengeService';
@@ -34,7 +35,7 @@ function go({ id, action }: ChallengeDefinition) {
 
 /** Today's optional challenge, with live progress. `compact` is a single tappable row. */
 export function DailyChallengeCard({ enterDelay, compact = false }: { enterDelay?: number; compact?: boolean }) {
-  const today = todayKey();
+  const { day: today } = useToday();
   const daily = useChallengeStore((state) => state.daily);
   const ensure = useChallengeStore((state) => state.ensure);
 
