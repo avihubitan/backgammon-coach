@@ -37,6 +37,20 @@ function connectVendor() {
   analytics.addProvider(new PostHogProvider(client, { build_variant: buildInfo.variant }));
 }
 
+/**
+ * Whether written feedback can reach us: usage data is on (`usageData`, the
+ * player's setting, passed in so screens update when it changes), and this
+ * build sends events somewhere (a vendor, or a development/preview log).
+ */
+export function canSendFeedback(usageData: boolean): boolean {
+  return usageData && (vendorConnected || buildInfo.variant !== 'production');
+}
+
+/** Whether this build has somewhere to send feedback at all (shows "Send feedback"). */
+export function feedbackConfigured(): boolean {
+  return Boolean(process.env.EXPO_PUBLIC_POSTHOG_KEY) || buildInfo.variant !== 'production';
+}
+
 /** The player's choice ("Share anonymous usage data"): off stops every event. */
 export function setAnalyticsEnabled(enabled: boolean) {
   analytics.setEnabled(enabled);

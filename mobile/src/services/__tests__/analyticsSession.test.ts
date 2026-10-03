@@ -106,7 +106,7 @@ describe('PostHog provider', () => {
     const analytics = new Analytics();
     analytics.addProvider(memory);
     const text = 'x'.repeat(600);
-    analytics.track('feedback_submitted', { context: 'profile', rating: 'none', text });
+    analytics.track('feedback_submitted', { context: 'profile', text });
     analytics.track('paywall_viewed', { source: text });
     expect(memory.events[0].properties.text).toHaveLength(600);
     expect(memory.events[1].properties.source).toHaveLength(120);

@@ -142,6 +142,13 @@ distinct id is the random install id. A session starts on a cold start and after
 (`app_opened`, with start-up time on cold starts). [`docs/BETA.md`](docs/BETA.md) maps events to
 the beta's metrics.
 
+## Beta feedback
+
+"How was this?" after a lesson or a game (at most once a day; "okay" and "not good" ask what could
+be better) and "Send feedback" in Profile, which also shows the app version. Feedback travels with
+the analytics events (`feedback_rated`, `feedback_submitted`), so it follows the usage-data switch.
+Switch the quick question off for the public release: `features/feedback/feedbackPolicy.ts`.
+
 ## Crash reporting
 
 Sentry, behind `services/crash` (`CrashReporter`; the web build has a no-op). It starts first, from

@@ -40,6 +40,8 @@ const HUMAN_STEP = MOVE_STEP_MS;
 export interface GameOutcome {
   /** Id of the recorded game (for the coach review). */
   gameId: string | null;
+  /** The computer level played. */
+  level: string;
   xp: number;
   matchOver: boolean;
   newAchievements: string[];
@@ -115,6 +117,7 @@ export function useGameController() {
     }
     setOutcome({
       gameId: recorded?.finished.id ?? null,
+      level: game.settings.level,
       xp,
       matchOver: recorded?.matchOver ?? true,
       newAchievements: reward.newAchievements,

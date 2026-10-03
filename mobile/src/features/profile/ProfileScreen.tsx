@@ -17,11 +17,14 @@ import { levelInfo, visibleStreak } from '@/features/learning/progression';
 import { accuracy } from '@/features/learning/progressModel';
 import { PremiumCard } from '@/features/monetization/PremiumCard';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { FeedbackDialog } from '@/features/feedback/FeedbackDialog';
 import { ReminderSettings } from '@/features/reminders/ReminderSettings';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useGameStore } from '@/state/gameStore';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
+import { feedbackConfigured } from '@/services/analytics';
+import { buildInfo, versionLabel } from '@/services/buildInfo';
 import { resetAllProgress } from '@/state/resetAll';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
@@ -38,6 +41,7 @@ export function ProfileScreen() {
   const progress = useProgressStore();
   const settings = useSettingsStore();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const level = levelInfo(progress.xp);
   const records = Object.values(progress.lessons);
   const completed = records.filter((record) => record.completed).length;
@@ -215,7 +219,31 @@ export function ProfileScreen() {
         />
       </Card>
 
+      {feedbackConfigured() ? (
+        <Button
+          testID="send-feedback"
+          label="Send feedback"
+          icon="message-text-outline"
+          variant="secondary"
+          size="medium"
+          onPress={() => setFeedbackOpen(true)}
+        />
+      ) : null}
+
       <Button testID="reset-progress" label="Reset progress" variant="ghost" size="medium" onPress={() => setConfirmReset(true)} />
+
+      <AppText variant="caption" color="textMuted" align="center" testID="app-version">
+        Backgammon Coach {versionLabel()}
+        {buildInfo.variant === 'production' ? '' : ` · ${buildInfo.variant}`}
+      </AppText>
+
+      <FeedbackDialog
+        visible={feedbackOpen}
+        context="profile"
+        title="Tell us what you think"
+        placeholder="What do you enjoy? What’s confusing, too hard or broken?"
+        onClose={() => setFeedbackOpen(false)}
+      />
 
       <ConfirmDialog
         visible={confirmReset}

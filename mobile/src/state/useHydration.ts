@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useChallengeStore } from './challengeStore';
 import { useEntitlementsStore } from './entitlementsStore';
+import { useFeedbackStore } from './feedbackStore';
 import { useGameStore } from './gameStore';
 import { useMistakesStore } from './mistakesStore';
 import { usePracticeStore } from './practiceStore';
@@ -18,6 +19,7 @@ const stores = [
   usePracticeStore,
   useEntitlementsStore,
   useSyncStore,
+  useFeedbackStore,
 ];
 
 /** True once every persisted store has loaded from storage. */

@@ -93,6 +93,22 @@ Start with one PostHog dashboard holding these insights. Filter to `build_varian
 | Coach Watch acceptance | 40% |
 | Crash-free sessions | 99% |
 
+## Feedback from testers
+
+- **After a lesson or a game:** "How was this lesson/game?" with three choices (good, okay, not
+  good), at most once a day. "Okay" and "not good" open a box: "What could be better?". Events:
+  `feedback_rated` (context, rating, lesson id or computer level) and `feedback_submitted` (the
+  text). Switch it off for the public release (`QUICK_FEEDBACK_ENABLED` in
+  `features/feedback/feedbackPolicy.ts`).
+- **Any time:** Profile → "Send feedback", with the app version shown underneath (testers can quote
+  it in bug reports).
+- Both go through analytics, so they need "Share anonymous usage data" on (the dialog says so when
+  it's off) and a PostHog key in the build. Testers are asked not to include personal details.
+- **Reading it:** in PostHog, list `feedback_submitted` events (text, context, subject) and chart
+  `feedback_rated` by rating and context, daily.
+- **Talk to people too:** a 15-minute call with 5–8 testers at the end of the first week answers
+  "do they understand Premium?" and "where do they get stuck?" better than any chart.
+
 ## Onboarding experiment (later)
 
 Don't run A/B tests in a beta of 50: the groups are too small to tell anything apart. Measure the

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { isPersonalBest, moveQuality, qualityBand } from '@/features/coach/playQuality';
 import { BAND_COLOR } from '@/features/coach/qualityStyle';
+import { QuickFeedback } from '@/features/feedback/QuickFeedback';
 import { getAchievement } from '@/features/learning/achievements';
 import { freezeLines } from '@/features/learning/streakLines';
 import type { GameResult, MatchScore } from '@/game';
@@ -180,6 +181,7 @@ export function GameResultSheet({
               ) : null}
             </View>
           ) : null}
+          {!isMatch || outcome.matchOver ? <QuickFeedback context="game" subject={outcome.level} /> : null}
           <View style={styles.actions}>
             {isMatch && !outcome.matchOver ? (
               <Button testID="next-game" label="Next game" icon="play" onPress={onNextGame} />

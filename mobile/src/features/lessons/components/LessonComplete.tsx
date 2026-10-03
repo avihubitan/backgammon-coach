@@ -15,6 +15,7 @@ import { getSection, type Lesson } from '@/curriculum';
 import { getAchievement } from '@/features/learning/achievements';
 import type { LessonReward } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
+import { QuickFeedback } from '@/features/feedback/QuickFeedback';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { freezeLines } from '@/features/learning/streakLines';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
@@ -196,6 +197,12 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
             <AppText variant="bodyStrong">{extra.text}</AppText>
           </Animated.View>
         ))}
+
+        {passed ? (
+          <Animated.View style={[styles.feedback, riseIn(BEAT.extras + extras.length * 120 + 200)]}>
+            <QuickFeedback context="lesson" subject={lesson.id} />
+          </Animated.View>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
@@ -254,6 +261,7 @@ function Stat({
 }
 
 const styles = StyleSheet.create({
+  feedback: { alignSelf: 'stretch' },
   root: { flex: 1, backgroundColor: colors.bg },
   content: {
     paddingHorizontal: SCREEN_GUTTER,

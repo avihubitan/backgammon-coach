@@ -125,14 +125,16 @@ export interface AnalyticsEvents {
   /** The player opened the app from a reminder. */
   notification_opened: { kind: string };
 
-  /** Beta feedback: a rating after a lesson or game, or a note from Profile. */
+  /** Beta feedback: "How was this?" after a lesson or a game. */
+  feedback_rated: { context: 'lesson' | 'game'; rating: 'good' | 'okay' | 'bad'; subject?: string };
+  /** Beta feedback the player wrote (after a rating, or from Profile). */
   feedback_submitted: {
     context: 'lesson' | 'game' | 'profile';
-    rating: 'good' | 'okay' | 'bad' | 'none';
-    /** Lesson id or AI level, for context. */
+    rating?: 'good' | 'okay' | 'bad';
+    /** Lesson id or computer level, for context. */
     subject?: string;
     /** What the player chose to write (they're asked not to include personal details). */
-    text?: string;
+    text: string;
   };
 }
 
