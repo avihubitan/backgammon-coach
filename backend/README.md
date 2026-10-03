@@ -15,7 +15,7 @@ A small NestJS service that keeps an optional cloud backup of each player's prog
 
 | Method | Path           | Auth | Purpose                                             |
 | ------ | -------------- | ---- | --------------------------------------------------- |
-| GET    | `/health`      |      | `{ status, storage }`                               |
+| GET    | `/health`      |      | `{ status, storage }`; 503 when the database can't be reached |
 | POST   | `/accounts`    |      | Create an account: `{ accountId, code }`            |
 | GET    | `/accounts/me` | code | Check a code: `{ accountId, createdAt }`            |
 | GET    | `/progress`    | code | `{ revision, updatedAt, snapshot }` (revision 0 = none) |
@@ -43,7 +43,23 @@ npm run dev
 ```
 
 Without `MONGODB_URI` the API keeps data in memory, which is fine for development and tests but
-lost on restart.
+lost on restart. With `NODE_ENV=production` it refuses to start without one.
+
+## Production
+
+```bash
+docker build -t backgammon-coach-api .
+docker run -p 3000:3000 -e MONGODB_URI="mongodb+srv://…" -e TRUST_PROXY=1 backgammon-coach-api
+```
+
+- **Database:** a managed MongoDB (for example Atlas) with backups enabled. The API creates its
+  indexes at startup.
+- **Behind a load balancer:** set `TRUST_PROXY` to the number of proxies (usually 1), otherwise
+  every client shares one rate limit.
+- **Health:** point the platform's health check at `/v1/health`.
+- **Secrets:** only `MONGODB_URI`. Backup codes are never stored, only their hashes; logs contain
+  no codes or progress.
+- **Logs:** Nest's logger to stdout (start-up, storage choice, errors).
 
 ## Checks
 

@@ -6,136 +6,169 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 
 **Learn → Play → Get feedback → Practise your mistakes → Improve.**
 
+Status, next steps and known blockers: [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md).
+Before a store release: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) (store setup, privacy
+model, what to verify on real phones).
+
 ## What's in the app
 
 - **Learning path:** 12 sections, 38 lessons, from "Meet the Board" to "Advanced Strategy".
   - Every lesson is hands-on: move checkers, tap points, answer choices, take cube decisions, or
-    play mini bear-off challenges.
-  - Every exercise gets instant, animated feedback.
-- **Interactive board:**
-  - Drag a checker onto one of its lit-up targets, or tap the checker and then the target.
-  - Checker flights along arcs, a thrown-dice animation, hit impacts, and bearing off into a tray.
-  - All animation runs on the UI thread with Reanimated.
-- **Game feel:** synthesised sound effects and music (`scripts/generate-sounds.ts`), haptics, particle
-  bursts, XP that flies to the counter, level-ups and unlock reveals.
-- **Play:** three computer levels. The advanced level is a TD-Gammon-style network trained on 300,000
-  self-play games (`scripts/train-network.ts`); the gentler levels use a heuristic.
+    play mini bear-off challenges. Every exercise gets instant, animated feedback.
+- **Interactive board:** drag a checker onto a lit-up target, or tap the checker and then the target.
+  Checker flights, a thrown-dice animation, hit impacts and bearing off run on the UI thread
+  (Reanimated). Screen readers hear each point's checkers and what can be done with it.
+- **Play:** three computer levels. Games open after the first section ("Meet the Board"); the coach
+  helps with rules not learned yet. The advanced level is a TD-Gammon-style network.
 - **Coach:**
-  - Hints during games: the coach's move for the roll, drawn as arrows, with the reason in one
-    sentence.
-  - Coach Watch: before a clear mistake is confirmed, the coach asks "Are you sure?" with a clue,
-    then lets the player try again, see the better move, or play on. It can be switched off.
-  - Reviews every game in the background and explains the biggest mistakes in plain words.
-  - Scores each game's move quality (0 to 100: how close your moves came to the best ones) and shows
-    whether it is rising, game by game.
-  - Mistakes are saved and come back as practice until you fix them twice.
-- **Practice:** skill drills, a daily challenge, and lesson replays.
-- **Progress:** XP and levels, stars, a streak, a daily goal and achievements. Every week in a row
-  earns a streak freeze (up to two) that covers a missed day. Everything is stored on the device.
-- **Daily reminders:** opt-in local notifications at a time the player picks. They mention the streak,
-  skip days already done, and stop a few days after the player stops opening the app. Home offers
-  them once, after the first lesson; development web builds simulate them.
+  - Hints: the coach's move for the roll as arrows, with the reason in one sentence.
+  - Coach Watch: before a clear mistake is confirmed, "Are you sure?" with a clue; then try again,
+    see the better move, or play on. Can be switched off.
+  - Reviews every game in the background: what you played, the coach's move, why, what could
+    have happened (shots, winning chances), and "Practise this position".
+  - Move quality per game (0–100) and its trend; mistakes come back as practice until fixed.
+  - Coach's pick on Home: the one thing to work on today, from recent games and weak lesson skills.
+- **Practice:** skill drills, a daily challenge, your own mistakes, lesson replays.
+- **Progress:** XP and levels, stars, streak with streak freezes, a daily goal, achievements.
+- **Daily reminders:** opt-in local notifications that follow the streak.
+- **Cloud backup (optional):** anonymous backup code, merged across devices.
 
 ## Free and Premium
 
-The beginner course and Opening Moves are free. So are:
+Free: the beginner course and Opening Moves, the first lesson of every advanced course, games at
+every level, drills, daily challenges, one full coach review per day, and three hints and three
+Coach Watch checks per game.
 
-- the first lesson of every advanced course;
-- games at every level, drills, daily challenges;
-- one full coach review per day, three hints and three Coach Watch checks per game.
+Premium adds the rest of the advanced courses, unlimited coach reviews, hints and Coach Watch,
+mistake practice, winning chances and the move-quality trend, and two extra board styles
+(cosmetic). There is no paywall on first launch and nothing pay-to-win.
 
-Premium adds:
-
-- the rest of the advanced courses (Middle Game, Racing, Doubling Cube, Advanced Strategy);
-- unlimited coach reviews, hints and Coach Watch;
-- mistake practice;
-- the numbers behind each tip, and your move-quality trend;
-- two extra board styles (cosmetic only).
-
-There is no paywall on first launch and nothing pay-to-win. One file decides access:
-`features/monetization/access.ts`. Screens ask `FeatureAccess`; they never check products or prices
-themselves.
-
-Purchases are wired through `services/purchases`. Development builds use a simulated store, so you
-can test the full flow. Release builds report purchases as unavailable until a real store provider
-is plugged in.
-
-## Cloud backup (optional)
-
-Progress lives on the device first. With a backend configured (`EXPO_PUBLIC_API_URL`), Profile
-offers **Back up my progress**:
-
-- **Anonymous:** there's no email or name, just a backup code. Entering the code on another
-  device restores the progress there.
-- **Merging:** if two devices change progress, their copies are merged, so nothing either one
-  learned is lost.
-- **Hidden by default:** without the variable, the section doesn't appear.
+One file decides access: `mobile/src/features/monetization/access.ts`. Screens ask `FeatureAccess`;
+they never check products or prices.
 
 ## Repository layout
 
 ```
-mobile/   Expo + React Native + TypeScript app (iOS, Android, web)
-backend/  NestJS API: anonymous accounts and progress backup (MongoDB, or memory in development)
+mobile/    Expo SDK 57 + React Native + TypeScript app (iOS, Android; web for development)
+backend/   NestJS API: anonymous accounts and progress backup (MongoDB; memory in development)
+docs/      Development status and release checklist
 ```
 
-### `mobile/src`
+| `mobile/src`  | What lives there                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| `app/`        | Expo Router routes only (tabs, lesson, practice, game, review, paywall, onboarding)       |
+| `game/`       | Pure, deterministic engine: board, dice, rules, moves, cube, game state, AI and analysis  |
+| `curriculum/` | Data-only sections, lessons and drills (no UI code)                                       |
+| `features/`   | Feature modules: learning map, lessons, gameplay, coach, practice, monetization, …        |
+| `components/` | Shared UI kit, effects, the reusable `BackgammonBoard`, the crash screen                  |
+| `state/`      | Zustand stores persisted with AsyncStorage; saved data is checked as it loads (`sanitize`) |
+| `services/`   | Feedback (sound, haptics), analytics, purchases, cloud sync, reminders                    |
+| `theme/`      | Design tokens and board styles                                                            |
 
-| Folder        | What lives there                                                                        |
-| ------------- | --------------------------------------------------------------------------------------- |
-| `app/`        | Expo Router routes only (tabs, lesson, practice, game, review, paywall)                 |
-| `game/`       | Pure, deterministic engine: board, dice, rules, moves, cube, game state, AI and analysis |
-| `curriculum/` | Data-only sections, lessons and drills (no UI code)                                      |
-| `features/`   | Feature modules: learning map, lessons, gameplay, AI coach, practice, challenges, …     |
-| `components/` | Shared UI kit, effects and the reusable `BackgammonBoard`                               |
-| `state/`      | Zustand stores persisted with AsyncStorage                                              |
-| `services/`   | Feedback (sound, music, haptics), analytics, purchases, cloud sync                      |
-| `theme/`      | Design tokens: colours, typography, spacing                                             |
-
-The layers only depend downward:
-
-- `game` knows nothing about React.
-- `curriculum` is plain data that the lesson engine (`features/lessons/engine`) interprets.
-- Screens compose features.
+Layers only depend downward: `game` knows nothing about React, `curriculum` is plain data that the
+lesson engine (`features/lessons/engine`) interprets, and screens compose features. Anything that
+talks to the outside world (stores, notifications, the backend) sits behind an interface in
+`services/`, with a fake for tests.
 
 ## Getting started
 
 ```bash
 cd mobile
 npm install
-npm start          # Expo dev server (press i / a / w for iOS, Android, web)
+npm start          # Expo dev server: i / a for a simulator, w for the browser
 ```
 
-To try cloud backup, start the API and point the app at it:
+The browser is the quickest way to work on screens and flows; native features (notifications,
+purchases, haptics) need a phone or simulator with a **development build**:
 
 ```bash
-cd backend && npm install && npm run dev                    # http://localhost:3000, in-memory storage
-cd mobile && EXPO_PUBLIC_API_URL=http://localhost:3000 npm start
+npx eas-cli@latest init                                   # once: links the project to your Expo account
+npx eas-cli@latest build --profile development --platform ios     # or android; installs a dev client
+npm start                                                 # then open the project in the dev client
 ```
+
+Profiles (`mobile/eas.json`): `development` (dev client, internal), `preview` (internal testing build,
+Android APK) and `production` (store builds, version numbers managed by EAS).
+
+### Environment variables
+
+`mobile/.env.example` and `backend/.env.example` list them. For EAS builds, set them as EAS
+environment variables for the matching environment (development, preview, production).
+
+| App (`EXPO_PUBLIC_*` are public and bundled) | Purpose                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| `EXPO_PUBLIC_API_URL`                        | Backend for cloud backup. Empty: the backup section is hidden.     |
+| `EXPO_PUBLIC_REVENUECAT_IOS_KEY`             | RevenueCat public SDK key (iOS). Empty: no real purchases on iOS.  |
+| `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`         | RevenueCat public SDK key (Android).                               |
+| `EXPO_PUBLIC_STORE`                          | `mock` forces the simulated store in development builds.           |
+
+| API          | Purpose                                                                          |
+| ------------ | -------------------------------------------------------------------------------- |
+| `MONGODB_URI`, `MONGODB_DB` | Storage. Required when `NODE_ENV=production`.                     |
+| `PORT`       | HTTP port (3000).                                                                |
+| `CORS_ORIGINS` | Browser origins allowed (the web build only; native apps don't need it).        |
+| `TRUST_PROXY` | Proxies in front of the API (usually 1 on a hosting platform), for rate limits. |
+| `RATE_LIMIT_PER_MINUTE`, `NEW_ACCOUNTS_PER_MINUTE`, `BODY_LIMIT` | Limits.                     |
+
+## Purchases
+
+`services/purchases` picks the store for each build:
+
+- **RevenueCat** when the build has the platform's key. RevenueCat handles StoreKit and Google
+  Play Billing, receipt validation, renewals, trials, grace periods, refunds and restore.
+  `revenueCatProvider.ts` maps its offerings and customer info onto our products and entitlements;
+  nothing else knows about it.
+- **Simulated store** in development builds without a key (purchases are free and instant; the
+  Profile card has an "End (dev)" button to test expiry).
+- **Unavailable** in release builds without a key: the paywall says Premium isn't on sale yet.
+
+RevenueCat dashboard setup: one entitlement `premium` attached to every product, and a current
+offering with Monthly and Annual packages (Lifetime is in the catalogue but switched off). Product
+identifiers are in `features/monetization/catalog.ts`. Cached Premium works offline until three
+days past its end date.
+
+## Notifications
+
+Daily reminders are local notifications (`expo-notifications`, no push server). The plan is
+rebuilt whenever the app opens or the streak changes (`services/reminders`, planner in
+`features/reminders/reminderPlan.ts`). Android uses a "Daily reminders" channel and the white
+checker icon in `assets/images/notification-icon.png`. Development web builds simulate them;
+production web hides them.
+
+## Cloud backup
+
+Progress lives on the device first. With `EXPO_PUBLIC_API_URL` set, Profile offers **Back up my
+progress**: an anonymous account and a backup code (no email or name). Two devices' copies are
+merged by rules in `services/sync/snapshot.ts`, so nothing either one learned is lost; an upload
+never replaces newer progress without merging first.
+
+## AI and analysis
+
+The engine (`game/`) is deterministic and fully tested. The network weights are in
+`game/ai/weights/network.json`, loaded at startup. Scripts (`npx tsx scripts/<name>.ts`):
+
+- `train-network`: trains the TD network by self-play.
+- `benchmark-ai`: plays the levels against each other and grades the coach.
+- `generate-sounds`: renders the sound effects and music.
+
+## Curriculum
+
+Sections live in `curriculum/sections/` as data. A lesson is a list of steps (text, move, choice,
+point, cube, bear-off challenge). The curriculum tests check every lesson: solutions must be legal
+and meet their goal, "wrong" examples must be legal and wrong, demos playable, and lessons from
+Opening Moves onward must agree with the network (no accepted play may be a clear mistake; cube
+answers must match its winning chances). A broken lesson fails the tests.
 
 ## Quality checks
 
 ```bash
-cd mobile
-npm test           # engine, AI, lesson engine, progression, monetization and curriculum tests
-npm run typecheck
-npm run lint
+cd mobile && npm test && npm run typecheck && npm run lint
+cd backend && npm test && npm run typecheck
 ```
 
-The curriculum tests validate every lesson. A broken lesson fails CI.
+## Deploying the API
 
-- **Rules:**
-  - every solution must be legal and meet its goal;
-  - every "wrong play" example must really be legal and wrong;
-  - demos must be playable and challenges solvable.
-- **Strategy:** lessons from Opening Moves onward must agree with the trained network.
-  - No accepted play may be a clear mistake.
-  - Every double, take and drop answer must match the network's winning chances.
-
-The backend has its own tests (`cd backend && npm test`): the API end to end on in-memory
-storage, plus backup codes and concurrency rules.
-
-Useful scripts (run with `npx tsx scripts/<name>.ts`):
-
-- `generate-sounds`: renders the sound effects and music.
-- `train-network`: trains the AI network.
-- `benchmark-ai`: plays the levels against each other and grades the coach.
+`backend/Dockerfile` builds a production image (Node 22, non-root, health check). Run it with
+`NODE_ENV=production`, `MONGODB_URI` (for example MongoDB Atlas) and `TRUST_PROXY=1` behind a load
+balancer. `GET /v1/health` answers 503 when the database can't be reached. See
+[`backend/README.md`](backend/README.md).
