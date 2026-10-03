@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { colors, radii, spacing } from '@/theme';
 
 import { productConfig } from './catalog';
+import { subscriptionManagementUrl } from './legal';
 
 function formatDate(iso: string): string {
   try {
@@ -27,6 +28,7 @@ export function PremiumCard() {
   const refresh = useEntitlementsStore((state) => state.refresh);
   const [note, setNote] = useState<string | null>(null);
   const store = Platform.OS === 'ios' ? 'App Store' : Platform.OS === 'android' ? 'Google Play' : 'store';
+  const manageUrl = subscriptionManagementUrl(Platform.OS);
 
   if (!entitlements.isPremium) {
     return (
@@ -86,6 +88,17 @@ export function PremiumCard() {
         Manage or cancel your subscription in your {store} account settings.
       </AppText>
       <View style={styles.row}>
+        {manageUrl && entitlements.source === 'subscription' && subscriptionService.name === 'revenuecat' ? (
+          <View style={styles.flex}>
+            <Button
+              testID="premium-manage"
+              label="Manage"
+              variant="secondary"
+              size="small"
+              onPress={() => void Linking.openURL(manageUrl)}
+            />
+          </View>
+        ) : null}
         <View style={styles.flex}>
           <Button
             label="Restore"

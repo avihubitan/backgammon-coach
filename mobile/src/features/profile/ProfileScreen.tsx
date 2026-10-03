@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +18,7 @@ import { accuracy } from '@/features/learning/progressModel';
 import { PremiumCard } from '@/features/monetization/PremiumCard';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { FeedbackDialog } from '@/features/feedback/FeedbackDialog';
+import { legalLinks } from '@/features/monetization/legal';
 import { ReminderSettings } from '@/features/reminders/ReminderSettings';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useGameStore } from '@/state/gameStore';
@@ -42,6 +43,7 @@ export function ProfileScreen() {
   const settings = useSettingsStore();
   const [confirmReset, setConfirmReset] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const privacyUrl = legalLinks(Platform.OS).privacy;
   const level = levelInfo(progress.xp);
   const records = Object.values(progress.lessons);
   const completed = records.filter((record) => record.completed).length;
@@ -236,6 +238,13 @@ export function ProfileScreen() {
         Backgammon Coach {versionLabel()}
         {buildInfo.variant === 'production' ? '' : ` · ${buildInfo.variant}`}
       </AppText>
+      {privacyUrl ? (
+        <Pressable testID="privacy-link" accessibilityRole="link" onPress={() => void Linking.openURL(privacyUrl)} style={styles.privacy}>
+          <AppText variant="caption" color="textMuted" align="center" style={styles.link}>
+            Privacy Policy
+          </AppText>
+        </Pressable>
+      ) : null}
 
       <FeedbackDialog
         visible={feedbackOpen}
@@ -316,4 +325,6 @@ const styles = StyleSheet.create({
   achievementDesc: { fontSize: 10, lineHeight: 13 },
   settings: { paddingVertical: spacing.xs },
   divider: { height: 1, backgroundColor: colors.border },
+  privacy: { alignSelf: 'center', paddingVertical: spacing.xs },
+  link: { textDecorationLine: 'underline' },
 });

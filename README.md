@@ -101,6 +101,7 @@ environment variables for the matching environment (development, preview, produc
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY`             | RevenueCat public SDK key (iOS). Empty: no real purchases on iOS.  |
 | `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`         | RevenueCat public SDK key (Android).                               |
 | `EXPO_PUBLIC_STORE`                          | `mock` forces the simulated store in development builds.           |
+| `EXPO_PUBLIC_TERMS_URL`, `EXPO_PUBLIC_PRIVACY_URL` | Links on the paywall (and Privacy in Profile). iOS falls back to Apple's standard EULA. |
 | `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST` | Product analytics (PostHog). Empty: events stay on the device. |
 | `EXPO_PUBLIC_SENTRY_DSN`                     | Crash reporting (Sentry). Empty: crashes aren't reported.          |
 | `EXPO_PUBLIC_APP_VARIANT`                    | Set by `eas.json` per profile; tags reports, hides test tools.     |

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +16,7 @@ import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { FREE_FOREVER, PREMIUM_BENEFITS, type ProductId } from './catalog';
+import { legalLinks } from './legal';
 
 const HEADLINES: Record<string, string> = {
   coach_review: 'Get a full coach review of every game.',
@@ -92,6 +93,7 @@ export function PaywallScreen({ source }: { source: string }) {
   }
 
   const store = Platform.OS === 'ios' ? 'App Store' : Platform.OS === 'android' ? 'Google Play' : 'store';
+  const legal = legalLinks(Platform.OS);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]} testID="paywall">
@@ -282,6 +284,24 @@ export function PaywallScreen({ source }: { source: string }) {
             </AppText>
           </Pressable>
         </View>
+        {legal.terms || legal.privacy ? (
+          <View style={styles.legalLinks}>
+            {legal.terms ? (
+              <Pressable testID="paywall-terms-link" accessibilityRole="link" onPress={() => void Linking.openURL(legal.terms!)}>
+                <AppText variant="caption" color="textMuted" style={styles.link}>
+                  Terms of Use
+                </AppText>
+              </Pressable>
+            ) : null}
+            {legal.privacy ? (
+              <Pressable testID="paywall-privacy-link" accessibilityRole="link" onPress={() => void Linking.openURL(legal.privacy!)}>
+                <AppText variant="caption" color="textMuted" style={styles.link}>
+                  Privacy Policy
+                </AppText>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
         {subscriptionService.name === 'mock' ? (
           <AppText variant="caption" color="textMuted" align="center">
             Development build: purchases are simulated and free.
@@ -443,6 +463,8 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   footerLinks: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xxl },
+  legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: spacing.xl },
+  link: { textDecorationLine: 'underline' },
   welcome: { alignItems: 'center', justifyContent: 'center', gap: spacing.lg, paddingHorizontal: SCREEN_GUTTER },
   welcomeButton: { alignSelf: 'stretch', marginTop: spacing.lg },
 });
