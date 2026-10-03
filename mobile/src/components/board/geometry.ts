@@ -164,3 +164,22 @@ export const QUADRANT_POINTS: Record<Quadrant, PointNumber[]> = {
   'player2-outer': [13, 14, 15, 16, 17, 18],
   'player2-home': [19, 20, 21, 22, 23, 24],
 };
+
+/** A place a checker can be picked up from or dropped on. */
+export type BoardPlace = PointNumber | 'bar' | 'off';
+
+/**
+ * The place under (x, y), in board coordinates: a point's half-board column,
+ * the bar, or the bear-off tray (which also takes the frame next to it, since
+ * the tray is narrow). Null outside the playing area.
+ */
+export function placeAt(m: BoardMetrics, x: number, y: number): BoardPlace | null {
+  if (x < 0 || x > m.width || y < m.innerTop || y > m.innerBottom) return null;
+  if (x >= m.rightX + 6 * m.col) return 'off';
+  if (x >= m.barX && x < m.rightX) return 'bar';
+  const column =
+    x < m.barX
+      ? Math.min(5, Math.max(0, Math.floor((x - m.leftX) / m.col)))
+      : 6 + Math.min(5, Math.max(0, Math.floor((x - m.rightX) / m.col)));
+  return y < m.midY ? 13 + column : 12 - column;
+}

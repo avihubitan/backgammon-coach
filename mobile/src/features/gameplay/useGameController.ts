@@ -237,7 +237,14 @@ export function useGameController() {
     dispatch({ type: take ? 'take' : 'drop' });
   };
 
-  const runHumanMoves = (moves: CheckerMove[]) => {
+  const runHumanMoves = (moves: CheckerMove[], instant = false) => {
+    if (instant) {
+      // A dragged checker goes straight to where it was dropped.
+      let next = latestState();
+      for (const move of moves) next = dispatch({ type: 'move', move });
+      if (next) autoSelect(next);
+      return;
+    }
     moves.forEach((move, index) => {
       const step = () => {
         const next = dispatch({ type: 'move', move });
@@ -254,7 +261,7 @@ export function useGameController() {
     if (moves.length > 1) setBusy(true);
   };
 
-  const tap = (place: TapPlace) => {
+  const tap = (place: TapPlace, how?: { dragged?: boolean }) => {
     const current = latestState();
     if (busy || !current || current.phase !== 'moving' || current.currentPlayer !== 'player1' || !current.turn) return;
     const result = resolveTap(current.turn, selected, place);
@@ -269,7 +276,7 @@ export function useGameController() {
         break;
       case 'move':
         setMessage(null);
-        runHumanMoves(result.moves);
+        runHumanMoves(result.moves, !!how?.dragged);
         break;
       case 'invalid':
         haptics.warning();

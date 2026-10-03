@@ -13,7 +13,7 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
     play mini bear-off challenges.
   - Every exercise gets instant, animated feedback.
 - **Interactive board:**
-  - Tap a checker and its legal targets light up; tap a target to move.
+  - Drag a checker onto one of its lit-up targets, or tap the checker and then the target.
   - Checker flights along arcs, a thrown-dice animation, hit impacts, and bearing off into a tray.
   - All animation runs on the UI thread with Reanimated.
 - **Game feel:** synthesised sound effects and music (`scripts/generate-sounds.ts`), haptics, particle

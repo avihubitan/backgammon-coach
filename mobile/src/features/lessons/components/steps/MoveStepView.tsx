@@ -119,7 +119,7 @@ export function MoveStepView({
         celebrate={status === 'correct' && played.length > 0 ? { key: step.id, spots: finalSpots(played) } : null}
         onPressPoint={input.tap}
         onPressBar={() => input.tap('bar')}
-        onPressOff={() => input.tap('off')}
+        onPressOff={(how) => input.tap('off', how)}
       />
       <View style={styles.controls}>
         <AppText variant="small" color={input.message ? 'danger' : 'textSecondary'} style={styles.message}>

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+// Gesture-handler's Pressable shares one gesture system with the drag below,
+// so a drag cleanly cancels the tap it started as (on web too).
+import { Gesture, GestureDetector, Pressable } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -9,6 +12,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Path, Polygon } from 'react-native-svg';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import {
   checkersAt,
@@ -38,6 +42,7 @@ import {
   computeMetrics,
   diceCenter,
   isTopPoint,
+  placeAt,
   pointRect,
   QUADRANT_POINTS,
   trayRect,
@@ -45,7 +50,15 @@ import {
   type Point2D,
 } from './geometry';
 import { diffLayout, layoutFromBoard, stackSizes, type PlacedChecker } from './layout';
-import { checkerCenter, EMPTY_PLAN, mergeCues, planMotions, type MotionPlan, type SoundCueKind } from './motion';
+import {
+  checkerCenter,
+  EMPTY_PLAN,
+  mergeCues,
+  planMotions,
+  type DropInfo,
+  type MotionPlan,
+  type SoundCueKind,
+} from './motion';
 import type { BoardArrow, BoardCube, BoardDice, BoardHighlight, BoardRegion, HighlightTone } from './types';
 
 export interface BackgammonBoardProps {
@@ -63,10 +76,12 @@ export interface BackgammonBoardProps {
   movingPlayer?: Player;
   highlights?: BoardHighlight[];
   arrows?: BoardArrow[];
-  onPressPoint?: (point: PointNumber) => void;
-  onPressBar?: () => void;
-  onPressOff?: () => void;
+  onPressPoint?: (point: PointNumber, how?: PressInfo) => void;
+  onPressBar?: (how?: PressInfo) => void;
+  onPressOff?: (how?: PressInfo) => void;
   disabled?: boolean;
+  /** Let the player drag movable checkers onto their targets (on by default). */
+  draggable?: boolean;
   /** Change to give the board a gentle "no" shake (wrong answers). */
   shakeKey?: string | number | null;
   /** Change to celebrate a good move: the checkers at `spots` glow and sparkle. */
@@ -75,6 +90,38 @@ export interface BackgammonBoardProps {
   sounds?: boolean;
   testID?: string;
 }
+
+/** How a place was chosen: dragged moves commit in one go, with no hops. */
+export interface PressInfo {
+  dragged?: boolean;
+}
+
+/** Where a drag can start: a movable source's column (or the bar). */
+interface GrabZone {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  source: MoveSource;
+}
+
+/** A legal target, for highlighting the one under a dragged checker. */
+interface DropZone {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  cx: number;
+  cy: number;
+}
+
+/** A finger must travel this far before a touch on a checker becomes a drag. */
+const DRAG_SLOP = 6;
+
+const inZone = (zone: { x: number; y: number; w: number; h: number }, x: number, y: number) => {
+  'worklet';
+  return x >= zone.x && x <= zone.x + zone.w && y >= zone.y && y <= zone.y + zone.h;
+};
 
 const TONES: Record<HighlightTone, { fill: string; border: string; text: string }> = {
   info: { fill: 'rgba(98, 182, 255, 0.22)', border: 'rgba(98, 182, 255, 0.9)', text: '#0B1B2B' },
@@ -197,6 +244,7 @@ export function BackgammonBoard({
   onPressBar,
   onPressOff,
   disabled,
+  draggable = true,
   shakeKey,
   celebrate,
   sounds = true,
@@ -208,21 +256,31 @@ export function BackgammonBoard({
 
   // Keep checker identities between renders so moves animate (React's
   // "adjust state when a prop changes" pattern), and plan the choreography.
+  // A checker the player just dropped: the next update settles it from there.
+  const [drop, setDrop] = useState<{ key: number; info: DropInfo } | null>(null);
   const [tracked, setTracked] = useState(() => ({
     layoutKey,
     boardKey,
     layout: layoutFromBoard(board),
     plan: EMPTY_PLAN as MotionPlan,
     updateId: 0,
+    dropKey: 0,
   }));
   let { layout, plan, updateId } = tracked;
   if (tracked.layoutKey !== layoutKey || tracked.boardKey !== boardKey) {
     const fresh = tracked.layoutKey !== layoutKey;
+    const pendingDrop = drop && drop.key !== tracked.dropKey ? drop.info : undefined;
     layout = fresh ? layoutFromBoard(board) : diffLayout(tracked.layout, board);
     updateId = tracked.updateId + 1;
-    plan = fresh ? EMPTY_PLAN : planMotions(tracked.layout, layout, m, updateId);
-    setTracked({ layoutKey, boardKey, layout, plan, updateId });
+    plan = fresh ? EMPTY_PLAN : planMotions(tracked.layout, layout, m, updateId, pendingDrop);
+    setTracked({ layoutKey, boardKey, layout, plan, updateId, dropKey: drop?.key ?? tracked.dropKey });
   }
+  // A drop that didn't lead to a move (it shouldn't happen) must not linger.
+  useEffect(() => {
+    if (!drop) return;
+    const timer = setTimeout(() => setDrop(null), 600);
+    return () => clearTimeout(timer);
+  }, [drop]);
   const sizes = stackSizes(layout);
 
   // Landing sounds, timed to the choreography. Pending sounds survive later
@@ -286,7 +344,156 @@ export function BackgammonBoard({
   const interactive = !disabled && (onPressPoint || onPressBar || onPressOff);
   const opponent = movingPlayer === 'player1' ? 'player2' : 'player1';
 
+  // ---- Drag and drop -------------------------------------------------------
+  // A touch that starts on a movable checker and travels a few pixels picks it
+  // up; everything else stays a tap. Dropping on a legal target "taps" that
+  // target, so the rules live in one place (the parent's tap handler).
+  const [dragging, setDragging] = useState<MoveSource | null>(null);
+  const lift = m.checker * 0.35;
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const dragOn = useSharedValue(false);
+  const grabbed = useSharedValue(-1);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+  const grabZones = useSharedValue<GrabZone[]>([]);
+  const dropZones = useSharedValue<DropZone[]>([]);
+  const canDrag = !!interactive && draggable;
+  const sources = selected !== null && selected !== undefined && !movable.includes(selected) ? [...movable, selected] : movable;
+  const sourcesKey = sources.map(String).join(',');
+  const targetsKey = targets.map(String).join(',');
+
+  useEffect(() => {
+    grabZones.value = canDrag
+      ? sources.map((source) => {
+          const rect = source === 'bar' ? barRect(m) : pointRect(m, source);
+          return { x: rect.x, y: rect.y, w: rect.width, h: rect.height, source };
+        })
+      : [];
+    // Recomputed when the sources, board size or drag permission change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourcesKey, m.width, canDrag, grabZones]);
+
+  useEffect(() => {
+    dropZones.value = targets.map((to) => {
+      const rect =
+        to === 'off'
+          ? { x: m.rightX + 6 * m.col, y: m.innerTop, width: m.width - (m.rightX + 6 * m.col), height: m.innerBottom - m.innerTop }
+          : pointRect(m, to);
+      const c = targetCenter(m, board, movingPlayer, to);
+      return { x: rect.x, y: rect.y, w: rect.width, h: rect.height, cx: c.x, cy: c.y };
+    });
+    // Recomputed when the targets or the board change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetsKey, boardKey, m.width, movingPlayer, dropZones]);
+
+  const beginDrag = (source: MoveSource) => {
+    setDragging(source);
+    if (source === selected) return;
+    if (source === 'bar') onPressBar?.();
+    else onPressPoint?.(source);
+  };
+
+  const endDrag = (x: number, y: number, ok: boolean) => {
+    const source = dragging;
+    const place = placeAt(m, x, y - lift);
+    const legal = place !== null && place !== 'bar' && (targets as (number | 'off')[]).includes(place);
+    if (ok && source !== null && legal) {
+      setDrop({ key: tracked.dropKey + 1, info: { player: movingPlayer, at: { x, y: y - lift } } });
+      setDragging(null);
+      dragOn.value = false;
+      if (place === 'off') onPressOff?.({ dragged: true });
+      else onPressPoint?.(place, { dragged: true });
+      return;
+    }
+    // Not a legal spot: the checker slides back to where it came from.
+    const back = source !== null ? sourceCenter(m, board, movingPlayer, source) : { x, y };
+    dragX.value = withTiming(back.x, { duration: 160 });
+    dragY.value = withTiming(back.y + lift, { duration: 160 });
+    setTimeout(() => {
+      dragOn.value = false;
+      setDragging(null);
+    }, 170);
+  };
+
+  const pan = Gesture.Pan()
+    .enabled(canDrag)
+    .manualActivation(true)
+    .onTouchesDown((event, manager) => {
+      const touch = event.changedTouches[0];
+      if (!touch || event.numberOfTouches > 1) {
+        manager.fail();
+        return;
+      }
+      const zones = grabZones.value;
+      let hit = -1;
+      for (let i = 0; i < zones.length; i++) {
+        if (inZone(zones[i], touch.x, touch.y)) {
+          hit = i;
+          break;
+        }
+      }
+      if (hit < 0) {
+        manager.fail();
+        return;
+      }
+      grabbed.value = hit;
+      startX.value = touch.x;
+      startY.value = touch.y;
+    })
+    .onTouchesMove((event, manager) => {
+      const touch = event.allTouches[0];
+      if (touch && Math.hypot(touch.x - startX.value, touch.y - startY.value) > DRAG_SLOP) manager.activate();
+    })
+    .onTouchesUp((_event, manager) => {
+      if (!dragOn.value) manager.fail();
+    })
+    .onStart((event) => {
+      const zone = grabZones.value[grabbed.value];
+      if (!zone) return;
+      dragX.value = event.x;
+      dragY.value = event.y;
+      dragOn.value = true;
+      scheduleOnRN(beginDrag, zone.source);
+    })
+    .onUpdate((event) => {
+      dragX.value = event.x;
+      dragY.value = event.y;
+    })
+    .onEnd((event, success) => {
+      if (dragOn.value) scheduleOnRN(endDrag, event.x, event.y, success);
+    });
+
+  const ghostStyle = useAnimatedStyle(() => ({
+    opacity: dragOn.value ? 1 : 0,
+    transform: [
+      { translateX: dragX.value - m.checker / 2 },
+      { translateY: dragY.value - lift - m.checker / 2 },
+      { scale: dragOn.value ? 1.16 : 1 },
+    ],
+  }));
+  const ghostShadowStyle = useAnimatedStyle(() => ({
+    opacity: dragOn.value ? 0.35 : 0,
+    transform: [{ translateX: dragX.value - m.checker / 2 + 4 }, { translateY: dragY.value - m.checker / 2 + 8 }],
+  }));
+  const hoverStyle = useAnimatedStyle(() => {
+    if (!dragOn.value) return { opacity: 0 };
+    const x = dragX.value;
+    const y = dragY.value - lift;
+    const zones = dropZones.value;
+    for (let i = 0; i < zones.length; i++) {
+      if (inZone(zones[i], x, y)) {
+        return {
+          opacity: 1,
+          transform: [{ translateX: zones[i].cx - m.checker * 0.7 }, { translateY: zones[i].cy - m.checker * 0.7 }],
+        };
+      }
+    }
+    return { opacity: 0 };
+  });
+
   return (
+    <GestureDetector gesture={pan}>
     <Animated.View
       testID={testID}
       style={[styles.root, { width: m.width, height: m.height }, shakeStyle]}
@@ -381,6 +588,7 @@ export function BackgammonBoard({
             metrics={m}
             reduceMotion={reduceMotion}
             zIndex={lifted ? 75 : checker.moved ? 40 + checker.index : 10 + checker.index}
+            hidden={lifted && dragging !== null}
           />
         );
       })}
@@ -541,6 +749,33 @@ export function BackgammonBoard({
 
       {celebrate ? <Celebration key={String(celebrate.key)} spots={celebrate.spots} board={board} player={movingPlayer} metrics={m} /> : null}
 
+      {canDrag ? (
+        <>
+          <Animated.View
+            style={[
+              styles.abs,
+              styles.ring,
+              styles.hover,
+              { width: m.checker * 1.4, height: m.checker * 1.4, pointerEvents: 'none' },
+              hoverStyle,
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.abs,
+              { width: m.checker, height: m.checker, borderRadius: m.checker, backgroundColor: '#000', zIndex: 98, pointerEvents: 'none' },
+              ghostShadowStyle,
+            ]}
+          />
+          <Animated.View
+            testID="drag-ghost"
+            style={[styles.abs, { width: m.checker, height: m.checker, zIndex: 99, pointerEvents: 'none' }, ghostStyle]}
+          >
+            <CheckerFace player={movingPlayer} size={m.checker} />
+          </Animated.View>
+        </>
+      ) : null}
+
       {dice ? <DiceRow dice={dice} metrics={m} sounds={sounds} /> : null}
       {cube ? <CubeView cube={cube} metrics={m} /> : null}
 
@@ -563,14 +798,14 @@ export function BackgammonBoard({
             testID="bar"
             accessibilityRole="button"
             accessibilityLabel="Bar"
-            onPress={onPressBar}
+            onPress={onPressBar ? () => onPressBar() : undefined}
             style={[styles.abs, styles.touch, toStyle(barRect(m))]}
           />
           <Pressable
             testID="bear-off-tray"
             accessibilityRole="button"
             accessibilityLabel="Bear-off tray"
-            onPress={onPressOff}
+            onPress={onPressOff ? () => onPressOff() : undefined}
             style={[
               styles.abs,
               styles.touch,
@@ -580,6 +815,7 @@ export function BackgammonBoard({
         </>
       ) : null}
     </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -779,6 +1015,15 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   ring: { borderRadius: 999, borderWidth: 2 },
+  hover: {
+    left: 0,
+    top: 0,
+    zIndex: 97,
+    borderWidth: 3,
+    borderColor: boardColors.target,
+    backgroundColor: boardColors.targetFill,
+    boxShadow: `0px 0px 16px ${boardColors.target}`,
+  },
   touch: { zIndex: 100 },
   countBadge: {
     width: 18,

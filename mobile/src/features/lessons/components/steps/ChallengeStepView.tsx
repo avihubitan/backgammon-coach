@@ -100,7 +100,7 @@ function ChallengeRound({
         disabled={!enabled}
         onPressPoint={input.tap}
         onPressBar={() => input.tap('bar')}
-        onPressOff={() => input.tap('off')}
+        onPressOff={(how) => input.tap('off', how)}
       />
       <View style={styles.row}>
         <AppText variant="smallStrong" color="textSecondary" style={styles.flex}>

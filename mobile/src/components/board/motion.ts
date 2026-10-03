@@ -24,7 +24,18 @@ export interface Motion {
   duration: number;
   /** Extra scale at the top of the flight: how "high" the checker is lifted. */
   hop: number;
+  /** Start here instead of the old spot: a checker dropped by the player settles from the finger. */
+  from?: Point2D;
 }
+
+/** A checker the player just dragged and released at `at`. */
+export interface DropInfo {
+  player: Player;
+  at: Point2D;
+}
+
+/** How long a dropped checker takes to settle into its spot. */
+export const SETTLE_MS = 170;
 
 export interface Impact {
   id: string;
@@ -83,6 +94,7 @@ export function planMotions(
   next: readonly PlacedChecker[],
   m: BoardMetrics,
   updateId: number | string,
+  drop?: DropInfo,
 ): MotionPlan {
   const before = new Map(previous.map((checker) => [checker.id, checker]));
   const previousSizes = stackSizes(previous);
@@ -102,16 +114,27 @@ export function planMotions(
   // Movers first: they set the clock for any hits.
   const arrivals = new Map<string, number>();
   const staggerByPlayer = new Map<Player, number>();
+  let dropUsed = false;
   for (const checker of moved) {
     if (isVictim(checker)) continue;
     const old = before.get(checker.id)!;
+    const kind: MotionKind = checker.location.kind === 'off' ? 'bearoff' : 'move';
+    if (drop && !dropUsed && checker.player === drop.player) {
+      // The player carried this one: it settles from where it was released.
+      dropUsed = true;
+      motions[checker.id] = { kind, delay: 0, duration: SETTLE_MS, hop: 0.04, from: drop.at };
+      if (checker.location.kind === 'point') {
+        const point = `${checker.location.point}`;
+        arrivals.set(point, Math.max(arrivals.get(point) ?? 0, SETTLE_MS));
+      }
+      continue;
+    }
     const from = checkerCenter(m, old, previousSizes);
     const to = checkerCenter(m, checker, nextSizes);
     const order = staggerByPlayer.get(checker.player) ?? 0;
     staggerByPlayer.set(checker.player, order + 1);
     const delay = order * STAGGER_MS;
     const duration = flightDuration(Math.hypot(to.x - from.x, to.y - from.y), m);
-    const kind: MotionKind = checker.location.kind === 'off' ? 'bearoff' : 'move';
     motions[checker.id] = { kind, delay, duration, hop: 0.18 };
     if (checker.location.kind === 'point') {
       arrivals.set(`${checker.location.point}`, Math.max(arrivals.get(`${checker.location.point}`) ?? 0, delay + duration));

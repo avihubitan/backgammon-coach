@@ -65,7 +65,7 @@ export function GameScreen() {
     if (state.phase === 'rolling') return game.lastAiPlay ? `${game.lastAiPlay.text}. Your roll!` : 'Your turn. Roll the dice!';
     if (turn && canEndTurn(state)) return 'Done? Confirm your move, or undo to try again.';
     if (state.board.bar.player1 > 0) return 'You’re on the bar: enter in the computer’s home board first.';
-    return 'Tap a checker, then tap where it should go.';
+    return 'Drag a checker where it should go, or tap it and then its spot.';
   })();
 
   const newGame = () => {
@@ -129,7 +129,7 @@ export function GameScreen() {
             arrows={arrows}
             onPressPoint={game.tap}
             onPressBar={() => game.tap('bar')}
-            onPressOff={() => game.tap('off')}
+            onPressOff={(how) => game.tap('off', how)}
           />
         </View>
         <PlayerRow

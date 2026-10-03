@@ -38,8 +38,17 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
     if (isTurnComplete(next)) onComplete?.(next);
   };
 
-  const runMoves = (start: TurnState, moves: CheckerMove[]) => {
+  const runMoves = (start: TurnState, moves: CheckerMove[], instant = false) => {
     let current = start;
+    if (instant) {
+      // A dragged checker goes straight to where it was dropped.
+      for (const move of moves) {
+        current = playMove(current, move);
+        onMove?.(move, current);
+      }
+      commit(current);
+      return;
+    }
     moves.forEach((move, index) => {
       const step = () => {
         current = playMove(current, move);
@@ -58,7 +67,7 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
     if (moves.length > 1) setBusy(true);
   };
 
-  const tap = (place: TapPlace) => {
+  const tap = (place: TapPlace, how?: { dragged?: boolean }) => {
     if (!enabled || busy) return;
     const result = resolveTap(turn, selected, place);
     switch (result.kind) {
@@ -72,7 +81,7 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
         break;
       case 'move':
         setMessage(null);
-        runMoves(turn, result.moves);
+        runMoves(turn, result.moves, !!how?.dragged);
         break;
       case 'invalid':
         haptics.warning();

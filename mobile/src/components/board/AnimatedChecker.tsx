@@ -31,6 +31,8 @@ interface AnimatedCheckerProps {
   metrics: BoardMetrics;
   reduceMotion: boolean;
   zIndex: number;
+  /** Being dragged: the board draws it under the finger instead. */
+  hidden?: boolean;
 }
 
 const FLIGHT_EASING = Easing.inOut(Easing.cubic);
@@ -49,6 +51,7 @@ export function AnimatedChecker({
   metrics: m,
   reduceMotion,
   zIndex,
+  hidden = false,
 }: AnimatedCheckerProps) {
   const size = m.checker;
   const fromX = useSharedValue(center.x);
@@ -85,11 +88,13 @@ export function AnimatedChecker({
       return;
     }
 
-    // Start from wherever the checker is on screen right now, even mid-flight.
+    // Start from wherever the checker is on screen right now, even mid-flight,
+    // or from where the player let go of it.
     const p = progress.value;
     const s = Math.sin(Math.PI * p);
-    const currentX = fromX.value + (toX.value - fromX.value) * p + arcX.value * s;
-    const currentY = fromY.value + (toY.value - fromY.value) * p + arcY.value * s;
+    const dropped = newFlight ? motion?.from : undefined;
+    const currentX = dropped ? dropped.x : fromX.value + (toX.value - fromX.value) * p + arcX.value * s;
+    const currentY = dropped ? dropped.y : fromY.value + (toY.value - fromY.value) * p + arcY.value * s;
     fromX.value = currentX;
     fromY.value = currentY;
     toX.value = center.x;
@@ -191,7 +196,9 @@ export function AnimatedChecker({
   const slab = slabRectInTray(m, checker.player, checker.index);
 
   return (
-    <Animated.View pointerEvents="none" style={[styles.abs, { width: size, height: size, zIndex }, positionStyle]}>
+    <Animated.View
+      style={[styles.abs, { width: size, height: size, zIndex, opacity: hidden ? 0 : 1, pointerEvents: 'none' }, positionStyle]}
+    >
       {showSlab ? null : (
         <Animated.View style={[styles.shadow, { width: size, height: size, borderRadius: size / 2 }, shadowStyle]} />
       )}

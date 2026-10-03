@@ -1,8 +1,8 @@
 import { applyMove, createBoard, initialBoard, type BoardState, type CheckerMove } from '@/game';
 
-import { computeMetrics } from '../geometry';
+import { checkerCenterOnPoint, columnCenterX, computeMetrics, placeAt } from '../geometry';
 import { diffLayout, layoutFromBoard } from '../layout';
-import { flightDuration, mergeCues, MOVE_STEP_MS, planMotions, STAGGER_MS } from '../motion';
+import { flightDuration, mergeCues, MOVE_STEP_MS, planMotions, SETTLE_MS, STAGGER_MS } from '../motion';
 
 const m = computeMetrics(390);
 
@@ -90,5 +90,53 @@ describe('timing helpers', () => {
       { at: 100, kind: 'hit' },
       { at: 300, kind: 'place' },
     ]);
+  });
+});
+
+describe('dragging and dropping', () => {
+  it('finds the place under a finger: points, bar and tray', () => {
+    const top = m.innerTop + 10;
+    const bottom = m.innerBottom - 10;
+    expect(placeAt(m, columnCenterX(m, 13), top)).toBe(13);
+    expect(placeAt(m, columnCenterX(m, 18), top)).toBe(18);
+    expect(placeAt(m, columnCenterX(m, 19), top)).toBe(19);
+    expect(placeAt(m, columnCenterX(m, 24), top)).toBe(24);
+    expect(placeAt(m, columnCenterX(m, 12), bottom)).toBe(12);
+    expect(placeAt(m, columnCenterX(m, 6), bottom)).toBe(6);
+    expect(placeAt(m, columnCenterX(m, 1), bottom)).toBe(1);
+    expect(placeAt(m, m.barX + m.barWidth / 2, m.midY)).toBe('bar');
+    expect(placeAt(m, m.trayX + m.trayWidth / 2, bottom)).toBe('off');
+    // The narrow tray also takes the frame beside it.
+    expect(placeAt(m, m.trayX - 2, bottom)).toBe('off');
+    expect(placeAt(m, columnCenterX(m, 6), m.innerBottom + 4)).toBeNull();
+    // Every checker spot maps back to its own point.
+    for (let point = 1; point <= 24; point++) {
+      const spot = checkerCenterOnPoint(m, point, 2, 3);
+      expect(placeAt(m, spot.x, spot.y)).toBe(point);
+    }
+  });
+
+  it('settles a dropped checker from the release point instead of flying from its old spot', () => {
+    const before = layoutFromBoard(initialBoard());
+    const next = diffLayout(before, applyMove(initialBoard(), 'player1', { from: 13, to: 8, die: 5, hit: false }));
+    const at = { x: 123, y: 210 };
+    const plan = planMotions(before, next, m, 1, { player: 'player1', at });
+    const mover = next.find((checker) => checker.moved)!;
+    expect(plan.motions[mover.id]).toMatchObject({ kind: 'move', delay: 0, duration: SETTLE_MS, from: at });
+    expect(plan.cues).toEqual([{ at: SETTLE_MS, kind: 'place' }]);
+  });
+
+  it('times a hit from the settle, and leaves the other player alone', () => {
+    const board = createBoard({ player1: { 8: 2, 6: 5 }, player2: { 5: 1, 19: 5 } });
+    const before = layoutFromBoard(board);
+    const next = diffLayout(before, applyMove(board, 'player1', { from: 8, to: 5, die: 3, hit: true }));
+    const plan = planMotions(before, next, m, 1, { player: 'player1', at: { x: 300, y: 300 } });
+    const victim = next.find((checker) => checker.player === 'player2' && checker.moved)!;
+    expect(plan.motions[victim.id].delay).toBe(SETTLE_MS - 40);
+    expect(plan.impacts[0].delay).toBe(SETTLE_MS);
+
+    const ai = planMotions(before, next, m, 2, { player: 'player2', at: { x: 0, y: 0 } });
+    const hitter = next.find((checker) => checker.player === 'player1' && checker.moved)!;
+    expect(ai.motions[hitter.id].from).toBeUndefined();
   });
 });
