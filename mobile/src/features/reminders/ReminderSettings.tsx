@@ -4,9 +4,11 @@ import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { ToggleRow } from '@/components/ui/Toggle';
+import { buildInfo } from '@/services/buildInfo';
 import { haptics } from '@/services/haptics';
 import { reminderService } from '@/services/reminders';
 import { useSettingsStore } from '@/state/settingsStore';
+import { useToastStore } from '@/state/toastStore';
 import { colors, radii, spacing } from '@/theme';
 
 import { formatTime, REMINDER_PRESETS, sameTime } from './reminderPlan';
@@ -77,6 +79,27 @@ export function ReminderSettings() {
           })}
         </View>
       ) : null}
+      {reminders.enabled && buildInfo.variant !== 'production' ? (
+        <Button
+          testID="reminder-test"
+          label="Send a test reminder"
+          icon="bell-ring-outline"
+          variant="ghost"
+          size="small"
+          fullWidth={false}
+          style={styles.test}
+          onPress={async () => {
+            const result = await reminderService.sendTest();
+            if (result === 'denied') setBlocked(true);
+            else
+              useToastStore.getState().show({
+                icon: 'bell-ring-outline',
+                title: 'Test reminder on its way',
+                message: 'It arrives in a few seconds, even with the app open.',
+              });
+          }}
+        />
+      ) : null}
       {blocked ? <NotificationsBlocked /> : null}
       <View style={styles.divider} />
     </View>
@@ -115,5 +138,6 @@ const styles = StyleSheet.create({
   },
   timeSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   blocked: { gap: spacing.sm, paddingBottom: spacing.md, alignItems: 'flex-start' },
+  test: { alignSelf: 'flex-start', marginBottom: spacing.sm },
   divider: { height: 1, backgroundColor: colors.border },
 });

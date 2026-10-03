@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
+import { useReminderTaps } from '@/features/reminders/useReminderTaps';
 import { BoardThemeProvider } from '@/features/settings/BoardThemeProvider';
 import { installNetwork, loadDefaultNetwork } from '@/game';
 import { startAnalytics } from '@/services/analytics';
@@ -53,6 +54,7 @@ function RootLayout() {
   useEffect(() => {
     if (navigationRef) crashReporter.trackNavigation(navigationRef);
   }, [navigationRef]);
+  useReminderTaps();
 
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_500Medium,

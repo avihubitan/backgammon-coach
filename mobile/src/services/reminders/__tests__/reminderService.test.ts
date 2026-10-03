@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { REMINDER_DAYS } from '@/features/reminders/reminderPlan';
+import { recentEvents } from '@/services/analytics';
 import { setProgressClock, useProgressStore } from '@/state/progressStore';
 import { DEFAULT_SETTINGS, useSettingsStore } from '@/state/settingsStore';
 
@@ -119,5 +120,34 @@ describe('reminder service', () => {
     expect(service.available).toBe(false);
     expect(await service.enable('settings')).toBe('unavailable');
     expect(useSettingsStore.getState().reminders.enabled).toBe(false);
+  });
+
+  it('reports a tapped reminder and tells the app, once started', () => {
+    const { adapter, service } = setup();
+    const opened: string[] = [];
+    const offApp = service.onOpened((kind) => opened.push(kind));
+    adapter.tap('daily-reminder');
+    expect(opened).toEqual([]);
+
+    const stop = service.start();
+    adapter.tap('daily-reminder');
+    expect(opened).toEqual(['daily-reminder']);
+    expect(recentEvents.events.at(-1)).toMatchObject({ name: 'notification_opened', properties: { kind: 'daily-reminder' } });
+
+    stop();
+    offApp();
+    adapter.tap('daily-reminder');
+    expect(opened).toEqual(['daily-reminder']);
+  });
+
+  it('sends a test reminder after asking for permission', async () => {
+    const { adapter, service } = setup();
+    expect(await service.sendTest()).toBe('enabled');
+    expect(adapter.tests).toEqual([5]);
+    expect(await adapter.getPermission()).toBe('granted');
+
+    const denied = setup('denied');
+    expect(await denied.service.sendTest()).toBe('denied');
+    expect(denied.adapter.tests).toEqual([]);
   });
 });

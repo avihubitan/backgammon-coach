@@ -18,4 +18,11 @@ export interface NotificationsAdapter {
   scheduledIds(): Promise<string[]>;
   schedule(reminder: PlannedReminder): Promise<void>;
   cancel(id: string): Promise<void>;
+  /**
+   * Calls `listener` with the notification's kind when the player opens the app
+   * from one of ours, including the tap that started the app. Returns a stop function.
+   */
+  onOpened(listener: (kind: string) => void): () => void;
+  /** Shows a test reminder after `seconds` (checking reminders on a phone). */
+  scheduleTest(seconds: number): Promise<void>;
 }

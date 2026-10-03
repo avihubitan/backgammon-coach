@@ -18,6 +18,9 @@ export interface ReminderDeps {
 
 export type EnableResult = 'enabled' | 'denied' | 'unavailable';
 
+/** A test reminder arrives this long after asking for it. */
+export const TEST_REMINDER_SECONDS = 5;
+
 /**
  * Daily reminders. The plan is rebuilt from the streak whenever it could have
  * changed (the app comes to the front, the player learns, the time is changed),
@@ -29,6 +32,7 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
   let timer: ReturnType<typeof setTimeout> | null = null;
   let plan: PlannedReminder[] = [];
   let setupDone: Promise<void> | null = null;
+  const openedListeners = new Set<(kind: string) => void>();
   // Android needs its channel before the permission prompt, so everything waits for setup.
   const ready = () => (setupDone ??= adapter ? adapter.setup().catch(() => {}) : Promise.resolve());
 
@@ -116,6 +120,23 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
       void syncNow();
     },
 
+    /** Asks for permission if needed, then shows a test reminder in a few seconds. */
+    async sendTest(): Promise<EnableResult> {
+      if (!adapter) return 'unavailable';
+      await ready();
+      let permission = await adapter.getPermission();
+      if (permission === 'undetermined') permission = await adapter.requestPermission();
+      if (permission !== 'granted') return 'denied';
+      await adapter.scheduleTest(TEST_REMINDER_SECONDS);
+      return 'enabled';
+    },
+
+    /** The player opened the app from a reminder. Returns a stop function. */
+    onOpened(listener: (kind: string) => void): () => void {
+      openedListeners.add(listener);
+      return () => openedListeners.delete(listener);
+    },
+
     /** Home's offer, declined: it doesn't come back (settings still has the switch). */
     dismissPrompt() {
       useSettingsStore.getState().update({ reminderPrompt: 'dismissed' });
@@ -132,6 +153,10 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
     start(): () => void {
       if (!adapter) return () => {};
       void ready().then(() => syncNow());
+      const offOpened = adapter.onOpened((kind) => {
+        analytics.track('notification_opened', { kind });
+        openedListeners.forEach((listener) => listener(kind));
+      });
       const offProgress = useProgressStore.subscribe((state, previous) => {
         if (state.streak !== previous.streak) requestSync();
       });
@@ -142,6 +167,7 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
         if (state === 'active') requestSync();
       });
       return () => {
+        offOpened();
         offProgress();
         offSettings();
         subscription.remove();

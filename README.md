@@ -157,8 +157,10 @@ set (`app.config.ts` adds the Sentry plugin then); otherwise the upload step wou
 Daily reminders are local notifications (`expo-notifications`, no push server). The plan is
 rebuilt whenever the app opens or the streak changes (`services/reminders`, planner in
 `features/reminders/reminderPlan.ts`). Android uses a "Daily reminders" channel and the white
-checker icon in `assets/images/notification-icon.png`. Development web builds simulate them;
-production web hides them.
+checker icon in `assets/images/notification-icon.png`. Tapping one opens Home (it never interrupts a
+lesson, game or practice) and records `notification_opened`. Development and preview builds have
+"Send a test reminder" under the reminder setting, for checking on a phone. Development web builds
+simulate reminders; production web hides them.
 
 ## Cloud backup
 
