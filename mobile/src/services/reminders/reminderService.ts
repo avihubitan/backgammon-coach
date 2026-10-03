@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { dayKey, streakStatus } from '@/features/learning/progression';
 import { planReminders, type PlannedReminder, type ReminderTime } from '@/features/reminders/reminderPlan';
 import { analytics } from '@/services/analytics';
+import { crashReporter } from '@/services/crash';
 import { useProgressStore } from '@/state/progressStore';
 import { useSettingsStore } from '@/state/settingsStore';
 
@@ -26,6 +27,21 @@ export const TEST_REMINDER_SECONDS = 5;
  * changed (the app comes to the front, the player learns, the time is changed),
  * so a reminder never nags about a day that is already done.
  */
+/**
+ * The permission, asking for it if the player hasn't answered yet. Null when
+ * the phone's notification service fails (reported), so the buttons waiting
+ * on it can give up instead of spinning forever.
+ */
+async function askPermission(adapter: NotificationsAdapter, action: 'enable' | 'test'): Promise<ReminderPermission | null> {
+  try {
+    const permission = await adapter.getPermission();
+    return permission === 'undetermined' ? await adapter.requestPermission() : permission;
+  } catch (error) {
+    crashReporter.captureException(error, { reminders: action });
+    return null;
+  }
+}
+
 export function createReminderService({ adapter, now = () => new Date(), debounceMs = 600 }: ReminderDeps) {
   let running: Promise<void> | null = null;
   let again = false;
@@ -95,8 +111,8 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
     async enable(source: 'home' | 'settings', time?: ReminderTime): Promise<EnableResult> {
       if (!adapter) return 'unavailable';
       await ready();
-      let permission = await adapter.getPermission();
-      if (permission === 'undetermined') permission = await adapter.requestPermission();
+      const permission = await askPermission(adapter, 'enable');
+      if (permission === null) return 'unavailable';
       if (permission !== 'granted') {
         analytics.track('notification_permission_denied', { source });
         return 'denied';
@@ -124,11 +140,16 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
     async sendTest(): Promise<EnableResult> {
       if (!adapter) return 'unavailable';
       await ready();
-      let permission = await adapter.getPermission();
-      if (permission === 'undetermined') permission = await adapter.requestPermission();
+      const permission = await askPermission(adapter, 'test');
+      if (permission === null) return 'unavailable';
       if (permission !== 'granted') return 'denied';
-      await adapter.scheduleTest(TEST_REMINDER_SECONDS);
-      return 'enabled';
+      try {
+        await adapter.scheduleTest(TEST_REMINDER_SECONDS);
+        return 'enabled';
+      } catch (error) {
+        crashReporter.captureException(error, { reminders: 'test' });
+        return 'unavailable';
+      }
     },
 
     /** The player opened the app from a reminder. Returns a stop function. */

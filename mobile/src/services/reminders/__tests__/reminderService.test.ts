@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { REMINDER_DAYS } from '@/features/reminders/reminderPlan';
 import { recentEvents } from '@/services/analytics';
+import { crashReporter } from '@/services/crash';
 import { setProgressClock, useProgressStore } from '@/state/progressStore';
 import { DEFAULT_SETTINGS, useSettingsStore } from '@/state/settingsStore';
 
@@ -149,5 +150,31 @@ describe('reminder service', () => {
     const denied = setup('denied');
     expect(await denied.service.sendTest()).toBe('denied');
     expect(denied.adapter.tests).toEqual([]);
+  });
+
+  // Before, the failure escaped: the switch and Home's card waited forever.
+  it('gives up, reports it and changes nothing when the phone’s notifications fail', async () => {
+    const report = jest.spyOn(crashReporter, 'captureException').mockImplementation(() => {});
+    const failure = new Error('Notifications module not available');
+    const { adapter, service } = setup();
+    jest.spyOn(adapter, 'getPermission').mockRejectedValue(failure);
+
+    expect(await service.enable('settings')).toBe('unavailable');
+    expect(await service.sendTest()).toBe('unavailable');
+    expect(useSettingsStore.getState().reminders.enabled).toBe(false);
+    expect(adapter.scheduled()).toEqual([]);
+    expect(report).toHaveBeenCalledWith(failure, { reminders: 'enable' });
+    expect(report).toHaveBeenCalledWith(failure, { reminders: 'test' });
+    report.mockRestore();
+  });
+
+  it('reports a test reminder the phone refuses to schedule', async () => {
+    const report = jest.spyOn(crashReporter, 'captureException').mockImplementation(() => {});
+    const { adapter, service } = setup();
+    jest.spyOn(adapter, 'scheduleTest').mockRejectedValue(new Error('Exact alarms not allowed'));
+
+    expect(await service.sendTest()).toBe('unavailable');
+    expect(report).toHaveBeenCalledTimes(1);
+    report.mockRestore();
   });
 });

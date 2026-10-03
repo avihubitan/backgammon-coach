@@ -12,7 +12,7 @@ import { useToastStore } from '@/state/toastStore';
 import { colors, radii, spacing } from '@/theme';
 
 import { formatTime, suggestedTime } from './reminderPlan';
-import { NotificationsBlocked } from './ReminderSettings';
+import { NotificationsBlocked, showRemindersFailed } from './ReminderSettings';
 
 /**
  * Offered once, after the first lesson: a daily reminder at about the time the
@@ -38,6 +38,7 @@ export function ReminderPromptCard({ enterDelay }: { enterDelay?: number }) {
       return;
     }
     setStatus(result === 'denied' ? 'denied' : 'idle');
+    if (result === 'unavailable') showRemindersFailed();
   };
 
   return (

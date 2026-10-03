@@ -38,6 +38,7 @@ export function ReminderSettings() {
     const result = await reminderService.enable('settings');
     setBusy(false);
     setBlocked(result === 'denied');
+    if (result === 'unavailable') showRemindersFailed();
   };
 
   return (
@@ -91,6 +92,7 @@ export function ReminderSettings() {
           onPress={async () => {
             const result = await reminderService.sendTest();
             if (result === 'denied') setBlocked(true);
+            else if (result === 'unavailable') showRemindersFailed('The test reminder wasn’t sent');
             else
               useToastStore.getState().show({
                 icon: 'bell-ring-outline',
@@ -104,6 +106,15 @@ export function ReminderSettings() {
       <View style={styles.divider} />
     </View>
   );
+}
+
+/** The phone's notification service failed (rare): nothing changed. */
+export function showRemindersFailed(title = 'Reminders didn’t turn on') {
+  useToastStore.getState().show({
+    icon: 'bell-off-outline',
+    title,
+    message: 'Your phone didn’t respond. Please try again later.',
+  });
 }
 
 /** When the system won't let us ask: say where to turn notifications on. */
