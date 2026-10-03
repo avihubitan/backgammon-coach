@@ -7,6 +7,7 @@ import { useMistakesStore } from './mistakesStore';
 import { usePracticeStore } from './practiceStore';
 import { useProgressStore } from './progressStore';
 import { useSettingsStore } from './settingsStore';
+import { useSyncStore } from './syncStore';
 
 const stores = [
   useProgressStore,
@@ -16,6 +17,7 @@ const stores = [
   useChallengeStore,
   usePracticeStore,
   useEntitlementsStore,
+  useSyncStore,
 ];
 
 /** True once every persisted store has loaded from storage. */

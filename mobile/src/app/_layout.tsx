@@ -17,6 +17,7 @@ import { iconFont } from '@/components/ui/Icon';
 import { installNetwork, loadDefaultNetwork } from '@/game';
 import { analytics, startAnalyticsSession } from '@/services/analytics';
 import { soundBank } from '@/services/feedback';
+import { syncService } from '@/services/sync';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { useProgressStore } from '@/state/progressStore';
 import { useSettingsStore } from '@/state/settingsStore';
@@ -60,6 +61,8 @@ export default function RootLayout() {
     startAnalyticsSession(settings.installId || 'pending', Constants.expoConfig?.version ?? '0');
     const progress = useProgressStore.getState();
     analytics.track('app_opened', { first_open: !progress.onboardingCompleted && progress.xp === 0 });
+    // Cloud backup (only when a server is configured and the player turned it on).
+    return syncService.start();
   }, [ready]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;

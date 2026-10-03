@@ -22,6 +22,7 @@ import { resetAllProgress } from '@/state/resetAll';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, radii, spacing } from '@/theme';
 
+import { CloudBackupCard } from './components/CloudBackupCard';
 import { GamesCard } from './components/GamesCard';
 import { SkillBreakdown } from './components/SkillBreakdown';
 import { WeeklyXpChart } from './components/WeeklyXpChart';
@@ -136,6 +137,8 @@ export function ProfileScreen() {
           );
         })}
       </View>
+
+      <CloudBackupCard />
 
       <AppText variant="label" color="textSecondary">
         Settings

@@ -62,6 +62,10 @@ export interface AnalyticsEvents {
   purchases_restored: { restored: boolean };
   subscription_started: { product_id: string; period: string; trial: boolean };
   subscription_cancelled: { product_id: string };
+
+  backup_enabled: { restored: boolean };
+  backup_disabled: Record<string, never>;
+  backup_failed: { action: 'enable' | 'restore' | 'sync'; status: number | null };
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

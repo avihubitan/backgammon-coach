@@ -50,10 +50,22 @@ Purchases are wired through `services/purchases`. Development builds use a simul
 can test the full flow. Release builds report purchases as unavailable until a real store provider
 is plugged in.
 
+## Cloud backup (optional)
+
+Progress lives on the device first. With a backend configured (`EXPO_PUBLIC_API_URL`), Profile
+offers **Back up my progress**:
+
+- **Anonymous:** there's no email or name, just a backup code. Entering the code on another
+  device restores the progress there.
+- **Merging:** if two devices change progress, their copies are merged, so nothing either one
+  learned is lost.
+- **Hidden by default:** without the variable, the section doesn't appear.
+
 ## Repository layout
 
 ```
 mobile/   Expo + React Native + TypeScript app (iOS, Android, web)
+backend/  NestJS API: anonymous accounts and progress backup (MongoDB, or memory in development)
 ```
 
 ### `mobile/src`
@@ -66,7 +78,7 @@ mobile/   Expo + React Native + TypeScript app (iOS, Android, web)
 | `features/`   | Feature modules: learning map, lessons, gameplay, AI coach, practice, challenges, …     |
 | `components/` | Shared UI kit, effects and the reusable `BackgammonBoard`                               |
 | `state/`      | Zustand stores persisted with AsyncStorage                                              |
-| `services/`   | Feedback (sound, music, haptics), analytics, purchases                                  |
+| `services/`   | Feedback (sound, music, haptics), analytics, purchases, cloud sync                      |
 | `theme/`      | Design tokens: colours, typography, spacing                                             |
 
 The layers only depend downward:
@@ -81,6 +93,13 @@ The layers only depend downward:
 cd mobile
 npm install
 npm start          # Expo dev server (press i / a / w for iOS, Android, web)
+```
+
+To try cloud backup, start the API and point the app at it:
+
+```bash
+cd backend && npm install && npm run dev                    # http://localhost:3000, in-memory storage
+cd mobile && EXPO_PUBLIC_API_URL=http://localhost:3000 npm start
 ```
 
 ## Quality checks
@@ -101,6 +120,9 @@ The curriculum tests validate every lesson. A broken lesson fails CI.
 - **Strategy:** lessons from Opening Moves onward must agree with the trained network.
   - No accepted play may be a clear mistake.
   - Every double, take and drop answer must match the network's winning chances.
+
+The backend has its own tests (`cd backend && npm test`): the API end to end on in-memory
+storage, plus backup codes and concurrency rules.
 
 Useful scripts (run with `npx tsx scripts/<name>.ts`):
 
