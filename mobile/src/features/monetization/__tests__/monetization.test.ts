@@ -62,6 +62,12 @@ describe('feature access', () => {
     expect(used.canUseAdvancedTraining()).toBe(false);
   });
 
+  it('gives free players a few coach hints per game, and Premium as many as they like', () => {
+    expect(createFeatureAccess(FREE_ENTITLEMENTS, noUsage).hintsPerGame()).toBe(ACCESS_POLICY.freeHintsPerGame);
+    expect(ACCESS_POLICY.freeHintsPerGame).toBeGreaterThan(0);
+    expect(createFeatureAccess(FULL, noUsage).hintsPerGame()).toBeNull();
+  });
+
   it('opens everything for premium', () => {
     const access = createFeatureAccess(FULL, { reviewedToday: ['a', 'b'], unlockedReviews: [] });
     expect(access.canReviewGame('anything')).toBe(true);

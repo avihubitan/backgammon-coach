@@ -34,6 +34,8 @@ export interface ActiveGame {
   openingRoll: { player1: DieValue; player2: DieValue } | null;
   /** Number of the game inside the match (1-based). */
   gameNumber: number;
+  /** Coach hints asked for in this game (missing in games saved before hints). */
+  hintsUsed?: number;
 }
 
 export interface FinishedGame {
@@ -78,6 +80,7 @@ export function startActiveGame(id: string, settings: GameSettings, now: string)
     startedAt: now,
     openingRoll: null,
     gameNumber: 1,
+    hintsUsed: 0,
   };
 }
 
@@ -88,6 +91,8 @@ export function nextGameInMatch(active: ActiveGame): ActiveGame {
     state: createGame({ cubeEnabled: active.settings.cubeEnabled, crawford: active.match.crawfordGame }),
     openingRoll: null,
     gameNumber: active.gameNumber + 1,
+    // Each game of a match gets its own hints.
+    hintsUsed: 0,
   };
 }
 

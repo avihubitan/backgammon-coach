@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardArrow } from '@/types/board';
 
+import { CoachHintBubble } from './components/CoachHintBubble';
 import { GameResultSheet } from './components/GameResultSheet';
 import { PlayerRow } from './components/PlayerRow';
 import { usedDice } from './moveInput';
@@ -50,7 +51,11 @@ export function GameScreen() {
   const arrows: BoardArrow[] =
     game.lastAiPlay && state.phase === 'rolling' && humanTurn
       ? game.lastAiPlay.moves.map((move) => ({ from: move.from, to: move.to, player: 'player2', tone: 'info' }))
-      : [];
+      : (game.hintMoves ?? []).map((move) => ({ from: move.from, to: move.to, tone: 'hint' }));
+
+  const askHint = () => {
+    if (game.requestHint() === 'locked') router.push({ pathname: '/paywall', params: { source: 'game_hint' } });
+  };
 
   const status = (() => {
     if (state.phase === 'finished') return 'Game over';
@@ -144,9 +149,13 @@ export function GameScreen() {
       </View>
 
       <View style={styles.statusWrap}>
-        <AppText variant="bodyStrong" align="center" testID="game-status" color={game.message && !game.dancing ? 'text' : 'textSecondary'}>
-          {status}
-        </AppText>
+        {game.hint ? (
+          <CoachHintBubble hint={game.hint} following={game.hintMoves !== null} />
+        ) : (
+          <AppText variant="bodyStrong" align="center" testID="game-status" color={game.message && !game.dancing ? 'text' : 'textSecondary'}>
+            {status}
+          </AppText>
+        )}
       </View>
 
       <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
@@ -165,6 +174,18 @@ export function GameScreen() {
           </View>
         ) : state.phase === 'moving' && humanTurn && !game.dancing ? (
           <View style={styles.row}>
+            <Button
+              testID="hint"
+              iconOnly
+              fullWidth={false}
+              label={game.hintsLeft === null ? 'Hint' : `Hint, ${game.hintsLeft} left`}
+              icon={game.hintsLeft === 0 && !game.hint ? 'crown' : 'lightbulb-on-outline'}
+              badge={game.hintsLeft === null || game.hintsLeft === 0 ? null : game.hintsLeft}
+              variant="secondary"
+              accessibilityHint="Shows the coach’s move for this roll"
+              disabled={game.busy}
+              onPress={askHint}
+            />
             <View style={styles.flex}>
               <Button
                 testID="undo"
@@ -283,7 +304,7 @@ const styles = StyleSheet.create({
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: 'center',
   },
-  row: { flexDirection: 'row', gap: spacing.md },
+  row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   placeholder: { height: 60 },
 });

@@ -26,6 +26,7 @@ const HEADLINES: Record<string, string> = {
   home: 'Keep learning with every advanced course.',
   board_style: 'Make the board your own.',
   play_stats: 'See how your play improves, game by game.',
+  game_hint: 'Ask your coach for help on every roll.',
 };
 
 const PERIOD_WORD = { month: 'month', year: 'year', lifetime: 'one-time purchase' } as const;

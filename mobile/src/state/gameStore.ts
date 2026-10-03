@@ -32,6 +32,8 @@ interface GamesActions {
   /** Records the finished game; returns whether the match is over. */
   finishGame: () => { finished: FinishedGame; matchOver: boolean } | null;
   continueMatch: () => void;
+  /** Counts a coach hint against this game. */
+  countHint: () => void;
   abandonGame: () => void;
   saveReview: (gameId: string, review: FinishedGame['review']) => void;
   resetGames: () => void;
@@ -85,6 +87,11 @@ export const useGameStore = create<GamesData & GamesActions>()(
       continueMatch: () => {
         const active = get().active;
         if (active) set({ active: nextGameInMatch(active) });
+      },
+
+      countHint: () => {
+        const active = get().active;
+        if (active) set({ active: { ...active, hintsUsed: (active.hintsUsed ?? 0) + 1 } });
       },
 
       abandonGame: () => set({ active: null }),

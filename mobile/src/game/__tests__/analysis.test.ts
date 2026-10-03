@@ -1,5 +1,6 @@
 import {
   createBoard,
+  describePlay,
   explainDifference,
   findPlayByNotation,
   initialBoard,
@@ -32,6 +33,56 @@ describe('severity', () => {
     expect(severityFor(0.04, 2)).toBe('inaccuracy');
     expect(severityFor(0.1, 3)).toBe('mistake');
     expect(severityFor(0.3, 9)).toBe('blunder');
+  });
+});
+
+describe('describing a play', () => {
+  it('names the point a play makes', () => {
+    const best = findPlayByNotation(initialBoard(), 'player1', [3, 1], '8/5 6/5')!.moves;
+    expect(describePlay(initialBoard(), 'player1', best)).toBe(
+      'It makes your 5-point, a point that blocks your opponent, and leaves nothing to hit.',
+    );
+  });
+
+  it('names both points when a play makes two', () => {
+    const play = findPlayByNotation(initialBoard(), 'player1', [1, 1], '8/7(2) 6/5(2)')!.moves;
+    expect(describePlay(initialBoard(), 'player1', play)).toMatch(
+      /^It makes your 5-point and your bar point \(7-point\), two points that block your opponent/,
+    );
+  });
+
+  it('describes a hit, and how far it sends the checker back', () => {
+    const board = createBoard({
+      player1: { 13: 4, 8: 3, 6: 5, 24: 2, 5: 1 },
+      player2: { 9: 1, 19: 5, 17: 3, 12: 4, 1: 2 },
+    });
+    const play = findPlayByNotation(board, 'player1', [4, 1], '13/9* 6/5')!.moves;
+    expect(describePlay(board, 'player1', play)).toBe(
+      // The hit checker had come 9 pips from its start.
+      'It hits the blot on the 9-point while making your 5-point, sending that checker back 9 pips.',
+    );
+  });
+
+  it('describes coming in from the bar', () => {
+    const board = createBoard({
+      player1: { 13: 5, 8: 3, 6: 5, 24: 1 },
+      player2: { 19: 5, 17: 3, 12: 5, 1: 2 },
+      bar: { player1: 1 },
+    });
+    const play = findPlayByNotation(board, 'player1', [6, 5], 'bar/20 24/18')!.moves;
+    expect(describePlay(board, 'player1', play)).toMatch(/^It brings your checker back in from the bar/);
+  });
+
+  it('counts the checkers a bear-off takes off', () => {
+    const board = createBoard({ player1: { 6: 1, 5: 1, 1: 2 }, player2: { 20: 6 } });
+    const play = findPlayByNotation(board, 'player1', [6, 5], '6/off 5/off')!.moves;
+    expect(describePlay(board, 'player1', play)).toMatch(/^It takes 2 checkers off/);
+  });
+
+  it('talks about the race once contact is over', () => {
+    const board = createBoard({ player1: { 10: 3, 9: 3, 4: 4 }, player2: { 15: 4, 20: 6 } });
+    const play = findPlayByNotation(board, 'player1', [6, 5], '10/4 9/4')!.moves;
+    expect(describePlay(board, 'player1', play)).toMatch(/pure race/);
   });
 });
 

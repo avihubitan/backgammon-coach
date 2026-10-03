@@ -25,6 +25,10 @@ interface ButtonProps {
   accessibilityHint?: string;
   testID?: string;
   children?: ReactNode;
+  /** A square button showing only the icon; the label is still read out by screen readers. */
+  iconOnly?: boolean;
+  /** A small count in the corner (e.g. uses left). */
+  badge?: string | number | null;
 }
 
 const VARIANTS: Record<ButtonVariant, { face: string; edge: string; text: string; border?: string }> = {
@@ -58,6 +62,8 @@ export function Button({
   style,
   accessibilityHint,
   testID,
+  iconOnly,
+  badge,
 }: ButtonProps) {
   const palette = disabled
     ? { face: colors.locked, edge: '#1C2027', text: colors.lockedText, border: undefined }
@@ -102,7 +108,8 @@ export function Button({
                 styles.face,
                 {
                   height: metrics.height,
-                  paddingHorizontal: metrics.paddingHorizontal,
+                  paddingHorizontal: iconOnly ? 0 : metrics.paddingHorizontal,
+                  width: iconOnly ? metrics.height : undefined,
                   backgroundColor: palette.face,
                   borderRadius: radii.lg,
                   borderWidth: palette.border ? 1.5 : 0,
@@ -115,19 +122,28 @@ export function Button({
                 <ActivityIndicator color={palette.text} />
               ) : (
                 <>
-                  {icon ? <Icon name={icon} size={metrics.icon} color={palette.text} /> : null}
-                  <AppText
-                    variant="button"
-                    color={palette.text}
-                    style={size === 'small' ? styles.smallLabel : undefined}
-                    numberOfLines={1}
-                  >
-                    {label.toUpperCase()}
-                  </AppText>
+                  {icon ? <Icon name={icon} size={iconOnly ? metrics.icon + 4 : metrics.icon} color={palette.text} /> : null}
+                  {iconOnly ? null : (
+                    <AppText
+                      variant="button"
+                      color={palette.text}
+                      style={size === 'small' ? styles.smallLabel : undefined}
+                      numberOfLines={1}
+                    >
+                      {label.toUpperCase()}
+                    </AppText>
+                  )}
                   {iconRight ? <Icon name={iconRight} size={metrics.icon} color={palette.text} /> : null}
                 </>
               )}
             </View>
+            {badge !== undefined && badge !== null ? (
+              <View style={styles.badge} testID={testID ? `${testID}-badge` : undefined}>
+                <AppText variant="caption" color="textInverse">
+                  {badge}
+                </AppText>
+              </View>
+            ) : null}
           </Animated.View>
         );
       }}
@@ -146,4 +162,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   smallLabel: { fontSize: 13, letterSpacing: 0.4 },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 5,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
 });

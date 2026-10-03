@@ -21,12 +21,14 @@ import { MOVE_STEP_MS } from '@/components/board/motion';
 import { scheduleReviews } from '@/features/coach/reviewQueue';
 import type { Reward } from '@/features/learning/progressModel';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
+import { currentFeatureAccess, useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
 import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
 import { useProgressStore } from '@/state/progressStore';
 
+import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
 import { gameXp } from './gameModel';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
@@ -43,6 +45,8 @@ export interface GameOutcome {
   /** The streak after this game, and any freeze it spent or earned. */
   streak: Pick<Reward, 'streak' | 'streakExtended' | 'freezesUsed' | 'freezeEarned'>;
 }
+
+const turnKey = (gameId: string, gameNumber: number, turnsPlayed: number) => `${gameId}-${gameNumber}-${turnsPlayed}`;
 
 function latestState(): GameState | null {
   return useGameStore.getState().active?.state ?? null;
@@ -64,6 +68,9 @@ export function useGameController() {
   const aiPlan = useRef<CheckerMove[] | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const recordedFor = useRef<string | null>(null);
+  // A hint belongs to one turn: it stops showing as soon as the turn changes.
+  const [hint, setHint] = useState<{ turn: string; hint: CoachHint } | null>(null);
+  const hintLimit = useFeatureAccess().hintsPerGame();
 
   const state = active?.state ?? null;
   const level = active?.settings.level ?? 'beginner';
@@ -319,7 +326,41 @@ export function useGameController() {
     dispatch({ type: 'resign', player: 'player1' });
   };
 
+  /**
+   * The coach's play for this roll. Asking again on the same turn is free and
+   * takes back moves that don't follow it, so the arrows start from the right place.
+   */
+  const requestHint = (): 'shown' | 'locked' | 'unavailable' => {
+    const current = latestState();
+    const game = useGameStore.getState().active;
+    if (busy || !current || !game || current.phase !== 'moving' || current.currentPlayer !== 'player1') return 'unavailable';
+    if (!current.turn || current.turn.requiredMoves === 0) return 'unavailable';
+    const key = turnKey(game.id, game.gameNumber, current.history.length);
+    let shown = hint?.turn === key ? hint.hint : null;
+    if (!shown) {
+      const limit = currentFeatureAccess().hintsPerGame();
+      const used = game.hintsUsed ?? 0;
+      if (limit !== null && used >= limit) return 'locked';
+      shown = coachHint(current.turn);
+      if (!shown) return 'unavailable';
+      useGameStore.getState().countHint();
+      analytics.track('game_hint_used', { level: game.settings.level, hints_used: used + 1, premium: limit === null });
+      setHint({ turn: key, hint: shown });
+    }
+    if (remainingHintMoves(shown, current.turn.moves) === null) {
+      let next: GameState | null = current;
+      while (next?.turn && next.turn.moves.length > 0) next = dispatch({ type: 'undo' });
+    }
+    haptics.tap();
+    setSelected(null);
+    setMessage(null);
+    return 'shown';
+  };
+
   const humanMoving = !!state && state.phase === 'moving' && state.currentPlayer === 'player1' && !!state.turn;
+  const currentHint =
+    humanMoving && active && state && hint?.turn === turnKey(active.id, active.gameNumber, state.history.length) ? hint.hint : null;
+  const hintsLeft = hintLimit === null ? null : Math.max(0, hintLimit - (active?.hintsUsed ?? 0));
   const legal = humanMoving && state ? currentLegalMoves(state) : [];
   const movable = humanMoving && state?.turn && !busy ? movableSources(state.turn) : [];
   const targets =
@@ -338,6 +379,12 @@ export function useGameController() {
     busy,
     rollId,
     lastAiPlay,
+    /** The coach's suggestion for this turn, and what is left of it (null once the player plays something else). */
+    hint: currentHint,
+    hintMoves: currentHint && state?.turn ? remainingHintMoves(currentHint, state.turn.moves) : null,
+    /** Hints left in this game (null: unlimited). */
+    hintsLeft,
+    requestHint,
     outcome,
     clearOutcome: () => setOutcome(null),
     rollOpening,

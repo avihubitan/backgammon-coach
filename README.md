@@ -21,6 +21,8 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 - **Play:** three computer levels. The advanced level is a TD-Gammon-style network trained on 300,000
   self-play games (`scripts/train-network.ts`); the gentler levels use a heuristic.
 - **Coach:**
+  - Hints during games: the coach's move for the roll, drawn as arrows, with the reason in one
+    sentence.
   - Reviews every game in the background and explains the biggest mistakes in plain words.
   - Scores each game's move quality (0 to 100: how close your moves came to the best ones) and shows
     whether it is rising, game by game.
@@ -38,12 +40,12 @@ The beginner course and Opening Moves are free. So are:
 
 - the first lesson of every advanced course;
 - games at every level, drills, daily challenges;
-- one full coach review per day.
+- one full coach review per day, and three hints per game.
 
 Premium adds:
 
 - the rest of the advanced courses (Middle Game, Racing, Doubling Cube, Advanced Strategy);
-- unlimited coach reviews;
+- unlimited coach reviews and hints;
 - mistake practice;
 - the numbers behind each tip, and your move-quality trend;
 - two extra board styles (cosmetic only).

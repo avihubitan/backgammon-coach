@@ -25,6 +25,8 @@ export interface FeatureAccess {
   canUseAdvancedTraining(): boolean;
   /** Board styles: free ones for everyone, the rest with Premium. Purely cosmetic. */
   canUseBoardTheme(themeId: string): boolean;
+  /** Coach hints a player can ask for in one game (null: as many as they like). */
+  hintsPerGame(): number | null;
 }
 
 export interface AccessPolicy {
@@ -32,9 +34,11 @@ export interface AccessPolicy {
   freeCoachReviewsPerDay: number;
   /** Lessons at the start of every premium section that anyone can play. */
   freePreviewLessons: number;
+  /** Coach hints per game without Premium. */
+  freeHintsPerGame: number;
 }
 
-export const ACCESS_POLICY: AccessPolicy = { freeCoachReviewsPerDay: 1, freePreviewLessons: 1 };
+export const ACCESS_POLICY: AccessPolicy = { freeCoachReviewsPerDay: 1, freePreviewLessons: 1, freeHintsPerGame: 3 };
 
 export interface AccessUsage {
   /** Games whose full review was unlocked today with the free allowance. */
@@ -82,6 +86,9 @@ export function createFeatureAccess(
     },
     canUseBoardTheme(themeId) {
       return getBoardTheme(themeId).tier === 'free' || !!entitlements.hasCosmetics;
+    },
+    hintsPerGame() {
+      return entitlements.hasAiCoach ? null : policy.freeHintsPerGame;
     },
   };
 }

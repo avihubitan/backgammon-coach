@@ -49,7 +49,7 @@ export function productConfig(id: ProductId): ProductConfig | undefined {
 
 /** What Premium adds, shown on the paywall. Keep in sync with the access policy. */
 export const PREMIUM_BENEFITS: { icon: string; title: string; text: string }[] = [
-  { icon: 'school', title: 'Unlimited coach reviews', text: 'A full move-by-move review of every game, explained in plain words.' },
+  { icon: 'school', title: 'Unlimited coaching', text: 'A full review of every game, and as many hints as you like while you play.' },
   { icon: 'auto-fix', title: 'Practise your own mistakes', text: 'Positions you got wrong come back until you get them right.' },
   { icon: 'chart-line', title: 'Advanced analysis', text: 'Win chances behind every tip, and your move quality game by game.' },
   { icon: 'book-open-page-variant', title: 'Advanced courses', text: 'The middle game, racing, the doubling cube and advanced strategy.' },
@@ -62,5 +62,5 @@ export const FREE_FOREVER = [
   'The first lesson of every advanced course',
   'Daily challenges and skill drills',
   'Games against the computer at every level',
-  'A coach summary of every game, plus a full review each day',
+  'A coach summary of every game, a full review each day, and 3 hints per game',
 ];

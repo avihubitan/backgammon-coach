@@ -253,6 +253,59 @@ export function explainDifference(
   };
 }
 
+/**
+ * What a play achieves, in a sentence, for coaching hints: the single most
+ * instructive thing about it, judged the same way reviews judge mistakes.
+ */
+export function describePlay(before: BoardState, player: Player, moves: readonly CheckerMove[]): string {
+  const opponent = opponentOf(player);
+  const after = applyPlay(before, player, moves);
+  if (!hasContact(before)) {
+    if (allCheckersHome(before, player)) {
+      const off = after.off[player] - before.off[player];
+      return off > 0
+        ? `It takes ${off === 1 ? 'a checker' : `${off} checkers`} off and keeps the rest spread for the next rolls.`
+        : 'It keeps your checkers spread over more points, so fewer future rolls are wasted.';
+    }
+    return 'It’s a pure race: this brings your checkers home with the least wasted movement.';
+  }
+  const hits = hitsOf(moves);
+  const made = newPoints(before, after, player);
+  const keyPoints = made.filter((point) => [4, 5, 6, 7].includes(pipDistance(player, point)) || pipDistance(player, point) >= 18);
+  const shotsBefore = extractFeatures(before, player).exposure.hittingRolls;
+  const shots = extractFeatures(after, player).exposure.hittingRolls;
+  const safe = shots === 0 ? ', and leaves nothing to hit' : '';
+  if (hits.length > 0) {
+    const target = hits[0].to as number;
+    const pips = 25 - pipDistance(opponent, target);
+    const point = keyPoints.length > 0 ? ` while making ${pointName(player, keyPoints[0])}` : '';
+    return `It hits the blot on the ${target}-point${point}, sending that checker back ${pips} pips.`;
+  }
+  const blocking = keyPoints
+    .filter((point) => pipDistance(player, point) < 18)
+    .sort((a, b) => pipDistance(player, a) - pipDistance(player, b));
+  if (blocking.length >= 2) {
+    const names = blocking.map((point) => pointName(player, point));
+    return `It makes ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}, two points that block your opponent${safe}.`;
+  }
+  if (keyPoints.length > 0) {
+    const point = keyPoints[0];
+    return pipDistance(player, point) >= 18
+      ? `It makes ${pointName(player, point)}, a safe base for your back checkers${safe}.`
+      : `It makes ${pointName(player, point)}, a point that blocks your opponent${safe}.`;
+  }
+  if (made.length > 0) return `It makes ${pointName(player, made[0])}${safe}.`;
+  if (moves.some((move) => move.from === 'bar')) return `It brings your checker back in from the bar${safe}.`;
+  if (extractFeatures(after, player).backCheckers < extractFeatures(before, player).backCheckers) {
+    return `It brings a back checker out before your opponent can build a wall in front of it${safe}.`;
+  }
+  if (shots === 0) return 'It leaves nothing for your opponent to hit.';
+  if (shotsBefore - shots >= 4) {
+    return `It cuts the rolls that would hit you from ${shotsBefore} to ${shots} out of 36.`;
+  }
+  return 'It keeps your checkers best placed to build points on the next rolls.';
+}
+
 const praiseFor = (severity: Severity) =>
   severity === 'best' ? 'Best move' : severity === 'fine' ? 'Good move' : severity === 'inaccuracy' ? 'Small inaccuracy' : severity === 'mistake' ? 'Mistake' : 'Blunder';
 
