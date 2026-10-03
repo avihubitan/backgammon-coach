@@ -27,6 +27,8 @@ export interface FeatureAccess {
   canUseBoardTheme(themeId: string): boolean;
   /** Coach hints a player can ask for in one game (null: as many as they like). */
   hintsPerGame(): number | null;
+  /** Coach Watch checks in one game (null: every move). */
+  coachWatchPerGame(): number | null;
 }
 
 export interface AccessPolicy {
@@ -36,9 +38,16 @@ export interface AccessPolicy {
   freePreviewLessons: number;
   /** Coach hints per game without Premium. */
   freeHintsPerGame: number;
+  /** Coach Watch checks per game without Premium. */
+  freeCoachWatchPerGame: number;
 }
 
-export const ACCESS_POLICY: AccessPolicy = { freeCoachReviewsPerDay: 1, freePreviewLessons: 1, freeHintsPerGame: 3 };
+export const ACCESS_POLICY: AccessPolicy = {
+  freeCoachReviewsPerDay: 1,
+  freePreviewLessons: 1,
+  freeHintsPerGame: 3,
+  freeCoachWatchPerGame: 3,
+};
 
 export interface AccessUsage {
   /** Games whose full review was unlocked today with the free allowance. */
@@ -89,6 +98,9 @@ export function createFeatureAccess(
     },
     hintsPerGame() {
       return entitlements.hasAiCoach ? null : policy.freeHintsPerGame;
+    },
+    coachWatchPerGame() {
+      return entitlements.hasAiCoach ? null : policy.freeCoachWatchPerGame;
     },
   };
 }

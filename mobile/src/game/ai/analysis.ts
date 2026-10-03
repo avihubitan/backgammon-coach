@@ -123,7 +123,8 @@ function pointName(player: Player, point: number): string {
   const label = pipDistance(player, point);
   if (label === 5) return 'your 5-point';
   if (label === 7) return 'your bar point (7-point)';
-  if (label >= 19) return `an anchor on the ${label}-point`;
+  // Points in the opponent's home board and their bar point: anchors for the back checkers.
+  if (label >= 18) return `an anchor on the ${label}-point`;
   return `your ${label}-point`;
 }
 
@@ -192,7 +193,7 @@ export function explainDifference(
     missedPoint !== undefined &&
     ([4, 5, 6, 7].includes(pipDistance(player, missedPoint)) || pipDistance(player, missedPoint) >= 18);
   const pointExplanation = (point: number): Explained => {
-    const anchor = pipDistance(player, point) >= 19;
+    const anchor = pipDistance(player, point) >= 18;
     return {
       category: tag('positioning'),
       headline: anchor ? 'An anchor was available' : 'You could make a point',

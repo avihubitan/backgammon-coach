@@ -10,6 +10,7 @@ import type { AiLevel } from '@/game';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
 import { useProgressStore } from '@/state/progressStore';
+import { useSettingsStore } from '@/state/settingsStore';
 import { colors, radii, spacing } from '@/theme';
 import { analytics } from '@/services/analytics';
 
@@ -48,6 +49,8 @@ export function PlayHub({ early = false }: { early?: boolean }) {
   const startGame = useGameStore((store) => store.startGame);
   const lessons = useProgressStore((state) => state.lessons);
   const cubeLearned = !!lessons['cube-1']?.completed;
+  const coachWatch = useSettingsStore((state) => state.coachWatch);
+  const updateSettings = useSettingsStore((state) => state.update);
 
   const setSettings = (patch: Partial<typeof settings>) => useGameStore.setState({ lastSettings: { ...settings, ...patch } });
   const resumable = active && active.state.phase !== 'finished';
@@ -148,6 +151,14 @@ export function PlayHub({ early = false }: { early?: boolean }) {
           description={cubeLearned ? 'Raise the stakes during the game.' : 'You’ll learn the cube in “The Doubling Cube”.'}
           value={settings.cubeEnabled}
           onChange={(cubeEnabled) => setSettings({ cubeEnabled })}
+        />
+        <View style={styles.divider} />
+        <ToggleRow
+          testID="coach-watch-toggle"
+          label="Coach Watch"
+          description="Your coach asks “Are you sure?” before you confirm a clear mistake, with a clue."
+          value={coachWatch}
+          onChange={(on) => updateSettings({ coachWatch: on })}
         />
       </Card>
 

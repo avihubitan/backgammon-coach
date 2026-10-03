@@ -30,6 +30,8 @@ export interface SettingsData {
   reminders: ReminderTime & { enabled: boolean };
   /** Whether Home has offered reminders yet ('done' once they were turned on anywhere). */
   reminderPrompt: 'unasked' | 'dismissed' | 'done';
+  /** The coach checks clear mistakes before a game move is confirmed. */
+  coachWatch: boolean;
 }
 
 interface SettingsActions {
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   boardTheme: DEFAULT_BOARD_THEME,
   reminders: { enabled: false, hour: 19, minute: 0 },
   reminderPrompt: 'unasked',
+  coachWatch: true,
 };
 
 const pickSettings = (state: SettingsData): SettingsData => ({
@@ -62,6 +65,7 @@ const pickSettings = (state: SettingsData): SettingsData => ({
   boardTheme: state.boardTheme,
   reminders: state.reminders,
   reminderPrompt: state.reminderPrompt,
+  coachWatch: state.coachWatch,
 });
 
 function apply(settings: SettingsData) {

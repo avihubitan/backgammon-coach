@@ -27,8 +27,10 @@ import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
 import { useProgressStore } from '@/state/progressStore';
+import { useSettingsStore } from '@/state/settingsStore';
 
 import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
+import { coachWatchApplies, watchPlay, type CoachWatchVerdict } from './coachWatch';
 import { gameXp } from './gameModel';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
@@ -70,7 +72,12 @@ export function useGameController() {
   const recordedFor = useRef<string | null>(null);
   // A hint belongs to one turn: it stops showing as soon as the turn changes.
   const [hint, setHint] = useState<{ turn: string; hint: CoachHint } | null>(null);
-  const hintLimit = useFeatureAccess().hintsPerGame();
+  const access = useFeatureAccess();
+  const hintLimit = access.hintsPerGame();
+  const watchLimit = access.coachWatchPerGame();
+  // Coach Watch: the check waiting for an answer, and the last turn already checked (once per turn).
+  const [watch, setWatch] = useState<{ turn: string; verdict: CoachWatchVerdict } | null>(null);
+  const checkedTurn = useRef<string | null>(null);
 
   const state = active?.state ?? null;
   const level = active?.settings.level ?? 'beginner';
@@ -310,14 +317,57 @@ export function useGameController() {
     autoSelect(next);
   };
 
+  /** Coach Watch's check before a move is confirmed; true when it stopped to ask. */
+  const coachStops = (current: GameState): boolean => {
+    const game = useGameStore.getState().active;
+    if (!game || !current.turn) return false;
+    const key = turnKey(game.id, game.gameNumber, current.history.length);
+    const limit = currentFeatureAccess().coachWatchPerGame();
+    const applies = coachWatchApplies({
+      enabled: useSettingsStore.getState().coachWatch,
+      alreadyChecked: checkedTurn.current === key,
+      askedForHint: hint?.turn === key,
+      used: game.watchUsed ?? 0,
+      limit,
+    });
+    checkedTurn.current = key;
+    if (!applies) return false;
+    const verdict = watchPlay(current.turn);
+    if (!verdict) return false;
+    useGameStore.getState().countWatch();
+    analytics.track('coach_watch_shown', { level: game.settings.level, severity: verdict.severity, premium: limit === null });
+    haptics.tap();
+    setSelected(null);
+    setWatch({ turn: key, verdict });
+    return true;
+  };
+
   const endTurn = () => {
     const current = latestState();
     if (!current || !canEndTurn(current) || current.currentPlayer !== 'player1') return;
+    if (coachStops(current)) return;
     haptics.tap();
     // Hits count once the move is confirmed (undo can't farm them).
     for (const move of current.turn?.moves ?? []) if (move.hit) reportChallengeEvent({ type: 'hit' });
     setSelected(null);
     dispatch({ type: 'end-turn' });
+  };
+
+  /** The player's answer to Coach Watch. */
+  const answerWatch = (choice: 'show' | 'retry' | 'play') => {
+    const pending = watch;
+    setWatch(null);
+    analytics.track('coach_watch_choice', { choice });
+    if (choice === 'play') {
+      endTurn();
+      return;
+    }
+    let next = latestState();
+    while (next?.turn && next.turn.moves.length > 0) next = dispatch({ type: 'undo' });
+    autoSelect(next);
+    if (!pending) return;
+    if (choice === 'show') setHint({ turn: pending.turn, hint: pending.verdict.hint });
+    else setMessage(`Have another look. ${pending.verdict.clue}`);
   };
 
   const resign = () => {
@@ -361,6 +411,8 @@ export function useGameController() {
   const currentHint =
     humanMoving && active && state && hint?.turn === turnKey(active.id, active.gameNumber, state.history.length) ? hint.hint : null;
   const hintsLeft = hintLimit === null ? null : Math.max(0, hintLimit - (active?.hintsUsed ?? 0));
+  const currentWatch =
+    humanMoving && active && state && watch?.turn === turnKey(active.id, active.gameNumber, state.history.length) ? watch.verdict : null;
   const legal = humanMoving && state ? currentLegalMoves(state) : [];
   const movable = humanMoving && state?.turn && !busy ? movableSources(state.turn) : [];
   const targets =
@@ -385,6 +437,11 @@ export function useGameController() {
     /** Hints left in this game (null: unlimited). */
     hintsLeft,
     requestHint,
+    /** Coach Watch's question about the move just made (waiting for an answer). */
+    watch: currentWatch,
+    /** Checks left in this game (null: every move). */
+    watchLeft: watchLimit === null ? null : Math.max(0, watchLimit - (active?.watchUsed ?? 0)),
+    answerWatch,
     outcome,
     clearOutcome: () => setOutcome(null),
     rollOpening,

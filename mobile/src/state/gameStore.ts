@@ -35,6 +35,8 @@ interface GamesActions {
   continueMatch: () => void;
   /** Counts a coach hint against this game. */
   countHint: () => void;
+  /** Counts a Coach Watch check against this game. */
+  countWatch: () => void;
   abandonGame: () => void;
   saveReview: (gameId: string, review: FinishedGame['review']) => void;
   resetGames: () => void;
@@ -93,6 +95,11 @@ export const useGameStore = create<GamesData & GamesActions>()(
       countHint: () => {
         const active = get().active;
         if (active) set({ active: { ...active, hintsUsed: (active.hintsUsed ?? 0) + 1 } });
+      },
+
+      countWatch: () => {
+        const active = get().active;
+        if (active) set({ active: { ...active, watchUsed: (active.watchUsed ?? 0) + 1 } });
       },
 
       abandonGame: () => set({ active: null }),

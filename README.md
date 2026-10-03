@@ -23,6 +23,8 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 - **Coach:**
   - Hints during games: the coach's move for the roll, drawn as arrows, with the reason in one
     sentence.
+  - Coach Watch: before a clear mistake is confirmed, the coach asks "Are you sure?" with a clue,
+    then lets the player try again, see the better move, or play on. It can be switched off.
   - Reviews every game in the background and explains the biggest mistakes in plain words.
   - Scores each game's move quality (0 to 100: how close your moves came to the best ones) and shows
     whether it is rising, game by game.
@@ -40,12 +42,12 @@ The beginner course and Opening Moves are free. So are:
 
 - the first lesson of every advanced course;
 - games at every level, drills, daily challenges;
-- one full coach review per day, and three hints per game.
+- one full coach review per day, three hints and three Coach Watch checks per game.
 
 Premium adds:
 
 - the rest of the advanced courses (Middle Game, Racing, Doubling Cube, Advanced Strategy);
-- unlimited coach reviews and hints;
+- unlimited coach reviews, hints and Coach Watch;
 - mistake practice;
 - the numbers behind each tip, and your move-quality trend;
 - two extra board styles (cosmetic only).

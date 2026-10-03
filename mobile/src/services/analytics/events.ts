@@ -60,6 +60,8 @@ export interface AnalyticsEvents {
   ai_game_completed: { level: string; won: boolean; result: string; points: number };
   coach_opened: { source: 'game_result' | 'history'; mistakes: number };
   game_hint_used: { level: string; hints_used: number; premium: boolean };
+  coach_watch_shown: { level: string; severity: 'mistake' | 'blunder'; premium: boolean };
+  coach_watch_choice: { choice: 'show' | 'retry' | 'play' };
 
   paywall_viewed: { source: string };
   purchase_started: { product_id: string };

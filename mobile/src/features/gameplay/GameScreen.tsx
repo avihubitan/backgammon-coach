@@ -4,6 +4,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackgammonBoard } from '@/components/board/BackgammonBoard';
+import { computeMetrics } from '@/components/board/geometry';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -15,6 +16,7 @@ import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardArrow } from '@/types/board';
 
 import { CoachHintBubble } from './components/CoachHintBubble';
+import { CoachWatchPanel } from './components/CoachWatchPanel';
 import { GameResultSheet } from './components/GameResultSheet';
 import { PlayerRow } from './components/PlayerRow';
 import { usedDice } from './moveInput';
@@ -22,9 +24,13 @@ import { useGameController } from './useGameController';
 
 const LEVEL_LABEL = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' } as const;
 
+/** Everything on the game screen but the board: top bar, two player rows, room for the coach, buttons. */
+const GAME_CHROME_HEIGHT = 56 + 2 * 46 + 136 + 84;
+const MIN_BOARD_WIDTH = 300;
+
 export function GameScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const game = useGameController();
   const settings = useSettingsStore();
   const startGame = useGameStore((store) => store.startGame);
@@ -42,7 +48,12 @@ export function GameScreen() {
     );
   }
 
-  const boardWidth = Math.min(width, MAX_CONTENT_WIDTH);
+  // Short screens (iPhone SE): the board gives up a little width so the coach's messages fit below it.
+  const fullWidth = Math.min(width, MAX_CONTENT_WIDTH);
+  const roomForBoard = height - insets.top - Math.max(insets.bottom, spacing.lg) - GAME_CHROME_HEIGHT;
+  const boardWidth = Math.round(
+    Math.max(MIN_BOARD_WIDTH, Math.min(fullWidth, roomForBoard / (computeMetrics(fullWidth).height / fullWidth))),
+  );
   const isMatch = active.settings.matchLength > 1;
   const humanTurn = state.currentPlayer === 'player1';
   const aiThinking =
@@ -153,7 +164,9 @@ export function GameScreen() {
       </View>
 
       <View style={styles.statusWrap}>
-        {game.hint ? (
+        {game.watch ? (
+          <CoachWatchPanel verdict={game.watch} lastFree={game.watchLeft === 0} onPlayAnyway={() => game.answerWatch('play')} />
+        ) : game.hint ? (
           <CoachHintBubble hint={game.hint} following={game.hintMoves !== null} />
         ) : (
           <AppText variant="bodyStrong" align="center" testID="game-status" color={game.message && !game.dancing ? 'text' : 'textSecondary'}>
@@ -174,6 +187,15 @@ export function GameScreen() {
             ) : null}
             <View style={styles.flex}>
               <Button testID="roll" label="Roll" icon="dice-multiple" onPress={game.roll} />
+            </View>
+          </View>
+        ) : game.watch ? (
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <Button testID="coach-watch-retry" label="Try again" variant="secondary" onPress={() => game.answerWatch('retry')} />
+            </View>
+            <View style={styles.flex}>
+              <Button testID="coach-watch-show" label="Show me" icon="lightbulb-on-outline" onPress={() => game.answerWatch('show')} />
             </View>
           </View>
         ) : state.phase === 'moving' && humanTurn && !game.dancing ? (
