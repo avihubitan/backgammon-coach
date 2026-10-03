@@ -2,6 +2,7 @@ import { todayKey } from '@/state/progressStore';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
 
 import { createFeatureAccess, type FeatureAccess } from './access';
+import { effectiveEntitlements } from './entitlements';
 
 /** Feature access for screens; re-renders when entitlements or today's usage change. */
 export function useFeatureAccess(): FeatureAccess {
@@ -10,7 +11,7 @@ export function useFeatureAccess(): FeatureAccess {
   const reviewedToday = useEntitlementsStore((state) => state.reviewedToday);
   const unlockedReviews = useEntitlementsStore((state) => state.unlockedReviews);
   const today = todayKey();
-  return createFeatureAccess(entitlements, {
+  return createFeatureAccess(effectiveEntitlements(entitlements), {
     reviewedToday: reviewDay === today ? reviewedToday : [],
     unlockedReviews,
   });
@@ -20,7 +21,7 @@ export function useFeatureAccess(): FeatureAccess {
 export function currentFeatureAccess(): FeatureAccess {
   const state = useEntitlementsStore.getState();
   const today = todayKey();
-  return createFeatureAccess(state.entitlements, {
+  return createFeatureAccess(effectiveEntitlements(state.entitlements), {
     reviewedToday: state.reviewDay === today ? state.reviewedToday : [],
     unlockedReviews: state.unlockedReviews,
   });

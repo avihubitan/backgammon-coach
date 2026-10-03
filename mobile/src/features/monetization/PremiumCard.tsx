@@ -65,13 +65,23 @@ export function PremiumCard() {
           <AppText variant="small" color="textSecondary">
             {plan}
             {entitlements.expiresAt
-              ? entitlements.inTrial
-                ? ` · free trial until ${formatDate(entitlements.expiresAt)}`
-                : ` · renews ${formatDate(entitlements.expiresAt)}`
+              ? entitlements.willRenew === false
+                ? ` · ends ${formatDate(entitlements.expiresAt)}`
+                : entitlements.inTrial
+                  ? ` · free trial until ${formatDate(entitlements.expiresAt)}`
+                  : ` · renews ${formatDate(entitlements.expiresAt)}`
               : ''}
           </AppText>
         </View>
       </View>
+      {entitlements.billingIssue ? (
+        <View style={styles.billing} testID="premium-billing-issue">
+          <Icon name="alert-circle-outline" size={18} color={colors.streak} />
+          <AppText variant="small" style={styles.flex}>
+            The {store} couldn’t take your last payment. Update your payment details there to keep Premium.
+          </AppText>
+        </View>
+      ) : null}
       <AppText variant="caption" color="textMuted">
         Manage or cancel your subscription in your {store} account settings.
       </AppText>
@@ -81,7 +91,16 @@ export function PremiumCard() {
             label="Restore"
             variant="secondary"
             size="small"
-            onPress={async () => setNote((await restore()) ? 'Purchases restored.' : 'Nothing to restore.')}
+            onPress={async () => {
+              const outcome = await restore();
+              setNote(
+                outcome === 'restored'
+                  ? 'Purchases restored.'
+                  : outcome === 'none'
+                    ? 'Nothing to restore.'
+                    : 'We couldn’t reach the store. Try again in a moment.',
+              );
+            }}
           />
         </View>
         {subscriptionService instanceof MockSubscriptionService ? (
@@ -108,6 +127,14 @@ export function PremiumCard() {
 }
 
 const styles = StyleSheet.create({
+  billing: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(255, 138, 61, 0.12)',
+  },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: 'rgba(243, 184, 71, 0.4)' },
   active: { gap: spacing.md, borderColor: colors.primary },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

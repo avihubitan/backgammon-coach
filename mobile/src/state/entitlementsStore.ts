@@ -12,6 +12,8 @@ import { persistStorage } from './storage';
 /** Free coach reviews already used are remembered per day; unlocked games stay unlocked. */
 const MAX_UNLOCKED_REVIEWS = 60;
 
+export type RestoreOutcome = 'restored' | 'none' | 'failed';
+
 interface EntitlementsState {
   /** Last known entitlements (cached so premium works offline). */
   entitlements: Entitlements;
@@ -21,9 +23,12 @@ interface EntitlementsState {
   /** Products as the store sells them (not persisted). */
   products: StoreProduct[] | null;
   refresh: () => Promise<void>;
+  /** Refreshes from the store and follows the changes it reports. Returns a stop function. */
+  start: () => () => void;
   loadProducts: () => Promise<StoreProduct[]>;
   purchase: (productId: ProductId) => Promise<PurchaseResult>;
-  restore: () => Promise<boolean>;
+  /** 'failed' when the store couldn't be reached: not the same as having nothing to restore. */
+  restore: () => Promise<RestoreOutcome>;
   /** Spends today's free full review on a game (no-op for premium or already unlocked games). */
   unlockReview: (gameId: string, day: string) => void;
   reset: () => void;
@@ -46,6 +51,11 @@ export const useEntitlementsStore = create<EntitlementsState>()(
         }
       },
 
+      start: () => {
+        void get().refresh();
+        return subscriptionService.onEntitlementsChange?.((entitlements) => set({ entitlements })) ?? (() => {});
+      },
+
       loadProducts: async () => {
         const products = await subscriptionService.getProducts();
         set({ products });
@@ -57,8 +67,9 @@ export const useEntitlementsStore = create<EntitlementsState>()(
         let result: PurchaseResult;
         try {
           result = await subscriptionService.purchase(productId);
-        } catch (error) {
-          result = { status: 'failed', reason: error instanceof Error ? error.message : 'Unknown error' };
+        } catch {
+          // Never show the store's raw error text.
+          result = { status: 'failed', reason: 'Something went wrong with the purchase. Please try again.' };
         }
         if (result.status === 'success') {
           set({ entitlements: result.entitlements });
@@ -75,10 +86,14 @@ export const useEntitlementsStore = create<EntitlementsState>()(
       },
 
       restore: async () => {
-        const { restored, entitlements } = await subscriptionService.restorePurchases();
-        set({ entitlements });
-        analytics.track('purchases_restored', { restored });
-        return restored;
+        try {
+          const { restored, entitlements } = await subscriptionService.restorePurchases();
+          set({ entitlements });
+          analytics.track('purchases_restored', { restored });
+          return restored ? 'restored' : 'none';
+        } catch {
+          return 'failed';
+        }
       },
 
       unlockReview: (gameId, day) => {

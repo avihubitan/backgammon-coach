@@ -75,10 +75,16 @@ export function PaywallScreen({ source }: { source: string }) {
   const restorePurchases = async () => {
     setBusy('restore');
     setMessage(null);
-    const restored = await restore().catch(() => false);
+    const outcome = await restore();
     setBusy(null);
-    setMessage(restored ? 'Welcome back! Premium is active again.' : 'No previous purchases were found for this account.');
-    if (restored) setWelcome(true);
+    setMessage(
+      outcome === 'restored'
+        ? 'Welcome back! Premium is active again.'
+        : outcome === 'none'
+          ? 'No previous purchases were found for this account.'
+          : 'We couldn’t reach the store. Check your connection and try again.',
+    );
+    if (outcome === 'restored') setWelcome(true);
   };
 
   if (welcome || (isPremium && !busy && !message)) {
@@ -170,11 +176,22 @@ export function PaywallScreen({ source }: { source: string }) {
             </AppText>
           </View>
         ) : loadFailed ? (
-          <View style={styles.notice}>
+          <View style={styles.notice} testID="paywall-load-failed">
             <Icon name="wifi-off" size={20} color={colors.danger} />
             <AppText variant="small" color="textSecondary" style={styles.flex}>
               Couldn’t reach the {store}. Check your connection and try again.
             </AppText>
+            <Button
+              testID="paywall-retry"
+              label="Try again"
+              variant="secondary"
+              size="small"
+              fullWidth={false}
+              onPress={() => {
+                setLoadFailed(false);
+                loadProducts().catch(() => setLoadFailed(true));
+              }}
+            />
           </View>
         ) : !products ? (
           <ActivityIndicator color={colors.primary} style={styles.loading} />

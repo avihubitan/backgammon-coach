@@ -36,4 +36,6 @@ export interface SubscriptionService {
   purchase(productId: ProductId): Promise<PurchaseResult>;
   restorePurchases(): Promise<{ restored: boolean; entitlements: Entitlements }>;
   getEntitlements(): Promise<Entitlements>;
+  /** Changes the store reports on its own (renewals, expiry, refunds). Returns an unsubscribe function. */
+  onEntitlementsChange?(listener: (entitlements: Entitlements) => void): () => void;
 }

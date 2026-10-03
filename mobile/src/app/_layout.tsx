@@ -61,7 +61,7 @@ export default function RootLayout() {
     if (!ready) return;
     SplashScreen.hideAsync().catch(() => {});
     soundBank.preload();
-    useEntitlementsStore.getState().refresh();
+    const stopEntitlements = useEntitlementsStore.getState().start();
     const settings = useSettingsStore.getState();
     startAnalyticsSession(settings.installId || 'pending', Constants.expoConfig?.version ?? '0');
     const progress = useProgressStore.getState();
@@ -71,6 +71,7 @@ export default function RootLayout() {
     // Daily reminders follow the streak (only when the player turned them on).
     const stopReminders = reminderService.start();
     return () => {
+      stopEntitlements();
       stopSync();
       stopReminders();
     };

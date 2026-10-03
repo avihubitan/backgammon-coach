@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { MockSubscriptionService } from './mockProvider';
+import { createRevenueCatService } from './revenueCat';
 import type { SubscriptionService } from './types';
 import { UnavailableSubscriptionService } from './unavailableProvider';
 
@@ -22,11 +23,16 @@ function localeCurrency(): { locale: string; currency: string } {
 }
 
 /**
- * The store used by this build. Development builds get the mock store so the
- * purchase flow can be tried end to end; a real store adapter (StoreKit /
- * Play Billing, e.g. via RevenueCat) replaces the unavailable one for release.
+ * The store used by this build: RevenueCat when the build has its key for this
+ * platform; otherwise the simulated store in development builds (so the flow
+ * can be tried end to end) and "unavailable" in release builds.
+ * EXPO_PUBLIC_STORE=mock forces the simulated store in a development build.
  */
 function createService(): SubscriptionService {
+  if (!(__DEV__ && process.env.EXPO_PUBLIC_STORE === 'mock')) {
+    const revenueCat = createRevenueCatService();
+    if (revenueCat) return revenueCat;
+  }
   if (__DEV__) {
     const { locale, currency } = localeCurrency();
     return new MockSubscriptionService(currency, locale, () => new Date(), 600, {

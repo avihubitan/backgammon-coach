@@ -12,15 +12,18 @@ Short and current, so work can resume quickly. Update it when a milestone moves.
 - A crash screen (root `ErrorBoundary`) instead of a blank screen; reports only the error type.
 - Saved data is checked when loaded (`src/state/sanitize.ts`): a damaged field falls back to its
   default and the rest of the player's progress is kept.
+- Full games open after "Meet the Board" (`playAccess`: locked / early / open) instead of after 21 lessons.
+- Production store: RevenueCat behind `SubscriptionService` (`services/purchases/revenueCatProvider.ts`),
+  chosen when the build has `EXPO_PUBLIC_REVENUECAT_IOS_KEY` / `_ANDROID_KEY`. Follows renewals/expiry,
+  restore reports failed vs nothing-to-restore, cached Premium is trusted offline for 3 days past its end.
 
 ### In progress
 - (see the task list below)
 
 ### Next
-1. Production store: RevenueCat behind `SubscriptionService` (keys via env).
-2. Product/UX audit at phone sizes; fix the top issues.
-3. Coach Watch (a gentle check before confirming a clear mistake).
-4. Release checklist, privacy model and the physical-device test list (`docs/RELEASE_CHECKLIST.md`).
+1. Product/UX audit at phone sizes; fix the top issues (Play gate done).
+2. Coach Watch (a gentle check before confirming a clear mistake).
+3. Release checklist, privacy model and the physical-device test list (`docs/RELEASE_CHECKLIST.md`).
 
 ### Known blockers outside the code
 - EAS project: run `eas init` with the team's Expo account (adds `extra.eas.projectId`).

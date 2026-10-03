@@ -14,3 +14,13 @@ jest.mock('expo-audio', () => ({
   })),
   setAudioModeAsync: jest.fn(() => Promise.resolve()),
 }));
+
+// RevenueCat's SDK is native (and ships ES modules); tests use a fake store instead.
+jest.mock('react-native-purchases', () => ({
+  __esModule: true,
+  default: {
+    configure: jest.fn(),
+    setLogLevel: jest.fn(() => Promise.resolve()),
+  },
+  LOG_LEVEL: { DEBUG: 'DEBUG' },
+}));
