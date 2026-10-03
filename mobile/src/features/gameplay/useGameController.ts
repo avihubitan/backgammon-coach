@@ -12,6 +12,7 @@ import {
   isTurnComplete,
   rollDice,
   rollDie,
+  sameMove,
   type CheckerMove,
   type GameAction,
   type GameState,
@@ -23,6 +24,7 @@ import type { Reward } from '@/features/learning/progressModel';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { currentFeatureAccess, useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
+import { crashReporter } from '@/services/crash';
 import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
 import { useGameStore } from '@/state/gameStore';
@@ -197,11 +199,27 @@ export function useGameController() {
           dispatch({ type: 'end-turn' });
           return;
         }
+        if (!aiPlan.current && current.turn.moves.length > 0) {
+          // The plan isn't saved: the game was left (or the app closed) partway
+          // through the computer's turn. It takes those moves back and starts over.
+          for (let undo = current.turn.moves.length; undo > 0; undo--) dispatch({ type: 'undo' });
+          return;
+        }
         if (!aiPlan.current) {
           aiPlan.current = chooseAiPlay(current.board, 'player2', current.turn.roll!, level, Math.random).moves.slice();
         }
-        const move = aiPlan.current.shift();
-        if (move) dispatch({ type: 'move', move });
+        // A planned move the rules refuse would throw here and crash the app;
+        // it's reported and a legal move is played instead.
+        const legal = currentLegalMoves(current);
+        const planned = aiPlan.current.shift();
+        const move = planned && legal.find((candidate) => sameMove(candidate, planned));
+        if (!move) {
+          crashReporter.captureException(new Error('The computer planned a move it can’t play'), {
+            planned: planned ? `${String(planned.from)}->${String(planned.to)}/${planned.die}` : 'none',
+          });
+        }
+        const next = move ?? legal[0];
+        if (next) dispatch({ type: 'move', move: next });
       }
     }, delay);
     return () => clearTimeout(timer);
