@@ -101,6 +101,7 @@ environment variables for the matching environment (development, preview, produc
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY`             | RevenueCat public SDK key (iOS). Empty: no real purchases on iOS.  |
 | `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`         | RevenueCat public SDK key (Android).                               |
 | `EXPO_PUBLIC_STORE`                          | `mock` forces the simulated store in development builds.           |
+| `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST` | Product analytics (PostHog). Empty: events stay on the device. |
 | `EXPO_PUBLIC_SENTRY_DSN`                     | Crash reporting (Sentry). Empty: crashes aren't reported.          |
 | `EXPO_PUBLIC_APP_VARIANT`                    | Set by `eas.json` per profile; tags reports, hides test tools.     |
 | `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` | Build time only: upload source maps and debug symbols. |
@@ -129,6 +130,17 @@ RevenueCat dashboard setup: one entitlement `premium` attached to every product,
 offering with Monthly and Annual packages (Lifetime is in the catalogue but switched off). Product
 identifiers are in `features/monetization/catalog.ts`. Cached Premium works offline until three
 days past its end date.
+
+## Analytics
+
+Typed events (`services/analytics/events.ts`) go through one gate, `Analytics`, which drops
+everything when the player turns off "Share anonymous usage data". Behind it, PostHog (chosen for
+funnels, retention and later A/B tests without extra native setup) receives the events on iOS and
+Android when the build has `EXPO_PUBLIC_POSTHOG_KEY`. The client is only created once the player's
+choice is known to be on, with GeoIP, lifecycle autocapture, feature flags and surveys off; the
+distinct id is the random install id. A session starts on a cold start and after 30 minutes away
+(`app_opened`, with start-up time on cold starts). [`docs/BETA.md`](docs/BETA.md) maps events to
+the beta's metrics.
 
 ## Crash reporting
 

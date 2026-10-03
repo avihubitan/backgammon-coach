@@ -32,7 +32,7 @@ describe('analytics', () => {
     const memory = new MemoryProvider();
     analytics.addProvider(memory);
     analytics.setEnabled(false);
-    analytics.track('app_opened', { first_open: true });
+    analytics.track('app_opened', { first_open: true, cold: true });
     expect(memory.events).toHaveLength(0);
   });
 

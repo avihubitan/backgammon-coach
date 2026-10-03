@@ -11,7 +11,7 @@ import { DRILL_CATEGORIES, type DrillCategory } from '@/curriculum/drills';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { exerciseXp } from '@/features/learning/progression';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
-import { analytics } from '@/services/analytics';
+import { analytics, type LaunchSource } from '@/services/analytics';
 import type { Reward } from '@/features/learning/progressModel';
 import { StepSessionPlayer } from '@/features/lessons/components/StepSessionPlayer';
 import { summarizeSteps, type LessonOutcome } from '@/features/lessons/engine/session';
@@ -52,8 +52,8 @@ export interface PracticeResult {
 }
 
 /** A short practice run: five drills from one skill, or positions from your own games. */
-/** `focus`: a mistake to practise first (from a game review). */
-export function PracticeSessionScreen({ kind, focus }: { kind: string; focus?: string }) {
+/** `focus`: a mistake to practise first (from a game review). `source`: where it was opened from. */
+export function PracticeSessionScreen({ kind, focus, source }: { kind: string; focus?: string; source?: LaunchSource }) {
   const insets = useSafeAreaInsets();
   const lessons = useProgressStore((state) => state.lessons);
   const canPracticeMistakes = useFeatureAccess().canUseAdvancedTraining();
@@ -148,6 +148,7 @@ export function PracticeSessionScreen({ kind, focus }: { kind: string; focus?: s
         if (kind !== 'mistakes' || answered.current.has(step.id)) return;
         answered.current.add(step.id);
         useMistakesStore.getState().recordAttempt(step.id, correct);
+        analytics.track('mistake_practiced', { fixed: correct });
         if (correct) reportChallengeEvent({ type: 'mistake-fixed' });
       }}
       onFinish={(state) => {
@@ -165,7 +166,11 @@ export function PracticeSessionScreen({ kind, focus }: { kind: string; focus?: s
           steps: outcome.scoredSteps,
           first_try: outcome.firstTryCorrect,
           xp,
+          source,
         });
+        if (source === 'coach_pick') {
+          analytics.track('coach_pick_completed', { kind: kind === 'mistakes' ? 'mistakes' : 'drill' });
+        }
         const saved = useMistakesStore.getState().mistakes;
         const mastered =
           kind === 'mistakes'

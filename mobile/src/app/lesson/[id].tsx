@@ -10,12 +10,13 @@ import { allLessons, getLesson, getSection } from '@/curriculum';
 import { lessonStatus } from '@/features/learning/progression';
 import { LessonPlayer } from '@/features/lessons/components/LessonPlayer';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { launchSource } from '@/services/analytics';
 import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
 export default function LessonRoute() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const lesson = id ? getLesson(id) : undefined;
   const lessons = useProgressStore((state) => state.lessons);
   const access = useFeatureAccess();
@@ -71,6 +72,7 @@ export default function LessonRoute() {
     <LessonPlayer
       key={lesson.id}
       lesson={lesson}
+      source={launchSource(source)}
       onExit={leave}
       onNextLesson={(nextId) => router.replace({ pathname: '/lesson/[id]', params: { id: nextId } })}
     />

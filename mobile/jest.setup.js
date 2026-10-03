@@ -33,3 +33,9 @@ jest.mock('@sentry/react-native', () => ({
   wrap: (component) => component,
   reactNavigationIntegration: jest.fn(() => ({ name: 'ReactNavigation', registerNavigationContainer: jest.fn() })),
 }));
+
+// PostHog's SDK talks to the network; tests use a fake client (see services/analytics).
+jest.mock('posthog-react-native', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({ capture: jest.fn(), register: jest.fn(() => Promise.resolve()) })),
+}));

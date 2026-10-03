@@ -170,7 +170,6 @@ export function PlayHub({ early = false }: { early?: boolean }) {
         onPress={() => {
           startGame(settings);
           analytics.track('game_started', { mode: 'ai', level: settings.level, match_length: settings.matchLength });
-          analytics.track('ai_game_started', { level: settings.level, match_length: settings.matchLength });
           router.push('/game');
         }}
       />

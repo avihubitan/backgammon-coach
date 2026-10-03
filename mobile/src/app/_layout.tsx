@@ -2,7 +2,6 @@ import { PlusJakartaSans_500Medium } from '@expo-google-fonts/plus-jakarta-sans/
 import { PlusJakartaSans_600SemiBold } from '@expo-google-fonts/plus-jakarta-sans/600SemiBold';
 import { PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans/700Bold';
 import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans/800ExtraBold';
-import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { DarkTheme, Stack, ThemeProvider, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -16,9 +15,11 @@ import { ToastHost } from '@/components/fx/ToastHost';
 import { iconFont } from '@/components/ui/Icon';
 import { BoardThemeProvider } from '@/features/settings/BoardThemeProvider';
 import { installNetwork, loadDefaultNetwork } from '@/game';
-import { analytics, startAnalyticsSession } from '@/services/analytics';
+import { startAnalytics } from '@/services/analytics';
+import { versionLabel } from '@/services/buildInfo';
 import { crashReporter } from '@/services/crash';
 import { soundBank } from '@/services/feedback';
+import { appStartedAt } from '@/services/startTime';
 import { reminderService } from '@/services/reminders';
 import { syncService } from '@/services/sync';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
@@ -68,16 +69,20 @@ function RootLayout() {
     SplashScreen.hideAsync().catch(() => {});
     soundBank.preload();
     const stopEntitlements = useEntitlementsStore.getState().start();
-    const settings = useSettingsStore.getState();
-    startAnalyticsSession(settings.installId || 'pending', Constants.expoConfig?.version ?? '0');
     const progress = useProgressStore.getState();
-    analytics.track('app_opened', { first_open: !progress.onboardingCompleted && progress.xp === 0 });
+    const stopAnalytics = startAnalytics({
+      installId: useSettingsStore.getState().installId || 'pending',
+      appVersion: versionLabel(),
+      firstOpen: !progress.onboardingCompleted && progress.xp === 0,
+      startupMs: Date.now() - appStartedAt,
+    });
     // Cloud backup (only when a server is configured and the player turned it on).
     const stopSync = syncService.start();
     // Daily reminders follow the streak (only when the player turned them on).
     const stopReminders = reminderService.start();
     return () => {
       stopEntitlements();
+      stopAnalytics();
       stopSync();
       stopReminders();
     };

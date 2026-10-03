@@ -6,7 +6,7 @@ import { categoryResultsFor, type LessonReward } from '@/features/learning/progr
 import { exerciseXp } from '@/features/learning/progression';
 import { summarizeSession, type LessonOutcome } from '@/features/lessons/engine/session';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
-import { analytics } from '@/services/analytics';
+import { analytics, type LaunchSource } from '@/services/analytics';
 import { useCelebrationStore } from '@/state/celebrationStore';
 import { useProgressStore } from '@/state/progressStore';
 
@@ -15,12 +15,14 @@ import { StepSessionPlayer } from './StepSessionPlayer';
 
 interface LessonPlayerProps {
   lesson: Lesson;
+  /** Where the lesson was opened from (analytics). */
+  source?: LaunchSource;
   onExit: () => void;
   onNextLesson?: (lessonId: string) => void;
 }
 
 /** Plays a lesson and records the result (XP, stars, unlocks) when it ends. */
-export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps) {
+export function LessonPlayer({ lesson, source, onExit, onNextLesson }: LessonPlayerProps) {
   const recordLessonResult = useProgressStore((state) => state.recordLessonResult);
   const canAccess = useFeatureAccess().canAccessLesson;
   // Replays of finished lessons earn practice XP at half rate.
@@ -29,7 +31,7 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
   const [result, setResult] = useState<{ outcome: LessonOutcome; reward: LessonReward } | null>(null);
 
   useEffect(() => {
-    analytics.track('lesson_started', { lesson_id: lesson.id, section_id: lesson.sectionId, replay });
+    analytics.track('lesson_started', { lesson_id: lesson.id, section_id: lesson.sectionId, replay, source });
     // Once per run of the lesson.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run, lesson.id]);
@@ -79,7 +81,9 @@ export function LessonPlayer({ lesson, onExit, onNextLesson }: LessonPlayerProps
             xp: reward.xpGained,
             replay,
             retry_count: outcome.mistakes,
+            source,
           });
+          if (source === 'coach_pick') analytics.track('coach_pick_completed', { kind: 'lesson' });
           reportChallengeEvent({ type: 'lesson-completed', stars: outcome.stars });
         } else {
           analytics.track('lesson_failed', {

@@ -96,6 +96,7 @@ export function useGameController() {
     scheduleReviews();
     const xp = gameXp(game.settings.level, finishedState.result);
     const won = finishedState.result.winner === 'player1';
+    const startedAt = new Date(game.startedAt).getTime();
     analytics.track('game_completed', {
       mode: 'ai',
       level: game.settings.level,
@@ -103,12 +104,9 @@ export function useGameController() {
       result: finishedState.result.type,
       points: finishedState.result.points,
       turns: finishedState.history.length,
-    });
-    analytics.track('ai_game_completed', {
-      level: game.settings.level,
-      won,
-      result: finishedState.result.type,
-      points: finishedState.result.points,
+      duration_s: Number.isFinite(startedAt) ? Math.max(0, Math.round((Date.now() - startedAt) / 1000)) : 0,
+      hints_used: game.hintsUsed ?? 0,
+      coach_watch_shown: game.watchUsed ?? 0,
     });
     const reward = useProgressStore.getState().awardXp(xp, { games: useGameStore.getState().stats });
     if (finishedState.result.winner === 'player1') {
@@ -335,7 +333,7 @@ export function useGameController() {
     const verdict = watchPlay(current.turn);
     if (!verdict) return false;
     useGameStore.getState().countWatch();
-    analytics.track('coach_watch_shown', { level: game.settings.level, severity: verdict.severity, premium: limit === null });
+    analytics.track('coach_watch_triggered', { level: game.settings.level, severity: verdict.severity, premium: limit === null });
     haptics.tap();
     setSelected(null);
     setWatch({ turn: key, verdict });
@@ -357,7 +355,8 @@ export function useGameController() {
   const answerWatch = (choice: 'show' | 'retry' | 'play') => {
     const pending = watch;
     setWatch(null);
-    analytics.track('coach_watch_choice', { choice });
+    if (choice === 'play') analytics.track('coach_watch_ignored', {});
+    else analytics.track('coach_watch_accepted', { choice });
     if (choice === 'play') {
       endTurn();
       return;

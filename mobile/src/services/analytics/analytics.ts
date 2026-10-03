@@ -24,15 +24,17 @@ export interface AnalyticsProvider {
 }
 
 const MAX_STRING = 120;
+/** Feedback the player writes gets more room than ids and labels. */
+const MAX_FEEDBACK = 1000;
 
 /** Keeps only flat primitives and shortens long strings, so nothing unexpected leaks. */
-export function sanitize(properties: object): Record<string, AnalyticsValue> {
+export function sanitize(properties: object, maxString = MAX_STRING): Record<string, AnalyticsValue> {
   const clean: Record<string, AnalyticsValue> = {};
   for (const [key, value] of Object.entries(properties)) {
     if (value === undefined) continue;
     if (typeof value === 'number') clean[key] = Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null;
     else if (typeof value === 'boolean' || value === null) clean[key] = value;
-    else if (typeof value === 'string') clean[key] = value.slice(0, MAX_STRING);
+    else if (typeof value === 'string') clean[key] = value.slice(0, maxString);
   }
   return clean;
 }
@@ -72,7 +74,7 @@ export class Analytics {
     if (!this.enabled || this.providers.length === 0) return;
     const event: TrackedEvent = {
       name,
-      properties: sanitize(properties),
+      properties: sanitize(properties, name === 'feedback_submitted' ? MAX_FEEDBACK : MAX_STRING),
       context: this.context,
       timestamp: this.now().toISOString(),
     };

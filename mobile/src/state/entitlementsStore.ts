@@ -86,12 +86,14 @@ export const useEntitlementsStore = create<EntitlementsState>()(
       },
 
       restore: async () => {
+        analytics.track('purchase_restore_started', {});
         try {
           const { restored, entitlements } = await subscriptionService.restorePurchases();
           set({ entitlements });
-          analytics.track('purchases_restored', { restored });
+          analytics.track('purchase_restore_completed', { restored, failed: false });
           return restored ? 'restored' : 'none';
         } catch {
+          analytics.track('purchase_restore_completed', { restored: false, failed: true });
           return 'failed';
         }
       },

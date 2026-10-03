@@ -75,7 +75,7 @@ export function GameReviewScreen({
 
   const mistakeCount = review ? review.moves.filter((move) => move.severity === 'mistake' || move.severity === 'blunder').length : 0;
   useEffect(() => {
-    if (reviewed) analytics.track('coach_opened', { source, mistakes: mistakeCount });
+    if (reviewed) analytics.track('coach_review_opened', { source, mistakes: mistakeCount });
     // Once, as soon as the review is ready.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewed]);

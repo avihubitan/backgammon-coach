@@ -94,20 +94,20 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
       let permission = await adapter.getPermission();
       if (permission === 'undetermined') permission = await adapter.requestPermission();
       if (permission !== 'granted') {
-        analytics.track('reminders_permission_denied', { source });
+        analytics.track('notification_permission_denied', { source });
         return 'denied';
       }
       update({ enabled: true, ...time });
       useSettingsStore.getState().update({ reminderPrompt: 'done' });
       const { hour, minute } = useSettingsStore.getState().reminders;
-      analytics.track('reminders_enabled', { hour, minute, source });
+      analytics.track('notification_enabled', { hour, minute, source });
       await syncNow();
       return 'enabled';
     },
 
     disable() {
       update({ enabled: false });
-      analytics.track('reminders_disabled', {});
+      analytics.track('notification_disabled', {});
       void syncNow();
     },
 
@@ -119,7 +119,7 @@ export function createReminderService({ adapter, now = () => new Date(), debounc
     /** Home's offer, declined: it doesn't come back (settings still has the switch). */
     dismissPrompt() {
       useSettingsStore.getState().update({ reminderPrompt: 'dismissed' });
-      analytics.track('reminder_prompt_dismissed', {});
+      analytics.track('notification_prompt_dismissed', {});
     },
 
     /** The reminders currently planned (for display and tests). */

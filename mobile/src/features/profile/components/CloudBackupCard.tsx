@@ -52,9 +52,10 @@ export function CloudBackupCard() {
       return;
     }
     setBusy(true);
+    analytics.track('backup_started', {});
     try {
       await syncService.enable();
-      analytics.track('backup_enabled', { restored: false });
+      analytics.track('backup_completed', {});
     } catch (caught) {
       analytics.track('backup_failed', { action: 'enable', status: caught instanceof SyncApiError ? caught.status : null });
       useToastStore.getState().show({ icon: 'cloud-alert', title: 'Backup didn’t start', message: failure(caught) });
@@ -201,9 +202,10 @@ function RestoreDialog({ visible, onClose }: { visible: boolean; onClose: () => 
   const restore = async () => {
     setWorking(true);
     setProblem(null);
+    analytics.track('backup_restore_started', {});
     try {
       await syncService.restore(value);
-      analytics.track('backup_enabled', { restored: true });
+      analytics.track('backup_restore_completed', {});
       useToastStore.getState().show({
         icon: 'cloud-check',
         title: 'Progress restored',

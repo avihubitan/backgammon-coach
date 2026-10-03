@@ -7,18 +7,22 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { curriculum } from '@/curriculum';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { analytics } from '@/services/analytics';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore } from '@/state/practiceStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
 
-import { coachPlan, type CoachAction } from './coachPick';
+import { coachPlan, type CoachPick } from './coachPick';
 
-function open(action: CoachAction) {
-  if (action.kind === 'mistakes') router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes' } });
-  else if (action.kind === 'drill') router.push({ pathname: '/practice/[kind]', params: { kind: action.drill } });
-  else router.push({ pathname: '/lesson/[id]', params: { id: action.lessonId } });
+function open({ action, topic }: Pick<CoachPick, 'action' | 'topic'>, doneToday: boolean) {
+  analytics.track('coach_pick_opened', { kind: action.kind, topic, done_today: doneToday });
+  // `source` lets the session report a finished pick (coach_pick_completed).
+  const source = 'coach_pick';
+  if (action.kind === 'mistakes') router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes', source } });
+  else if (action.kind === 'drill') router.push({ pathname: '/practice/[kind]', params: { kind: action.drill, source } });
+  else router.push({ pathname: '/lesson/[id]', params: { id: action.lessonId, source } });
 }
 
 /** "Coach's pick": the one thing worth practising next, from the player's own games and lessons. */
@@ -66,7 +70,7 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
             iconRight="arrow-right"
             variant="secondary"
             size="medium"
-            onPress={() => open(next.action)}
+            onPress={() => open(next, true)}
           />
         ) : null}
       </Card>
@@ -95,7 +99,7 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
         icon="target"
         variant="secondary"
         size="medium"
-        onPress={() => open(pick.action)}
+        onPress={() => open(pick, false)}
       />
     </Card>
   );

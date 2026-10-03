@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { ReminderTime } from '@/features/reminders/reminderPlan';
-import { analytics, newAnalyticsId } from '@/services/analytics';
+import { newAnalyticsId, setAnalyticsEnabled } from '@/services/analytics';
 import { crashReporter } from '@/services/crash';
 import { configureFeedback } from '@/services/feedback';
 import { DEFAULT_BOARD_THEME, type BoardThemeId } from '@/theme/boardThemes';
@@ -71,7 +71,7 @@ const pickSettings = (state: SettingsData): SettingsData => ({
 
 function apply(settings: SettingsData) {
   configureFeedback(settings);
-  analytics.setEnabled(settings.analytics);
+  setAnalyticsEnabled(settings.analytics);
 }
 
 apply(DEFAULT_SETTINGS);

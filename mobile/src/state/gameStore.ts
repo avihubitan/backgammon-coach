@@ -13,7 +13,9 @@ import {
   type GameSettings,
   type GameStats,
 } from '@/features/gameplay/gameModel';
+import { moveQuality } from '@/features/coach/playQuality';
 import type { GameState } from '@/game';
+import { analytics } from '@/services/analytics';
 import { newId } from '@/utils/id';
 
 import { isPlainObject, mergeChecked } from './sanitize';
@@ -104,8 +106,19 @@ export const useGameStore = create<GamesData & GamesActions>()(
 
       abandonGame: () => set({ active: null }),
 
-      saveReview: (gameId, review) =>
-        set({ finished: get().finished.map((game) => (game.id === gameId ? { ...game, review } : game)) }),
+      saveReview: (gameId, review) => {
+        const game = get().finished.find((candidate) => candidate.id === gameId);
+        set({ finished: get().finished.map((candidate) => (candidate.id === gameId ? { ...candidate, review } : candidate)) });
+        if (game && !game.review && review) {
+          analytics.track('game_reviewed', {
+            level: game.level,
+            won: game.playerWon,
+            move_quality: moveQuality(review),
+            mistakes: review.moves.filter((move) => move.severity === 'mistake').length,
+            blunders: review.moves.filter((move) => move.severity === 'blunder').length,
+          });
+        }
+      },
 
       resetGames: () => set({ active: null, finished: [], stats: emptyGameStats() }),
     }),

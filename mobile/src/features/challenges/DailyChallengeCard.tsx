@@ -10,21 +10,24 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { allLessons } from '@/curriculum';
 import { nextLesson } from '@/features/learning/progression';
 import { currentFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { analytics } from '@/services/analytics';
 import { useChallengeStore } from '@/state/challengeStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
 
 import { currentChallengeContext } from './challengeService';
-import { getChallenge, type ChallengeAction } from './challenges';
+import { getChallenge, type ChallengeDefinition } from './challenges';
 
-function go(action: ChallengeAction) {
+function go({ id, action }: ChallengeDefinition) {
+  analytics.track('daily_challenge_started', { challenge_id: id });
+  const source = 'daily_challenge';
   if (action.kind === 'play') {
     router.push('/play');
   } else if (action.kind === 'practice') {
-    router.push({ pathname: '/practice/[kind]', params: { kind: action.category } });
+    router.push({ pathname: '/practice/[kind]', params: { kind: action.category, source } });
   } else {
     const lesson = nextLesson(useProgressStore.getState().lessons, allLessons, currentFeatureAccess().canAccessLesson);
-    if (lesson) router.push({ pathname: '/lesson/[id]', params: { id: lesson.id } });
+    if (lesson) router.push({ pathname: '/lesson/[id]', params: { id: lesson.id, source } });
     else router.push('/practice');
   }
 }
@@ -52,7 +55,7 @@ export function DailyChallengeCard({ enterDelay, compact = false }: { enterDelay
         testID="daily-challenge"
         enterDelay={enterDelay}
         accessibilityLabel={`Daily challenge: ${challenge.title}, ${state.progress} of ${challenge.target}`}
-        onPress={done ? undefined : () => go(challenge.action)}
+        onPress={done ? undefined : () => go(challenge)}
       >
         <View style={[styles.compactIcon, { backgroundColor: done ? colors.success : colors.primary }]}>
           <Icon name={done ? 'check-bold' : challenge.icon} size={20} color="textInverse" />
@@ -134,7 +137,7 @@ export function DailyChallengeCard({ enterDelay, compact = false }: { enterDelay
           icon="arrow-right"
           variant="secondary"
           size="medium"
-          onPress={() => go(challenge.action)}
+          onPress={() => go(challenge)}
         />
       )}
     </Card>
