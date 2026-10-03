@@ -22,6 +22,9 @@ const MAX_ATTEMPTS = 3;
 const message = (error: unknown) =>
   error instanceof SyncApiError ? error.message : 'Something went wrong while backing up.';
 
+/** Shown when another device deleted the backup this one was linked to. */
+export const BACKUP_GONE = 'This backup was deleted. Turn backup on to start a new one.';
+
 /**
  * Cloud backup. Progress stays on the device first; when backup is on, a
  * snapshot is uploaded after changes. If another device uploaded in the
@@ -110,12 +113,26 @@ export function createSyncService({ api, credentials, now = () => new Date(), de
           pullNow = false;
         } while (again);
       } catch (error) {
-        store.getState().update({ status: 'error', error: message(error) });
+        if (error instanceof SyncApiError && error.status === 401) {
+          // The code no longer opens a backup: it was deleted, from here or another device.
+          await unlink();
+          store.getState().update({ error: BACKUP_GONE });
+        } else {
+          store.getState().update({ status: 'error', error: message(error) });
+        }
       } finally {
         running = null;
       }
     })();
     return running;
+  }
+
+  /** Forgets the backup on this device. Progress stays; turning backup on starts a new one. */
+  async function unlink() {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    await credentials.clear();
+    store.getState().reset();
   }
 
   function requestSync() {
@@ -168,6 +185,28 @@ export function createSyncService({ api, credentials, now = () => new Date(), de
         lastContentKey: null,
       });
       await syncNow();
+    },
+
+    /**
+     * Deletes the backup and its code from the server, then forgets it here.
+     * Progress on this device stays. Other devices using the code stop backing up.
+     */
+    async deleteBackup(): Promise<void> {
+      if (!api) throw new SyncApiError('Backup isn’t available in this build.', null);
+      const wasEnabled = store.getState().enabled;
+      // No new uploads from here on; let one in progress finish first.
+      store.getState().update({ enabled: false });
+      if (timer) clearTimeout(timer);
+      timer = null;
+      try {
+        await running;
+        const code = await credentials.getCode();
+        if (code) await api.deleteAccount(code);
+      } catch (error) {
+        store.getState().update({ enabled: wasEnabled });
+        throw error;
+      }
+      await unlink();
     },
 
     /** The backup code, to show the player when they ask for it. */

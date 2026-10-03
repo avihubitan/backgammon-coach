@@ -140,7 +140,8 @@ production web hides them.
 Progress lives on the device first. With `EXPO_PUBLIC_API_URL` set, Profile offers **Back up my
 progress**: an anonymous account and a backup code (no email or name). Two devices' copies are
 merged by rules in `services/sync/snapshot.ts`, so nothing either one learned is lost; an upload
-never replaces newer progress without merging first.
+never replaces newer progress without merging first. "Delete my backup" removes the backup and the
+account from the server; other devices linked to it notice on their next sync and stop backing up.
 
 ## AI and analysis
 

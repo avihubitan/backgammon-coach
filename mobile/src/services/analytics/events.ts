@@ -73,7 +73,8 @@ export interface AnalyticsEvents {
 
   backup_enabled: { restored: boolean };
   backup_disabled: Record<string, never>;
-  backup_failed: { action: 'enable' | 'restore' | 'sync'; status: number | null };
+  backup_failed: { action: 'enable' | 'restore' | 'sync' | 'delete'; status: number | null };
+  backup_deleted: Record<string, never>;
 
   board_style_selected: { style: string };
 

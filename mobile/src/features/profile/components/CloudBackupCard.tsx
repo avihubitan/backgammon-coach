@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
 import { ToggleRow } from '@/components/ui/Toggle';
 import { analytics } from '@/services/analytics';
@@ -35,9 +36,11 @@ export function CloudBackupCard() {
   const status = useSyncStore((state) => state.status);
   const error = useSyncStore((state) => state.error);
   const lastSyncedAt = useSyncStore((state) => state.lastSyncedAt);
+  const hasBackup = useSyncStore((state) => state.accountId !== null);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!syncService.isConfigured()) return null;
 
@@ -55,6 +58,26 @@ export function CloudBackupCard() {
     } catch (caught) {
       analytics.track('backup_failed', { action: 'enable', status: caught instanceof SyncApiError ? caught.status : null });
       useToastStore.getState().show({ icon: 'cloud-alert', title: 'Backup didn’t start', message: failure(caught) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteBackup = async () => {
+    setConfirmDelete(false);
+    setBusy(true);
+    try {
+      await syncService.deleteBackup();
+      setCode(null);
+      analytics.track('backup_deleted', {});
+      useToastStore.getState().show({
+        icon: 'cloud-off-outline',
+        title: 'Backup deleted',
+        message: 'Your progress on this phone is still here.',
+      });
+    } catch (caught) {
+      analytics.track('backup_failed', { action: 'delete', status: caught instanceof SyncApiError ? caught.status : null });
+      useToastStore.getState().show({ icon: 'cloud-alert', title: 'Backup not deleted', message: failure(caught) });
     } finally {
       setBusy(false);
     }
@@ -80,6 +103,12 @@ export function CloudBackupCard() {
           value={enabled}
           onChange={(on) => void toggle(on)}
         />
+
+        {!enabled && error ? (
+          <AppText variant="small" color="textSecondary" testID="backup-note">
+            {error}
+          </AppText>
+        ) : null}
 
         {enabled ? (
           <View style={styles.statusRow} testID="backup-status">
@@ -136,7 +165,29 @@ export function CloudBackupCard() {
           onPress={() => setRestoring(true)}
         />
 
+        {hasBackup ? (
+          <Button
+            testID="backup-delete"
+            label="Delete my backup"
+            icon="delete-outline"
+            variant="ghost"
+            size="medium"
+            disabled={busy}
+            onPress={() => setConfirmDelete(true)}
+          />
+        ) : null}
+
         <RestoreDialog visible={restoring} onClose={() => setRestoring(false)} />
+        <ConfirmDialog
+          visible={confirmDelete}
+          title="Delete your backup?"
+          message="Your backup and its code are deleted from our server. Progress on this phone stays. Other phones using this code stop backing up."
+          confirmLabel="Delete backup"
+          cancelLabel="Keep it"
+          destructive
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => void deleteBackup()}
+        />
       </Card>
     </>
   );

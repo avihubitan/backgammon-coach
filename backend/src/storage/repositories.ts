@@ -23,12 +23,16 @@ export type PutResult =
 export interface AccountRepository {
   create(account: Account): Promise<void>;
   findByCodeHash(codeHash: string): Promise<Account | null>;
+  /** Removes the account; its code stops working. No-op when it doesn't exist. */
+  delete(id: string): Promise<void>;
 }
 
 export interface ProgressRepository {
   get(accountId: string): Promise<StoredProgress | null>;
   /** Stores the snapshot only if the stored revision is still `baseRevision` (optimistic concurrency). */
   put(accountId: string, baseRevision: number, snapshot: Record<string, unknown>, now: Date): Promise<PutResult>;
+  /** Removes the stored snapshot. No-op when there is none. */
+  delete(accountId: string): Promise<void>;
 }
 
 /** Checks the storage can be reached (for the health check). */

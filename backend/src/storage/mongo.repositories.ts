@@ -37,6 +37,10 @@ export class MongoAccountRepository implements AccountRepository {
     const found = await this.accounts.findOne({ codeHash });
     return found ? { id: found._id, codeHash: found.codeHash, createdAt: found.createdAt } : null;
   }
+
+  async delete(id: string): Promise<void> {
+    await this.accounts.deleteOne({ _id: id });
+  }
 }
 
 export class MongoProgressRepository implements ProgressRepository {
@@ -70,6 +74,10 @@ export class MongoProgressRepository implements ProgressRepository {
     );
     if (updated) return { ok: true, stored: toStored(updated) };
     return { ok: false, current: await this.get(accountId) };
+  }
+
+  async delete(accountId: string): Promise<void> {
+    await this.progress.deleteOne({ _id: accountId });
   }
 }
 

@@ -13,6 +13,10 @@ export class MemoryAccountRepository implements AccountRepository {
     const account = this.byHash.get(codeHash);
     return account ? { ...account } : null;
   }
+
+  async delete(id: string): Promise<void> {
+    for (const [hash, account] of this.byHash) if (account.id === id) this.byHash.delete(hash);
+  }
 }
 
 export class MemoryProgressRepository implements ProgressRepository {
@@ -29,5 +33,9 @@ export class MemoryProgressRepository implements ProgressRepository {
     const stored: StoredProgress = { revision: baseRevision + 1, updatedAt: now, snapshot: structuredClone(snapshot) };
     this.byAccount.set(accountId, stored);
     return { ok: true, stored: structuredClone(stored) };
+  }
+
+  async delete(accountId: string): Promise<void> {
+    this.byAccount.delete(accountId);
   }
 }

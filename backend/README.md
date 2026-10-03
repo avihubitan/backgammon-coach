@@ -10,6 +10,8 @@ A small NestJS service that keeps an optional cloud backup of each player's prog
 - **Auth:** the code is the bearer credential (`Authorization: Bearer <code>`). Entering it on another
   device links that device to the same backup.
 - **Data:** only the learning progress snapshot the app uploads.
+- **Deletion:** whoever holds the code can delete the backup and the account
+  (`DELETE /v1/accounts/me`, "Delete my backup" in the app). Nothing is kept afterwards.
 
 ## API (`/v1`)
 
@@ -18,6 +20,7 @@ A small NestJS service that keeps an optional cloud backup of each player's prog
 | GET    | `/health`      |      | `{ status, storage }`; 503 when the database can't be reached |
 | POST   | `/accounts`    |      | Create an account: `{ accountId, code }`            |
 | GET    | `/accounts/me` | code | Check a code: `{ accountId, createdAt }`            |
+| DELETE | `/accounts/me` | code | Delete the backup and the account (204)             |
 | GET    | `/progress`    | code | `{ revision, updatedAt, snapshot }` (revision 0 = none) |
 | PUT    | `/progress`    | code | `{ baseRevision, snapshot }` → `{ revision }` or 409 |
 
@@ -78,6 +81,8 @@ Not checked yet: a managed MongoDB (TLS, `mongodb+srv`), a real HTTPS domain, a 
 ```bash
 npm test          # API end-to-end (supertest) and unit tests, on in-memory storage
 npm run typecheck
+TEST_MONGODB_URI=mongodb://127.0.0.1:27017 npm test   # also runs the storage contract on MongoDB
+API_URL=https://api.example.com npm run smoke         # checks a deployed API, then deletes its test account
 ```
 
 `src/storage/repositories.ts` defines the storage contract. Memory and MongoDB

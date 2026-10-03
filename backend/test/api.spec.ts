@@ -77,6 +77,19 @@ describe('Backgammon Coach API', () => {
     expect(other.body.snapshot).toBeNull();
   });
 
+  it('deletes the backup and the account, after which the code stops working', async () => {
+    const { code } = await newAccount();
+    const auth = { Authorization: `Bearer ${code}` };
+    await http().put('/v1/progress').set(auth).send({ baseRevision: 0, snapshot: snapshot(7) }).expect(200);
+
+    await http().delete('/v1/accounts/me').set(auth).expect(204);
+
+    await http().get('/v1/accounts/me').set(auth).expect(401);
+    await http().get('/v1/progress').set(auth).expect(401);
+    await http().delete('/v1/accounts/me').set(auth).expect(401);
+    await http().delete('/v1/accounts/me').expect(401);
+  });
+
   it('validates uploads', async () => {
     const { code } = await newAccount();
     const auth = { Authorization: `Bearer ${code}` };

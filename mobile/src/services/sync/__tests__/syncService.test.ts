@@ -6,7 +6,7 @@ import { usePracticeStore } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
 import { useSyncStore } from '@/state/syncStore';
 
-import type { RemoteProgress, SyncApi } from '../api';
+import { SyncApiError, type RemoteProgress, type SyncApi } from '../api';
 import { memoryCredentials } from '../credentials';
 import type { SyncSnapshot } from '../snapshot';
 import { createSyncService } from '../syncService';
@@ -19,7 +19,7 @@ function fakeServer() {
   const calls: string[] = [];
   const account = (code: string) => {
     const id = accounts.get(code);
-    if (!id) throw Object.assign(new Error('unknown code'), { status: 401 });
+    if (!id) throw new SyncApiError('unknown code', 401);
     return id;
   };
   const api: SyncApi = {
@@ -45,6 +45,13 @@ function fakeServer() {
       if (current.revision !== baseRevision) return { ok: false, current: structuredClone(current) };
       progress.set(id, { revision: baseRevision + 1, updatedAt: 'now', snapshot: structuredClone(snapshot) });
       return { ok: true, revision: baseRevision + 1 };
+    },
+    async deleteAccount(code) {
+      calls.push('delete');
+      const id = accounts.get(code);
+      if (!id) return;
+      accounts.delete(code);
+      progress.delete(id);
     },
   };
   return { api, calls, stored: (accountId: string) => progress.get(accountId), accounts };
@@ -196,5 +203,61 @@ describe('cloud backup', () => {
     await service.syncNow();
     expect(useSyncStore.getState()).toMatchObject({ status: 'idle', error: null });
     expect((server.stored('account-1')!.snapshot as SyncSnapshot).progress.xp).toBe(11);
+  });
+
+  it('deletes the backup on the server and forgets it here, keeping local progress', async () => {
+    const server = fakeServer();
+    const credentials = memoryCredentials();
+    useProgressStore.setState({ xp: 42 });
+    const service = createSyncService({ api: server.api, credentials, now });
+    await service.enable();
+    expect(server.stored('account-1')).toBeDefined();
+
+    await service.deleteBackup();
+
+    expect(server.stored('account-1')).toBeUndefined();
+    expect(server.accounts.size).toBe(0);
+    expect(await credentials.getCode()).toBeNull();
+    expect(useSyncStore.getState()).toMatchObject({ enabled: false, accountId: null, revision: 0 });
+    expect(useProgressStore.getState().xp).toBe(42);
+
+    // Turning backup on again starts a new, separate backup.
+    await service.enable();
+    expect(await credentials.getCode()).toBe('CODE-2');
+    expect((server.stored('account-2')!.snapshot as SyncSnapshot).progress.xp).toBe(42);
+  });
+
+  it('keeps backup on when the server can’t be reached for a delete', async () => {
+    const server = fakeServer();
+    const credentials = memoryCredentials();
+    const api: SyncApi = { ...server.api, deleteAccount: () => Promise.reject(new SyncApiError('offline', null)) };
+    const service = createSyncService({ api, credentials, now });
+    await service.enable();
+
+    await expect(service.deleteBackup()).rejects.toThrow('offline');
+
+    expect(await credentials.getCode()).toBe('CODE-1');
+    expect(useSyncStore.getState()).toMatchObject({ enabled: true, accountId: 'account-1' });
+  });
+
+  it('unlinks a device whose backup was deleted from another device', async () => {
+    const server = fakeServer();
+    const deviceA = createSyncService({ api: server.api, credentials: memoryCredentials(), now });
+    await deviceA.enable();
+    const credentialsB = memoryCredentials();
+    const deviceB = createSyncService({ api: server.api, credentials: credentialsB, now });
+    await deviceB.restore('CODE-1');
+    const stateB = { ...useSyncStore.getState() };
+
+    await deviceA.deleteBackup();
+    // Back on device B (the devices share one sync store in this test).
+    useSyncStore.setState(stateB);
+    useProgressStore.setState({ xp: 77 });
+    await deviceB.syncNow({ pull: true });
+
+    expect(await credentialsB.getCode()).toBeNull();
+    expect(useSyncStore.getState()).toMatchObject({ enabled: false, accountId: null, status: 'idle' });
+    expect(useSyncStore.getState().error).toMatch(/deleted/);
+    expect(useProgressStore.getState().xp).toBe(77);
   });
 });

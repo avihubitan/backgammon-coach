@@ -9,7 +9,8 @@
     "start": "node dist/main.js",
     "dev": "ts-node --transpile-only src/main.ts",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=20"

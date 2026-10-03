@@ -110,8 +110,8 @@ The app works fully without an account, and collects as little as possible.
 - **Before connecting an analytics or crash-reporting vendor:** update this table, the labels and
   the privacy policy, and keep the "anonymous usage data" switch in Settings honoured (it already
   stops all events).
-- **Deletion:** local data is erased by "Reset progress" in Profile. Backups have no deletion
-  endpoint yet; add one (and a way to request it) before a public launch.
+- **Deletion:** local data is erased by "Reset progress" in Profile. "Delete my backup" in Profile
+  deletes the backup and the anonymous account on the server (`DELETE /v1/accounts/me`).
 
 ## 7. Beta logistics (20–50 testers)
 

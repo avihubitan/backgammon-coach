@@ -13,6 +13,8 @@ export interface SyncApi {
   me(code: string): Promise<{ accountId: string }>;
   getProgress(code: string): Promise<RemoteProgress>;
   putProgress(code: string, baseRevision: number, snapshot: object): Promise<PutResult>;
+  /** Deletes the backup and the account on the server. Already gone counts as done. */
+  deleteAccount(code: string): Promise<void>;
 }
 
 export class SyncApiError extends Error {
@@ -83,6 +85,11 @@ export function createHttpSyncApi(baseUrl: string, fetchImpl: typeof fetch = fet
         };
       }
       return fail(status);
+    },
+    async deleteAccount(code) {
+      const { status } = await call('/accounts/me', { method: 'DELETE', code });
+      // 401: the code no longer matches anything, which is what we wanted.
+      if (status !== 204 && status !== 200 && status !== 401) fail(status);
     },
   };
 }
