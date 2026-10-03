@@ -33,6 +33,9 @@ Nothing has been checked on a physical phone yet.
 - **Speed:** `scripts/benchmark-speed.ts`, run in Node and under a Hermes interpreter. The review's
   "what could have happened" was the one slow spot (up to 175 ms per tap); it now uses the
   network directly (under 1 ms) and agrees better with the coach's verdict.
+- **New-player pass** (iPhone SE size): onboarding, Home, the first game and the tabs read clearly;
+  fixed day-one jargon in the daily challenge and its cut-off title on Home. Coach Watch now leaves
+  two moves of room after a stop (blunders excepted): 4.7 → 3.5 stops a game for a weak player.
 - **Earlier:** crash screen, damaged-save repair, soft Play gate, RevenueCat, Coach Watch, review
   outcomes, Coach's pick, accessibility labels, small-screen fixes.
 - **Docs:** [DEVICE_TESTING.md](DEVICE_TESTING.md) (install steps, phones, the seven critical flows,

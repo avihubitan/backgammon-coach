@@ -24,7 +24,8 @@ test: [`docs/DEVICE_TESTING.md`](docs/DEVICE_TESTING.md). The closed beta's ques
 - **Coach:**
   - Hints: the coach's move for the roll as arrows, with the reason in one sentence.
   - Coach Watch: before a clear mistake is confirmed, "Are you sure?" with a clue; then try again,
-    see the better move, or play on. Can be switched off.
+    see the better move, or play on. After a stop it lets the next two moves pass unless one is a
+    blunder, so learners aren't nagged. Can be switched off.
   - Reviews every game in the background: what you played, the coach's move, why, what could
     have happened (shots, winning chances), and "Practise this position".
   - Move quality per game (0–100) and its trend; mistakes come back as practice until fixed.
