@@ -28,6 +28,9 @@ import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// A screen that fails to render shows a way out instead of a blank screen.
+export { CrashScreen as ErrorBoundary } from '@/components/system/CrashScreen';
+
 // The trained network judges positions for the strongest computer level and the coach.
 installNetwork(loadDefaultNetwork());
 

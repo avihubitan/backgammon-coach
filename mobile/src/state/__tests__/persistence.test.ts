@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { allLessons } from '@/curriculum';
+import { emptyStreak } from '@/features/learning/progression';
 
 import { setProgressClock, useProgressStore } from '../progressStore';
 
@@ -57,5 +58,30 @@ describe('progress persistence', () => {
     const reward = useProgressStore.getState().recordLessonResult(allLessons[1].id, outcome);
     expect(reward.streak).toBe(2);
     expect(useProgressStore.getState().streak.current).toBe(2);
+  });
+  it('repairs a damaged save instead of failing to start', async () => {
+    const damaged = {
+      onboardingCompleted: true,
+      xp: 300,
+      streak: null,
+      lessons: { 'board-1': { completed: true }, broken: 'not a record' },
+      xpByDay: { '2026-03-10': 30, bad: 'x' },
+      stats: { exercisesAttempted: 12 },
+    };
+    await AsyncStorage.setItem('bg-coach/progress', JSON.stringify({ state: damaged, version: 1 }));
+    await useProgressStore.persist.rehydrate();
+
+    const state = useProgressStore.getState();
+    expect(state.onboardingCompleted).toBe(true);
+    expect(state.xp).toBe(300);
+    expect(state.streak).toEqual(emptyStreak());
+    expect(state.lessons['board-1']).toMatchObject({ completed: true, bestStars: 0, attempts: 0 });
+    expect(state.lessons.broken).toBeUndefined();
+    expect(state.xpByDay).toEqual({ '2026-03-10': 30 });
+    expect(state.stats.exercisesAttempted).toBe(12);
+    expect(state.stats.byCategory).toEqual({});
+    // Still a working store.
+    state.awardXp(10);
+    expect(useProgressStore.getState().xp).toBe(310);
   });
 });

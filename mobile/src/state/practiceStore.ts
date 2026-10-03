@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import type { DrillCategory } from '@/curriculum/drills';
 
+import { isPlainObject, keepEntries, mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 export type PracticeKind = DrillCategory | 'mistakes';
@@ -43,6 +44,9 @@ export const usePracticeStore = create<PracticeState>()(
       name: 'bg-coach/practice',
       version: 1,
       storage: persistStorage,
+      merge: mergeChecked<PracticeState, Pick<PracticeState, 'records'>>({ records: {} }, (saved) => ({
+        records: keepEntries<PracticeRecord>(saved.records, isPlainObject),
+      })),
       partialize: ({ records }) => ({ records }),
     },
   ),

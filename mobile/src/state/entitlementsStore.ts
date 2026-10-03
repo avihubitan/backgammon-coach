@@ -6,6 +6,7 @@ import { FREE_ENTITLEMENTS, type Entitlements } from '@/features/monetization/en
 import { analytics } from '@/services/analytics';
 import { subscriptionService, type PurchaseResult, type StoreProduct } from '@/services/purchases';
 
+import { mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 /** Free coach reviews already used are remembered per day; unlocked games stay unlocked. */
@@ -97,6 +98,12 @@ export const useEntitlementsStore = create<EntitlementsState>()(
       name: 'bg-coach/entitlements',
       version: 1,
       storage: persistStorage,
+      merge: mergeChecked<EntitlementsState, Pick<EntitlementsState, 'entitlements' | 'reviewDay' | 'reviewedToday' | 'unlockedReviews'>>({
+        entitlements: FREE_ENTITLEMENTS,
+        reviewDay: null,
+        reviewedToday: [],
+        unlockedReviews: [],
+      }),
       partialize: ({ entitlements, reviewDay, reviewedToday, unlockedReviews }) => ({
         entitlements,
         reviewDay,

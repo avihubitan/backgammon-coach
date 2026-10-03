@@ -5,6 +5,8 @@
  */
 export interface AnalyticsEvents {
   app_opened: { first_open: boolean };
+  /** A screen failed to render (only the error's type is sent). */
+  app_error: { name: string };
 
   onboarding_started: Record<string, never>;
   onboarding_completed: { skipped_intro: boolean; challenge_mistakes: number };

@@ -6,6 +6,7 @@ import { analytics, newAnalyticsId } from '@/services/analytics';
 import { configureFeedback } from '@/services/feedback';
 import { DEFAULT_BOARD_THEME, type BoardThemeId } from '@/theme/boardThemes';
 
+import { mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 export interface SettingsData {
@@ -83,6 +84,7 @@ export const useSettingsStore = create<SettingsData & SettingsActions>()(
       name: 'bg-coach/settings',
       version: 5,
       storage: persistStorage,
+      merge: mergeChecked<SettingsData & SettingsActions, SettingsData>(DEFAULT_SETTINGS),
       partialize: (state): SettingsData => pickSettings(state),
       // Older versions had no sound, music, analytics, board style or reminder settings.
       migrate: (persisted) => ({ ...DEFAULT_SETTINGS, ...(persisted as Partial<SettingsData>) }),

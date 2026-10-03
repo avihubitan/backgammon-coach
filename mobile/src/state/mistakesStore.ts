@@ -9,6 +9,7 @@ import {
 } from '@/features/practice/mistakes';
 import type { GameReview } from '@/game';
 
+import { isPlainObject, mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 interface MistakesState {
@@ -43,6 +44,11 @@ export const useMistakesStore = create<MistakesState>()(
       name: 'bg-coach/mistakes',
       version: 1,
       storage: persistStorage,
+      merge: mergeChecked<MistakesState, Pick<MistakesState, 'mistakes'>>({ mistakes: [] }, (saved) => ({
+        mistakes: saved.mistakes.filter(
+          (mistake) => isPlainObject(mistake) && typeof mistake.id === 'string' && isPlainObject(mistake.position),
+        ),
+      })),
       partialize: ({ mistakes }) => ({ mistakes }),
     },
   ),

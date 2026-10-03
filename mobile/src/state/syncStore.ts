@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error';
@@ -41,6 +42,7 @@ export const useSyncStore = create<SyncState>()(
       name: 'bg-coach/sync',
       version: 1,
       storage: persistStorage,
+      merge: mergeChecked<SyncState, typeof initial>(initial),
       partialize: ({ enabled, accountId, revision, lastSyncedAt, lastContentKey }) => ({
         enabled,
         accountId,

@@ -3,11 +3,12 @@ import { persist } from 'zustand/middleware';
 
 import type { SkillCategory } from '@/curriculum';
 import type { AchievementContext } from '@/features/learning/achievements';
-import { dayKey, type ExerciseResult, type LessonAccess } from '@/features/learning/progression';
+import { dayKey, emptyLessonRecord, type ExerciseResult, type LessonAccess } from '@/features/learning/progression';
 import {
   applyLessonResult,
   grantXp,
   initialProgress,
+  type CategoryStats,
   type LessonReward,
   type ProgressData,
   type Reward,
@@ -15,6 +16,7 @@ import {
 import type { LessonOutcome } from '@/features/lessons/engine/session';
 import { analytics } from '@/services/analytics';
 
+import { isPlainObject, keepEntries, mergeChecked, withDefaults } from './sanitize';
 import { persistStorage } from './storage';
 
 function trackStreak(reward: Reward) {
@@ -90,6 +92,24 @@ export const useProgressStore = create<ProgressStore>()(
       name: 'bg-coach/progress',
       version: 1,
       storage: persistStorage,
+      // A damaged field falls back to its default; everything else the player earned is kept.
+      merge: mergeChecked<ProgressStore, ProgressData>(initialProgress(), (saved) => ({
+        ...saved,
+        lessons: Object.fromEntries(
+          Object.entries(saved.lessons)
+            .filter(([, record]) => isPlainObject(record))
+            .map(([id, record]) => [id, withDefaults(emptyLessonRecord(), record)]),
+        ),
+        xpByDay: keepEntries<number>(saved.xpByDay, (xp) => typeof xp === 'number' && Number.isFinite(xp)),
+        achievements: keepEntries<string>(saved.achievements, (day) => typeof day === 'string'),
+        stats: {
+          ...saved.stats,
+          byCategory: keepEntries<CategoryStats>(
+            saved.stats.byCategory,
+            (entry) => isPlainObject(entry) && typeof entry.attempted === 'number' && typeof entry.firstTry === 'number',
+          ),
+        },
+      })),
       partialize: (state): ProgressData => ({
         version: state.version,
         onboardingCompleted: state.onboardingCompleted,

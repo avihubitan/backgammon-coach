@@ -16,6 +16,7 @@ import {
 import type { GameState } from '@/game';
 import { newId } from '@/utils/id';
 
+import { isPlainObject, mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 interface GamesData {
@@ -105,6 +106,19 @@ export const useGameStore = create<GamesData & GamesActions>()(
       name: 'bg-coach/games',
       version: 1,
       storage: persistStorage,
+      merge: mergeChecked<GamesData & GamesActions, Pick<GamesData, 'active' | 'finished' | 'stats' | 'lastSettings'>>(
+        { active: null, finished: [], stats: emptyGameStats(), lastSettings: DEFAULT_SETTINGS },
+        (saved) => ({
+          ...saved,
+          active:
+            isPlainObject(saved.active) && isPlainObject(saved.active.state) && isPlainObject(saved.active.settings)
+              ? saved.active
+              : null,
+          finished: saved.finished.filter(
+            (game) => isPlainObject(game) && typeof game.id === 'string' && Array.isArray(game.history),
+          ),
+        }),
+      ),
       partialize: ({ active, finished, stats, lastSettings }) => ({ active, finished, stats, lastSettings }),
     },
   ),

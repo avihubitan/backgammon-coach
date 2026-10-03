@@ -10,6 +10,7 @@ import {
 } from '@/features/challenges/challenges';
 import { pruneDays } from '@/features/learning/progression';
 
+import { isPlainObject, keepEntries, mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
 interface ChallengeStore {
@@ -58,6 +59,13 @@ export const useChallengeStore = create<ChallengeStore>()(
       name: 'bg-coach/challenges',
       version: 1,
       storage: persistStorage,
+      merge: mergeChecked<ChallengeStore, Pick<ChallengeStore, 'daily' | 'completedDays'>>(
+        { daily: null, completedDays: {} },
+        (saved) => ({
+          daily: isPlainObject(saved.daily) ? saved.daily : null,
+          completedDays: keepEntries<string>(saved.completedDays, (value) => typeof value === 'string'),
+        }),
+      ),
       partialize: ({ daily, completedDays }) => ({ daily, completedDays }),
     },
   ),
