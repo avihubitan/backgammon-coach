@@ -17,6 +17,7 @@ import { levelInfo, visibleStreak } from '@/features/learning/progression';
 import { accuracy } from '@/features/learning/progressModel';
 import { PremiumCard } from '@/features/monetization/PremiumCard';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { ReminderSettings } from '@/features/reminders/ReminderSettings';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
 import { useGameStore } from '@/state/gameStore';
 import { useMistakesStore } from '@/state/mistakesStore';
@@ -167,6 +168,7 @@ export function ProfileScreen() {
         Settings
       </AppText>
       <Card style={styles.settings}>
+        <ReminderSettings />
         <ToggleRow
           testID="setting-sound"
           label="Sound effects"

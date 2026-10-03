@@ -18,6 +18,7 @@ import { BoardThemeProvider } from '@/features/settings/BoardThemeProvider';
 import { installNetwork, loadDefaultNetwork } from '@/game';
 import { analytics, startAnalyticsSession } from '@/services/analytics';
 import { soundBank } from '@/services/feedback';
+import { reminderService } from '@/services/reminders';
 import { syncService } from '@/services/sync';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { useProgressStore } from '@/state/progressStore';
@@ -63,7 +64,13 @@ export default function RootLayout() {
     const progress = useProgressStore.getState();
     analytics.track('app_opened', { first_open: !progress.onboardingCompleted && progress.xp === 0 });
     // Cloud backup (only when a server is configured and the player turned it on).
-    return syncService.start();
+    const stopSync = syncService.start();
+    // Daily reminders follow the streak (only when the player turned them on).
+    const stopReminders = reminderService.start();
+    return () => {
+      stopSync();
+      stopReminders();
+    };
   }, [ready]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;

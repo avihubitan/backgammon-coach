@@ -71,6 +71,11 @@ export interface AnalyticsEvents {
   backup_failed: { action: 'enable' | 'restore' | 'sync'; status: number | null };
 
   board_style_selected: { style: string };
+
+  reminders_enabled: { hour: number; minute: number; source: 'home' | 'settings' };
+  reminders_disabled: Record<string, never>;
+  reminders_permission_denied: { source: 'home' | 'settings' };
+  reminder_prompt_dismissed: Record<string, never>;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

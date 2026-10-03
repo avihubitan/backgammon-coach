@@ -23,6 +23,7 @@ import {
 } from '@/features/learning/progression';
 import { todayXp } from '@/features/learning/progressModel';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { ReminderPromptCard } from '@/features/reminders/ReminderPromptCard';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
 
@@ -191,6 +192,8 @@ export function HomeScreen() {
       <DailyChallengeCard enterDelay={180} compact />
 
       <StreakCard status={streakNow} xpToday={xpToday} goal={goal} enterDelay={240} />
+
+      <ReminderPromptCard enterDelay={270} />
 
       <Card
         style={styles.playCard}

@@ -28,6 +28,9 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 - **Practice:** skill drills, a daily challenge, and lesson replays.
 - **Progress:** XP and levels, stars, a streak, a daily goal and achievements. Every week in a row
   earns a streak freeze (up to two) that covers a missed day. Everything is stored on the device.
+- **Daily reminders:** opt-in local notifications at a time the player picks. They mention the streak,
+  skip days already done, and stop a few days after the player stops opening the app. Home offers
+  them once, after the first lesson; development web builds simulate them.
 
 ## Free and Premium
 

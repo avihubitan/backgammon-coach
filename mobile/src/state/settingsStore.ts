@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import type { ReminderTime } from '@/features/reminders/reminderPlan';
 import { analytics, newAnalyticsId } from '@/services/analytics';
 import { configureFeedback } from '@/services/feedback';
 import { DEFAULT_BOARD_THEME, type BoardThemeId } from '@/theme/boardThemes';
@@ -24,6 +25,10 @@ export interface SettingsData {
   installId: string;
   /** Board style (cosmetic). */
   boardTheme: BoardThemeId;
+  /** A daily reminder on this device, at this local time. */
+  reminders: ReminderTime & { enabled: boolean };
+  /** Whether Home has offered reminders yet ('done' once they were turned on anywhere). */
+  reminderPrompt: 'unasked' | 'dismissed' | 'done';
 }
 
 interface SettingsActions {
@@ -40,6 +45,8 @@ export const DEFAULT_SETTINGS: SettingsData = {
   analytics: true,
   installId: '',
   boardTheme: DEFAULT_BOARD_THEME,
+  reminders: { enabled: false, hour: 19, minute: 0 },
+  reminderPrompt: 'unasked',
 };
 
 const pickSettings = (state: SettingsData): SettingsData => ({
@@ -52,6 +59,8 @@ const pickSettings = (state: SettingsData): SettingsData => ({
   analytics: state.analytics,
   installId: state.installId,
   boardTheme: state.boardTheme,
+  reminders: state.reminders,
+  reminderPrompt: state.reminderPrompt,
 });
 
 function apply(settings: SettingsData) {
@@ -72,10 +81,10 @@ export const useSettingsStore = create<SettingsData & SettingsActions>()(
     }),
     {
       name: 'bg-coach/settings',
-      version: 4,
+      version: 5,
       storage: persistStorage,
       partialize: (state): SettingsData => pickSettings(state),
-      // Older versions had no sound, music, analytics or board style settings.
+      // Older versions had no sound, music, analytics, board style or reminder settings.
       migrate: (persisted) => ({ ...DEFAULT_SETTINGS, ...(persisted as Partial<SettingsData>) }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
