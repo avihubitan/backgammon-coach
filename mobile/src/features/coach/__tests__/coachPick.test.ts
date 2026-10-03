@@ -1,7 +1,7 @@
 import { emptyLessonRecord } from '@/features/learning/progression';
 import type { UserMistake } from '@/features/practice/mistakes';
 
-import { coachPick, type CoachInput } from '../coachPick';
+import { coachPick, coachPicks, coachPlan, RECENT_DAYS, type CoachInput } from '../coachPick';
 
 const mistake = (category: UserMistake['category'], solved = 0) =>
   ({ id: `${category}-${Math.random()}`, category, solved, attempts: solved, severity: 0.1 }) as unknown as UserMistake;
@@ -77,5 +77,52 @@ describe("coach's pick", () => {
     );
     expect(pick).toMatchObject({ topic: 'Hitting', action: { kind: 'drill', drill: 'hitting' } });
     expect(pick?.reason).toContain('50%');
+  });
+});
+
+describe("coach's pick over time", () => {
+  const dated = (category: UserMistake['category'], createdAt: string) =>
+    ({ ...mistake(category), createdAt }) as UserMistake;
+  const today = '2026-03-30';
+
+  it('puts patterns from recent games ahead of old ones', () => {
+    const old = Array.from({ length: 5 }, () => dated('racing', '2026-01-02T10:00:00.000Z'));
+    const recent = Array.from({ length: 3 }, () => dated('hitting', '2026-03-25T10:00:00.000Z'));
+    const pick = coachPick(input({ mistakes: [...old, ...recent], unlockedDrills: ['hitting', 'race'], today }));
+    expect(pick).toMatchObject({ topic: 'Hitting' });
+    expect(pick?.reason).toContain('your recent games');
+    expect(RECENT_DAYS).toBeGreaterThan(7);
+  });
+
+  it('still uses older games when nothing recent stands out', () => {
+    const old = Array.from({ length: 3 }, () => dated('racing', '2026-01-02T10:00:00.000Z'));
+    const pick = coachPick(input({ mistakes: old, unlockedDrills: ['race'], today }));
+    expect(pick).toMatchObject({ topic: 'Racing' });
+    expect(pick?.reason).toContain('your games');
+  });
+
+  it('ranks several things to work on, one per topic', () => {
+    const picks = coachPicks(
+      input({
+        mistakes: [mistake('hitting'), mistake('hitting'), mistake('hitting')],
+        byCategory: { hitting: { attempted: 10, firstTry: 4 }, opening: { attempted: 10, firstTry: 6 } },
+        unlockedDrills: ['hitting', 'opening'],
+      }),
+    );
+    expect(picks.map((pick) => pick.topic)).toEqual(['Hitting', 'Openings']);
+  });
+
+  it('marks today’s pick done once practised, and offers the next one', () => {
+    const base = input({
+      mistakes: [mistake('hitting'), mistake('hitting'), mistake('hitting')],
+      byCategory: { opening: { attempted: 10, firstTry: 5 } },
+      unlockedDrills: ['hitting', 'opening'],
+      today,
+    });
+    expect(coachPlan(base)).toMatchObject({ done: false, next: null, pick: { topic: 'Hitting' } });
+    const practised = coachPlan({ ...base, practiced: { hitting: { lastPlayedAt: '2026-03-30T08:00:00' } } });
+    expect(practised).toMatchObject({ done: true, pick: { topic: 'Hitting' }, next: { topic: 'Openings' } });
+    // Yesterday's practice doesn't count for today.
+    expect(coachPlan({ ...base, practiced: { hitting: { lastPlayedAt: '2026-03-29T08:00:00' } } })?.done).toBe(false);
   });
 });

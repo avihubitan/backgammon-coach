@@ -1,11 +1,12 @@
 import type { IconName } from '@/components/ui/Icon';
 import type { SkillCategory } from '@/curriculum';
 import type { DrillCategory } from '@/curriculum/drills';
-import type { LessonRecords } from '@/features/learning/progression';
+import { dayKey, daysBetween, type LessonRecords } from '@/features/learning/progression';
 import type { CategoryStats } from '@/features/learning/progressModel';
 import { isMastered, type UserMistake } from '@/features/practice/mistakes';
-import { focusSkill, skillRows } from '@/features/profile/profileStats';
+import { skillRows } from '@/features/profile/profileStats';
 import { categoryLabel, type MistakeCategory } from '@/game';
+import type { PracticeKind } from '@/state/practiceStore';
 
 /**
  * The coach's one suggestion for what to work on next, based on what the
@@ -65,6 +66,8 @@ const LESSON_FOR_SKILL: Record<SkillCategory, string> = {
 
 /** Open mistakes of one kind before the coach calls it a pattern. */
 export const PATTERN_THRESHOLD = 3;
+/** Mistakes from games in this many days count as "recent", and recent patterns come first. */
+export const RECENT_DAYS = 21;
 
 export interface CoachInput {
   mistakes: UserMistake[];
@@ -73,6 +76,10 @@ export interface CoachInput {
   unlockedDrills: DrillCategory[];
   canPracticeMistakes: boolean;
   canAccessLesson: (lessonId: string) => boolean;
+  /** Today (YYYY-MM-DD): recent mistakes weigh more, and a pick practised today counts as done. */
+  today?: string;
+  /** When each kind of practice was last played (ISO timestamps). */
+  practiced?: Partial<Record<PracticeKind, { lastPlayedAt: string | null }>>;
 }
 
 function train(
@@ -88,43 +95,102 @@ function train(
   return null;
 }
 
-export function coachPick(input: CoachInput): CoachPick | null {
-  // 1. A pattern in your games.
-  const open = input.mistakes.filter((mistake) => !isMastered(mistake));
+const countByCategory = (mistakes: UserMistake[]) => {
   const counts = new Map<MistakeCategory, number>();
-  for (const mistake of open) counts.set(mistake.category, (counts.get(mistake.category) ?? 0) + 1);
-  const [worst] = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  if (worst && worst[1] >= PATTERN_THRESHOLD) {
-    const [category, count] = worst;
+  for (const mistake of mistakes) counts.set(mistake.category, (counts.get(mistake.category) ?? 0) + 1);
+  return [...counts.entries()].filter(([, count]) => count >= PATTERN_THRESHOLD).sort((a, b) => b[1] - a[1]);
+};
+
+/** Patterns in the player's games: recent games first, then all of them. */
+function patternPicks(input: CoachInput): CoachPick[] {
+  const open = input.mistakes.filter((mistake) => !isMastered(mistake));
+  const today = input.today;
+  const recent = today
+    ? open.filter((mistake) => {
+        const day = mistake.createdAt ? dayKey(new Date(mistake.createdAt)) : null;
+        return !!day && daysBetween(day, today) <= RECENT_DAYS;
+      })
+    : [];
+  let patterns = countByCategory(recent);
+  let games = 'your recent games';
+  if (patterns.length === 0) {
+    patterns = countByCategory(open);
+    games = 'your games';
+  }
+  return patterns.flatMap(([category, count], index): CoachPick[] => {
     const topic = categoryLabel(category);
-    const reason = `${count} of the moves the coach flagged in your games were about ${topic.toLowerCase()}.`;
-    if (input.canPracticeMistakes) {
-      return {
-        topic,
-        reason,
-        action: { kind: 'mistakes' },
-        actionLabel: 'Practise those positions',
-        icon: FOR_MISTAKE[category].icon,
-        premium: true,
-      };
+    const reason = `${count} of the moves the coach flagged in ${games} were about ${topic.toLowerCase()}.`;
+    const icon = FOR_MISTAKE[category].icon;
+    // Premium practises the actual positions (one pick for all of them).
+    if (input.canPracticeMistakes && index === 0) {
+      return [{ topic, reason, action: { kind: 'mistakes' }, actionLabel: 'Practise those positions', icon, premium: true }];
     }
     const training = train(FOR_MISTAKE[category], input);
-    if (training) return { topic, reason, ...training, icon: FOR_MISTAKE[category].icon, premium: false };
-  }
+    return training ? [{ topic, reason, ...training, icon, premium: false }] : [];
+  });
+}
 
-  // 2. Your weakest skill in lessons.
-  const weakest = focusSkill(skillRows(input.byCategory));
-  if (weakest) {
-    const training = train({ drill: weakest.drill, lessonId: LESSON_FOR_SKILL[weakest.id] }, input);
-    if (training) {
-      return {
-        topic: weakest.label,
-        reason: `You get ${Math.round(weakest.accuracy * 100)}% of ${weakest.label.toLowerCase()} exercises right on the first try, your lowest score.`,
-        ...training,
-        icon: weakest.icon,
-        premium: false,
-      };
-    }
-  }
-  return null;
+/** Weak skills in lessons, weakest first. */
+function skillPicks(input: CoachInput): CoachPick[] {
+  return skillRows(input.byCategory)
+    .filter((row) => row.attempted >= 5 && row.accuracy < 0.8)
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .flatMap((row): CoachPick[] => {
+      const training = train({ drill: row.drill, lessonId: LESSON_FOR_SKILL[row.id] }, input);
+      if (!training) return [];
+      return [
+        {
+          topic: row.label,
+          reason: `You get ${Math.round(row.accuracy * 100)}% of ${row.label.toLowerCase()} exercises right on the first try, your lowest score.`,
+          ...training,
+          icon: row.icon,
+          premium: false,
+        },
+      ];
+    });
+}
+
+const actionKey = (action: CoachAction) =>
+  action.kind === 'mistakes' ? 'mistakes' : action.kind === 'drill' ? `drill:${action.drill}` : `lesson:${action.lessonId}`;
+
+/**
+ * Everything worth working on, best first: patterns in the player's games
+ * (recent ones first), then weak lesson skills. One pick per topic and action.
+ */
+export function coachPicks(input: CoachInput): CoachPick[] {
+  const seen = new Set<string>();
+  return [...patternPicks(input), ...skillPicks(input)].filter((pick) => {
+    const keys = [`topic:${pick.topic}`, actionKey(pick.action)];
+    if (keys.some((key) => seen.has(key))) return false;
+    keys.forEach((key) => seen.add(key));
+    return true;
+  });
+}
+
+export function coachPick(input: CoachInput): CoachPick | null {
+  return coachPicks(input)[0] ?? null;
+}
+
+/** The pick was already practised today. */
+export function doneToday(action: CoachAction, input: CoachInput): boolean {
+  if (!input.today) return false;
+  if (action.kind === 'lesson') return input.lessons[action.lessonId]?.lastPlayedAt === input.today;
+  const last = input.practiced?.[action.kind === 'mistakes' ? 'mistakes' : action.drill]?.lastPlayedAt;
+  return !!last && dayKey(new Date(last)) === input.today;
+}
+
+export interface CoachPlan {
+  pick: CoachPick;
+  /** Practised today: the card says so, and offers what's next. */
+  done: boolean;
+  next: CoachPick | null;
+}
+
+/** Today's pick, whether it's done, and the next thing to work on once it is. */
+export function coachPlan(input: CoachInput): CoachPlan | null {
+  const picks = coachPicks(input);
+  const [pick] = picks;
+  if (!pick) return null;
+  const done = doneToday(pick.action, input);
+  return { pick, done, next: done ? (picks.slice(1).find((other) => !doneToday(other.action, input)) ?? null) : null };
 }
