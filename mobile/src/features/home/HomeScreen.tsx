@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { StatChip } from '@/components/ui/StatChip';
 import { allLessons, curriculum, getSection, sectionNumber } from '@/curriculum';
 import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
+import { CoachPickCard } from '@/features/coach/CoachPickCard';
 import {
   currentSection,
   isFeatureUnlocked,
@@ -47,11 +48,13 @@ export function HomeScreen() {
       testID="home-screen"
       header={
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerText}>
             <AppText variant="label" color="primary">
               Backgammon Coach
             </AppText>
-            <AppText variant="title">{greeting()}</AppText>
+            <AppText variant="title" numberOfLines={1}>
+              {greeting()}
+            </AppText>
           </View>
           <View style={styles.chips}>
             <StatChip
@@ -181,6 +184,8 @@ export function HomeScreen() {
         </Card>
       )}
 
+      <CoachPickCard enterDelay={150} />
+
       <DailyChallengeCard enterDelay={180} compact />
 
       <Card style={styles.dailyCard} enterDelay={240}>
@@ -236,7 +241,7 @@ export function HomeScreen() {
 
 function greeting(): string {
   const hour = new Date().getHours();
-  if (hour < 5) return 'Late-night practice?';
+  if (hour < 5) return 'Up late?';
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
@@ -249,7 +254,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
   },
-  chips: { flexDirection: 'row', gap: spacing.sm },
+  headerText: { flex: 1, marginRight: spacing.sm },
+  chips: { flexDirection: 'row', gap: spacing.sm, flexShrink: 0 },
   flex: { flex: 1 },
   levelCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   levelBadge: {
