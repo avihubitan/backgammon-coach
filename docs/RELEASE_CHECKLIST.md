@@ -1,123 +1,115 @@
 # Release checklist
 
-What has to be true before a beta and before store submission. `[x]` means done and checked in
-the code or the browser; `[ ]` still needs doing or verifying (most need accounts, consoles or a
-physical device). Nothing here has been verified on a physical device yet.
+What has to be true before the closed beta (TestFlight and Play internal testing) and later the
+store release. "Done" means done and checked in code, tests, the browser, generated native projects
+or Docker, as noted. Nothing has been checked on a physical phone yet:
+[DEVICE_TESTING.md](DEVICE_TESTING.md) is that plan. Privacy details are in [PRIVACY.md](PRIVACY.md).
 
-## 1. Verify on physical devices (iPhone and Android)
+## Status
 
-Build with `npx eas-cli@latest build --profile development` (or `preview`) and check on at least one
-small iPhone (SE / mini), one large iPhone, and one mid-range Android phone.
+| Item | Status | Notes |
+| ---- | ------ | ----- |
+| App icon and splash | Done | iOS icon, Android adaptive and monochrome icons, notification icon |
+| Bundle id / package | Done in config | `com.backgammoncoach.app` on both; not yet registered with Apple or Google |
+| Version and build numbers | Done in config | 1.0.0; EAS manages build numbers (`appVersionSource: remote`) once `eas init` has run |
+| EAS profiles | Checked offline | development, preview, production; pass Expo's `eas.json` schema; never built (needs an Expo account) |
+| Native config | Checked offline | `expo prebuild` for iOS and Android; permissions and Info.plist reviewed; Hermes bundles compile |
+| Development build | Not done | Needs `eas init`, Apple Developer account, registered iPhones |
+| TestFlight | Not done | Needs the App Store Connect app record |
+| Google Play internal testing | Not done | Needs a Play Console app |
+| RevenueCat | Code done | Products, entitlement and keys not set up; Test Store keys refused in production builds |
+| Subscriptions in the stores | Not done | Monthly and annual (7-day trial on annual) |
+| Paywall terms and links | Done in code | Renewal terms, restore, Terms of Use and Privacy Policy links (needs `EXPO_PUBLIC_PRIVACY_URL`) |
+| Privacy policy | Draft | [PRIVACY.md](PRIVACY.md); needs review, hosting and a contact email |
+| Crash reporting | Code done | Sentry; needs a project, DSN and auth token; not seen working on a phone |
+| Analytics | Code done | PostHog; needs a project and key; not seen working on a phone |
+| In-app feedback | Done | Rating after lessons and games, "Send feedback" in Profile |
+| Notifications | Code done | Local reminders; tap opens Home; test reminder in preview builds; not checked on a phone |
+| Cloud backend | Checked in Docker | Image + MongoDB 7 + smoke test; no hosting, managed database or HTTPS domain yet |
+| Backup deletion | Done | In the app and the API |
+| Real device testing | Not done | [DEVICE_TESTING.md](DEVICE_TESTING.md) |
+| App Store screenshots | Not done | 6.9" and 6.5" iPhone; 13" iPad |
+| Play Store screenshots and feature graphic | Not done | |
+| Store listings, age ratings | Not done | |
 
-- [ ] **Onboarding to first lesson:** fonts load, splash hides, safe areas (notch, home indicator)
-      respected, first move works by tap and by drag.
-- [ ] **Board:** dragging a checker feels immediate (no lag, no scroll conflict); dice roll, checker
-      flights, hits and bear-off animate smoothly at 60 fps on the Android phone.
-- [ ] **Game:** a full game against each level; hints, Coach Watch (all three answers), the
-      result sheet, the coach review, and resuming a game after killing the app.
-- [ ] **Haptics and sound:** feel and loudness; the iOS silent switch mutes sound effects.
-- [ ] **Notifications:** turning reminders on shows the system prompt; a reminder arrives at the
-      chosen time; it doesn't arrive on a day you already learned; it shows the app icon (iOS) and the
-      white checker icon (Android); denying permission shows the "turn them on in Settings" note and
-      the button opens the app's settings. Android 13+: the prompt appears.
-- [ ] **Purchases (sandbox / license testers):** paywall shows store prices and the trial; buying
-      unlocks Premium at once; restoring on a second device works; cancelling shows "ends on …";
-      an expired sandbox subscription removes Premium; airplane mode keeps Premium.
-- [ ] **Cloud backup:** back up on one phone, restore with the code on another, change both, check
-      both end with everything.
-- [ ] **Persistence:** progress, streak, settings, board style, mistakes and games survive killing
-      the app and rebooting the phone.
-- [ ] **Accessibility:** VoiceOver and TalkBack read the board points and buttons; the largest text
-      size keeps layouts usable; Reduce Motion calms the board and effects.
-- [ ] **Offline:** lessons, games, practice and reviews all work in airplane mode.
-- [ ] **Startup time** on the Android phone (cold start to Home) is acceptable.
-
-## 2. iOS (App Store Connect)
+## 1. iOS (App Store Connect)
 
 - [x] Bundle identifier `com.backgammoncoach.app` (`mobile/app.json`).
-- [x] App icon (`assets/expo.icon`) and splash; dark interface style.
+- [x] App icon (`assets/expo.icon`), splash, dark interface style.
 - [x] iPad runs full screen (`requireFullScreen`), so a portrait-only app passes validation.
 - [x] No export-compliance prompt per build (`usesNonExemptEncryption: false`; HTTPS only).
-- [x] No permission prompts except notifications (asked only when the player turns reminders on).
+- [x] Permission prompts: notifications only (when reminders are turned on). No Face ID string
+      (removed: the app never uses biometrics).
+- [x] Restore purchases on the paywall and the Premium card; Terms of Use (Apple's standard EULA by
+      default) and Privacy Policy links on the paywall.
+- [x] Sign in with Apple not needed: no third-party login (backup uses an anonymous code).
+- [x] Account deletion (guideline 5.1.1(v)): the anonymous backup account can be deleted in the app.
 - [ ] `eas init` (adds `extra.eas.projectId`), Apple Developer team, App Store Connect app record.
-- [ ] Subscriptions in App Store Connect: `com.backgammoncoach.premium.monthly` and
-      `com.backgammoncoach.premium.annual` (7-day free trial) in one subscription group; prices,
-      localised names, review screenshot of the paywall.
+- [ ] Subscriptions: `com.backgammoncoach.premium.monthly` and `com.backgammoncoach.premium.annual`
+      (7-day free trial) in one subscription group; prices, localised names, the paywall screenshot
+      for review.
 - [ ] Paid Applications agreement, tax and banking.
-- [ ] Privacy nutrition labels (see section 6) and a privacy policy URL.
-- [ ] Metadata: name, subtitle, description, keywords, support URL, age rating (no gambling: dice
-      are a game mechanic, no real money).
-- [ ] Screenshots (6.9" and 6.5" iPhone; 13" iPad, since tablets are supported).
+- [ ] Privacy labels ([PRIVACY.md](PRIVACY.md)), privacy policy URL, support URL.
+- [ ] Metadata: name, subtitle, description, keywords, age rating (dice are a game mechanic; no
+      real-money gambling).
+- [ ] Screenshots.
 - [ ] Review notes: Premium can be tested with a sandbox account; no login exists.
-- [x] Restore purchases is on the paywall and the Premium card.
-- [x] Sign in with Apple is not needed: there is no third-party login (backup is an anonymous code).
-- [ ] Privacy manifest check: Xcode's privacy report from an archive build lists no unexplained
-      required-reason APIs.
+- [ ] After the first archive build: Xcode's privacy report lists no unexplained required-reason
+      APIs (React Native gathers the libraries' privacy manifests during `pod install`).
+- [ ] TestFlight: an external group, its review (needs test information and a contact email).
 
-## 3. Android (Play Console)
+## 2. Android (Play Console)
 
-- [x] Package name `com.backgammoncoach.app`.
-- [x] Adaptive icon (foreground, background, monochrome) and the notification icon.
-- [x] Legacy storage and microphone permissions blocked; requested at runtime: notifications only.
+- [x] Package `com.backgammoncoach.app`; adaptive and notification icons.
+- [x] Blocked: legacy storage, microphone and "draw over other apps". Expected after the manifest
+      merge: internet, network state, vibrate, notifications (prompt on 13+), boot completed (to
+      keep reminders after a restart), audio settings, billing. Check the list on the first upload.
 - [ ] Play Console app, internal testing track, license testers.
-- [ ] Subscriptions `premium_monthly` and `premium_annual` (base plans; free-trial offer on annual).
-- [ ] Data safety form (section 6) and privacy policy URL.
-- [ ] Store listing: descriptions, feature graphic, phone screenshots; content rating questionnaire.
-- [ ] Target API level matches Play's current requirement (follows the Expo SDK).
+- [ ] Subscriptions `premium_monthly` and `premium_annual` (base plans; a free-trial offer on annual).
+- [ ] Data safety form ([PRIVACY.md](PRIVACY.md)) and privacy policy URL.
+- [ ] Store listing, feature graphic, phone screenshots, content rating questionnaire.
+- [ ] Target API level meets Play's current requirement (it follows the Expo SDK).
 
-## 4. RevenueCat
+## 3. RevenueCat
 
 - [x] App code: `services/purchases/revenueCatProvider.ts` behind `SubscriptionService`; tests with a
-      fake SDK.
-- [ ] Project with the iOS and Android apps (App Store shared secret / App Store Connect API key;
-      Play service-account credentials).
-- [ ] Entitlement `premium` attached to both products; current offering with `$rc_monthly` and
+      fake SDK; production builds ignore Test Store keys.
+- [ ] Project with the iOS and Android apps (App Store Connect API key or shared secret; Play
+      service-account credentials).
+- [ ] Entitlement `premium` attached to both products; a current offering with `$rc_monthly` and
       `$rc_annual` packages.
-- [ ] Public SDK keys set as EAS environment variables (`EXPO_PUBLIC_REVENUECAT_IOS_KEY`,
-      `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`) for preview and production.
-- [ ] Optional: RevenueCat webhooks or integrations for revenue analytics.
+- [ ] Public SDK keys as EAS environment variables for preview and production (Test Store key for
+      development if wanted).
+
+## 4. Crash reporting and analytics
+
+- [ ] Sentry project (React Native). DSN as `EXPO_PUBLIC_SENTRY_DSN`; `SENTRY_AUTH_TOKEN` (secret),
+      `SENTRY_ORG`, `SENTRY_PROJECT` for preview and production builds, so source maps and debug
+      symbols upload. Turn on "Prevent storing of IP addresses".
+- [ ] PostHog project (US or EU). `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST`; turn on
+      "Discard client IP data"; build the dashboard in [BETA.md](BETA.md).
+- [ ] On a preview build: a test error appears in Sentry with readable file names; events appear in
+      PostHog with `build_variant = preview`.
 
 ## 5. Backend (only needed for cloud backup)
 
-- [x] Refuses to start in production without MongoDB; health check pings the database.
-- [x] Rate limits (per client with `TRUST_PROXY`), body size limit, input validation.
-- [x] Docker image (`backend/Dockerfile`). Not built here: no Docker daemon in this environment.
-- [ ] Hosting (any container platform) and managed MongoDB with automatic backups.
-- [ ] HTTPS domain; `EXPO_PUBLIC_API_URL` set for preview and production builds.
-- [ ] Uptime monitoring on `/v1/health`.
+- [x] Refuses to start in production without MongoDB; health check pings the database (503 within
+      3 s when it can't); requests fail after 5 s instead of 30.
+- [x] Rate limits (per client with `TRUST_PROXY`), body size limit, input validation, JSON logs
+      without IPs or codes, backup deletion.
+- [x] Docker image built and run with MongoDB 7; `npm run smoke` passes against it.
+- [ ] Managed MongoDB with automatic backups, in the region the privacy policy names.
+- [ ] Hosting for the container, an HTTPS domain, `EXPO_PUBLIC_API_URL` for preview and production.
+- [ ] `MONGODB_URI` stored as the platform's secret, never in git; `TRUST_PROXY=1` behind its load
+      balancer; `CORS_ORIGINS` left empty (native apps don't need it).
+- [ ] Health check and uptime monitoring on `/v1/health`; log retention set.
+- [ ] `API_URL=https://… npm run smoke` against the deployed API.
 
-## 6. Privacy model
-
-The app works fully without an account, and collects as little as possible.
-
-| Data | Where it lives | Why | Linked to the person? |
-| ---- | -------------- | --- | --------------------- |
-| Lessons, XP, streak, games, mistakes, settings | On the device | The app itself | No (never leaves the device) |
-| Progress snapshot (cloud backup, opt-in) | Our API (MongoDB) | Restore on another device | Only to an anonymous account; the backup code is stored as a hash |
-| Purchase history and an anonymous app user ID | RevenueCat, Apple, Google | Selling and restoring Premium | To the store account (Apple ID / Google account), not to a name or email we hold |
-| Analytics events (lesson completed, game finished, paywall viewed, …) with a random install ID | On the device only today; no vendor is connected | Product decisions, once a provider is chosen | No; no names, emails, free text or device identifiers |
-| Notification permission | On the device | Daily reminders | No |
-
-- **Not collected:** name, email, phone, location, contacts, photos, device identifiers for
-  tracking, advertising IDs. No ads, no tracking, no third-party login.
-- **App Store labels (draft):** "Purchases – Purchase history: App functionality, not used for
-  tracking" (through RevenueCat); "Other user content: learning progress, app functionality, only
-  if backup is turned on". Confirm the exact answers against RevenueCat's privacy guidance before
-  submitting.
-- **Play data safety (draft):** purchase history (collected, app functionality, encrypted in transit,
-  not shared for advertising); app activity / progress for backup (optional, deletable by not
-  using backup).
-- **Before connecting an analytics or crash-reporting vendor:** update this table, the labels and
-  the privacy policy, and keep the "anonymous usage data" switch in Settings honoured (it already
-  stops all events).
-- **Deletion:** local data is erased by "Reset progress" in Profile. "Delete my backup" in Profile
-  deletes the backup and the anonymous account on the server (`DELETE /v1/accounts/me`).
-
-## 7. Beta logistics (20–50 testers)
+## 6. Beta logistics (20–50 testers)
 
 - [ ] TestFlight external group and Play internal testing track; invite links.
-- [ ] Decide what testers get: Premium through sandbox purchases (free in TestFlight), or keep it
-      paid to observe the paywall.
-- [ ] A way for testers to report issues (a form or email in the store listing).
-- [ ] Optional: a crash reporter (for example Sentry) before the beta, so crashes on testers'
-      phones are visible; the app already shows a recovery screen instead of a blank one.
+- [ ] Decide what testers get: Premium through sandbox purchases (free in TestFlight) or keep it paid
+      to watch the paywall. See [BETA.md](BETA.md).
+- [ ] A contact email for testers, in the invite and the store listing.
+- [ ] Before the public release: switch off the daily "How was this?" question
+      (`QUICK_FEEDBACK_ENABLED`) and settle the open decisions in [PRIVACY.md](PRIVACY.md).

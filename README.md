@@ -6,9 +6,10 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 
 **Learn → Play → Get feedback → Practise your mistakes → Improve.**
 
-Status, next steps and known blockers: [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md).
-Before a store release: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) (store setup, privacy
-model, what to verify on real phones).
+Status and next steps: [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md). Release status and
+store setup: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md). Installing on phones and what to
+test: [`docs/DEVICE_TESTING.md`](docs/DEVICE_TESTING.md). The closed beta's questions and metrics:
+[`docs/BETA.md`](docs/BETA.md). Data the app collects: [`docs/PRIVACY.md`](docs/PRIVACY.md).
 
 ## What's in the app
 
@@ -51,7 +52,7 @@ they never check products or prices.
 ```
 mobile/    Expo SDK 57 + React Native + TypeScript app (iOS, Android; web for development)
 backend/   NestJS API: anonymous accounts and progress backup (MongoDB; memory in development)
-docs/      Development status and release checklist
+docs/      Status, release checklist, device testing, beta plan, privacy
 ```
 
 | `mobile/src`  | What lives there                                                                          |

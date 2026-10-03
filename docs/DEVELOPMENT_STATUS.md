@@ -2,41 +2,52 @@
 
 Short and current, so work can resume quickly. Update it when a milestone moves.
 
-## Milestone: production beta (20–50 testers for several days)
+## Milestone: closed beta (20–50 testers)
 
-Code-side, the beta milestone is close: everything below is done, tested and checked in the browser.
-What remains is mostly outside the code (accounts, store setup, physical-device verification); see
-[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+The code is ready for a first device pass. What's left is mostly accounts, store setup, hosting and
+testing on real phones: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) has the status table.
+Nothing has been checked on a physical phone yet.
 
 ### Done for the beta
-- **Builds:** `mobile/eas.json` (development client, internal preview, production), `expo-dev-client`;
-  `app.json` iPad full screen, no export-compliance prompt, legacy Android permissions blocked,
-  notification icon. Unused native packages removed.
-- **Resilience:** crash screen (root `ErrorBoundary`); saved data checked on load
-  (`state/sanitize.ts`): a damaged field falls back to its default, the rest is kept.
-- **Free experience:** full games open after "Meet the Board" (`playAccess`: locked / early / open),
-  with an early-player note and a bear-off tip in games.
-- **Monetization:** RevenueCat behind `SubscriptionService` (env keys), store updates followed,
-  honest restore errors, offline grace of 3 days, cancellation and billing-issue states on the
-  Premium card, paywall retry.
-- **Coach:** Coach Watch (clue first, then try again / show me / play anyway; 3 per game free);
-  review shows what could have happened (shots; winning chances with Premium) and "Practise this
-  position"; Coach's pick ranks recent patterns and weak skills and has a "done for today" state.
-- **Accessibility:** board points described for screen readers; text scales up to 1.6×.
-- **Small screens:** the game board narrows on short screens so coach messages fit; onboarding's
-  path fits above the button on an iPhone SE; Profile shows progress before the Premium card.
-- **Backend:** requires MongoDB in production, `TRUST_PROXY`, DB-pinging health check, Dockerfile.
-- **Docs:** README for new developers, release checklist with privacy model and device test list.
+- **Builds:** `eas.json` (development client, internal preview, production; each sets
+  `EXPO_PUBLIC_APP_VARIANT`) passes Expo's schema. `expo prebuild` for iOS and Android checked:
+  "draw over other apps" blocked, unused Face ID text removed, `expo-asset` installed for
+  `expo-audio`. Hermes bundles compile for both platforms.
+- **Crash reporting:** Sentry behind `services/crash`, started from `index.ts` before the app;
+  anonymous; follows the usage-data switch even at start-up; source maps upload only when the build
+  has `SENTRY_AUTH_TOKEN` (`app.config.ts`).
+- **Analytics:** PostHog behind the existing `Analytics` gate, created only with consent; events
+  match the beta's questions (sessions with start-up time, Coach's pick, Coach Watch, reviews,
+  mistakes, purchases, backup, notifications, feedback). [BETA.md](BETA.md) maps them to metrics.
+- **Feedback:** "How was this?" after lessons and games (once a day), "Send feedback" and the build
+  number in Profile.
+- **Notifications:** tapping a reminder opens Home (never interrupting a lesson or game) and is
+  tracked; preview builds can send a test reminder.
+- **Store rules:** Terms of Use and Privacy Policy links on the paywall, privacy link in Profile,
+  "Manage" subscription, backup (account) deletion in the app; RevenueCat Test Store keys refused
+  in production builds.
+- **Backend:** Docker image run against MongoDB 7: everything works, and the run led to fixes
+  (5 s database timeouts instead of 30, 3 s health check, JSON logs with one line per request).
+  `DELETE /v1/accounts/me`; storage contract tests also run on MongoDB; `npm run smoke` checks a
+  deployment.
+- **Speed:** `scripts/benchmark-speed.ts`, run in Node and under a Hermes interpreter. The review's
+  "what could have happened" was the one slow spot (up to 175 ms per tap); it now uses the
+  network directly (under 1 ms) and agrees better with the coach's verdict.
+- **Earlier:** crash screen, damaged-save repair, soft Play gate, RevenueCat, Coach Watch, review
+  outcomes, Coach's pick, accessibility labels, small-screen fixes.
+- **Docs:** [DEVICE_TESTING.md](DEVICE_TESTING.md) (install steps, phones, the seven critical flows,
+  offline, speed), [PRIVACY.md](PRIVACY.md) (data inventory, store answers, policy draft),
+  [BETA.md](BETA.md) (questions, metrics, feedback, running the beta).
 
-### Next recommended
-1. Physical-device pass (section 1 of the release checklist), starting with notifications and
-   purchases on an iPhone and an Android phone.
-2. Store and RevenueCat setup (sections 2–4), then a TestFlight / internal-testing build.
-3. Pick a crash reporter and an analytics vendor; update the privacy model when they're connected.
-4. A backup deletion endpoint before public launch.
+### Next
+1. Accounts: Expo (`eas init`), Apple Developer, Play Console, RevenueCat, Sentry, PostHog. Set the
+   EAS environment variables ([DEVICE_TESTING.md](DEVICE_TESTING.md) §1).
+2. Preview builds and the device pass on an iPhone and an Android phone.
+3. Store products and sandbox purchases; host the privacy policy.
+4. Optional for the beta: deploy the API with a managed MongoDB for cloud backup.
+5. TestFlight and Play internal testing; invite the first 10 testers ([BETA.md](BETA.md)).
 
-### Known blockers outside the code
-- EAS project (`eas init`), Apple Developer and Play Console accounts, store products, RevenueCat
-  project and keys.
-- Backend hosting with a managed MongoDB (only needed for cloud backup).
-- Nothing has been verified on a physical device yet.
+### Blocked here (this environment)
+- No Android SDK or Xcode, and `dl.google.com` is blocked, so no native compile or emulator. Native
+  builds need EAS (or a Mac and Android Studio).
+- Sentry, PostHog and RevenueCat hosts are blocked, so delivery to them can't be checked here.
