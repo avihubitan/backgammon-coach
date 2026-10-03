@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { AppText } from '@/components/ui/AppText';
@@ -199,6 +199,7 @@ function RestoreDialog({ visible, onClose }: { visible: boolean; onClose: () => 
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
+  const canRestore = !working && value.trim().length >= 8;
   const restore = async () => {
     setWorking(true);
     setProblem(null);
@@ -223,50 +224,57 @@ function RestoreDialog({ visible, onClose }: { visible: boolean; onClose: () => 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close">
-        <Animated.View
-          style={[
-            styles.dialog,
-            {
-              animationName: { from: { opacity: 0, transform: [{ scale: 0.94 }] }, to: { opacity: 1, transform: [{ scale: 1 }] } },
-              animationDuration: 200,
-            },
-          ]}
-        >
-          <Pressable onPress={() => {}} style={styles.dialogInner} testID="restore-dialog">
-            <Icon name="cloud-download-outline" size={36} color="primary" />
-            <AppText variant="title" align="center">
-              Restore your progress
-            </AppText>
-            <AppText variant="small" color="textSecondary" align="center">
-              Enter the backup code from your other device. Your progress there and here is combined; nothing is lost.
-            </AppText>
-            <TextInput
-              testID="restore-input"
-              value={value}
-              onChangeText={setValue}
-              placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              style={styles.input}
-            />
-            {problem ? (
-              <AppText variant="small" color="danger" align="center" testID="restore-error">
-                {problem}
+      {/* On iOS the keyboard would otherwise cover the Restore button. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close">
+          <Animated.View
+            style={[
+              styles.dialog,
+              {
+                animationName: { from: { opacity: 0, transform: [{ scale: 0.94 }] }, to: { opacity: 1, transform: [{ scale: 1 }] } },
+                animationDuration: 200,
+              },
+            ]}
+          >
+            <Pressable onPress={() => {}} style={styles.dialogInner} testID="restore-dialog">
+              <Icon name="cloud-download-outline" size={36} color="primary" />
+              <AppText variant="title" align="center">
+                Restore your progress
               </AppText>
-            ) : null}
-            <Button
-              testID="restore-submit"
-              label={working ? 'Restoring…' : 'Restore'}
-              icon="cloud-download-outline"
-              disabled={working || value.trim().length < 8}
-              onPress={() => void restore()}
-            />
-            <Button label="Cancel" variant="ghost" size="medium" onPress={onClose} />
-          </Pressable>
-        </Animated.View>
-      </Pressable>
+              <AppText variant="small" color="textSecondary" align="center">
+                Enter the backup code from your other device. Your progress there and here is combined; nothing is lost.
+              </AppText>
+              <TextInput
+                testID="restore-input"
+                value={value}
+                onChangeText={setValue}
+                placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="go"
+                onSubmitEditing={() => {
+                  if (canRestore) void restore();
+                }}
+                style={styles.input}
+              />
+              {problem ? (
+                <AppText variant="small" color="danger" align="center" testID="restore-error">
+                  {problem}
+                </AppText>
+              ) : null}
+              <Button
+                testID="restore-submit"
+                label={working ? 'Restoring…' : 'Restore'}
+                icon="cloud-download-outline"
+                disabled={!canRestore}
+                onPress={() => void restore()}
+              />
+              <Button label="Cancel" variant="ghost" size="medium" onPress={onClose} />
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -303,8 +311,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     color: colors.text,
     fontFamily: fontFamilies.bold,
-    fontSize: 17,
-    letterSpacing: 1,
+    // Small enough for a whole code to show on a 360-point-wide phone.
+    fontSize: 15,
+    letterSpacing: 0.5,
     textAlign: 'center',
     backgroundColor: colors.bgElevated,
   },
