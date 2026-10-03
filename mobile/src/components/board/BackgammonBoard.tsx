@@ -346,6 +346,33 @@ export function BackgammonBoard({
   const interactive = !disabled && (onPressPoint || onPressBar || onPressOff);
   const opponent = movingPlayer === 'player1' ? 'player2' : 'player1';
 
+  /** What a screen reader says for a point: its checkers, and what can be done with it now. */
+  const describePoint = (point: number): string => {
+    const owner = ownerAt(board, point);
+    const count = countAt(board, point);
+    const checkers =
+      count === 0
+        ? 'empty'
+        : owner === movingPlayer
+          ? count === 1
+            ? 'your checker'
+            : `${count} of your checkers`
+          : count === 1
+            ? 'one opponent checker'
+            : `${count} opponent checkers`;
+    const state =
+      selected === point
+        ? ', selected'
+        : targets.includes(point)
+          ? owner === opponent && count === 1
+            ? ', move here to hit'
+            : ', move here'
+          : movable.includes(point)
+            ? ', can move'
+            : '';
+    return `Point ${point}, ${checkers}${state}`;
+  };
+
   // ---- Drag and drop -------------------------------------------------------
   // A touch that starts on a movable checker and travels a few pixels picks it
   // up; everything else stays a tap. Dropping on a legal target "taps" that
@@ -789,7 +816,7 @@ export function BackgammonBoard({
                 key={`touch-${point}`}
                 testID={`point-${point}`}
                 accessibilityRole="button"
-                accessibilityLabel={`Point ${point}`}
+                accessibilityLabel={describePoint(point)}
                 onPress={onPressPoint ? () => onPressPoint(point) : undefined}
                 style={[styles.abs, styles.touch, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
               />
@@ -798,14 +825,20 @@ export function BackgammonBoard({
           <Pressable
             testID="bar"
             accessibilityRole="button"
-            accessibilityLabel="Bar"
+            accessibilityLabel={`Bar${
+              board.bar[movingPlayer] > 0
+                ? `, ${board.bar[movingPlayer] === 1 ? 'your checker' : `${board.bar[movingPlayer]} of your checkers`}${
+                    selected === 'bar' ? ', selected' : movable.includes('bar') ? ', can move' : ''
+                  }`
+                : ''
+            }`}
             onPress={onPressBar ? () => onPressBar() : undefined}
             style={[styles.abs, styles.touch, toStyle(barRect(m))]}
           />
           <Pressable
             testID="bear-off-tray"
             accessibilityRole="button"
-            accessibilityLabel="Bear-off tray"
+            accessibilityLabel={`Bear-off tray, ${board.off[movingPlayer]} borne off${targets.includes('off') ? ', move here' : ''}`}
             onPress={onPressOff ? () => onPressOff() : undefined}
             style={[
               styles.abs,
