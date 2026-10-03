@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import type { ReminderTime } from '@/features/reminders/reminderPlan';
 import { analytics, newAnalyticsId } from '@/services/analytics';
+import { crashReporter } from '@/services/crash';
 import { configureFeedback } from '@/services/feedback';
 import { DEFAULT_BOARD_THEME, type BoardThemeId } from '@/theme/boardThemes';
 
@@ -20,7 +21,7 @@ export interface SettingsData {
   showMovableHints: boolean;
   /** Show the technical evaluation numbers in game reviews. */
   showTechnicalStats: boolean;
-  /** Share anonymous usage data (no personal information). */
+  /** Share anonymous usage data and crash reports (no personal information). */
   analytics: boolean;
   /** Random id for this install, used only to group anonymous analytics. */
   installId: string;
@@ -82,6 +83,7 @@ export const useSettingsStore = create<SettingsData & SettingsActions>()(
       update: (patch) => {
         set(patch);
         apply(get());
+        crashReporter.setEnabled(get().analytics);
       },
     }),
     {
@@ -93,9 +95,14 @@ export const useSettingsStore = create<SettingsData & SettingsActions>()(
       // Older versions had no sound, music, analytics, board style or reminder settings.
       migrate: (persisted) => ({ ...DEFAULT_SETTINGS, ...(persisted as Partial<SettingsData>) }),
       onRehydrateStorage: () => (state) => {
-        if (!state) return;
+        if (!state) {
+          crashReporter.setEnabled(DEFAULT_SETTINGS.analytics);
+          return;
+        }
         if (!state.installId) state.update({ installId: newAnalyticsId() });
         apply(state);
+        // Crash reports follow the same choice; this also saves it for the next start.
+        crashReporter.setEnabled(state.analytics);
       },
     },
   ),

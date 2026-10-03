@@ -24,3 +24,12 @@ jest.mock('react-native-purchases', () => ({
   },
   LOG_LEVEL: { DEBUG: 'DEBUG' },
 }));
+
+// Sentry's SDK is native; tests use a fake (see services/crash).
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  close: jest.fn(() => Promise.resolve()),
+  captureException: jest.fn(),
+  wrap: (component) => component,
+  reactNavigationIntegration: jest.fn(() => ({ name: 'ReactNavigation', registerNavigationContainer: jest.fn() })),
+}));

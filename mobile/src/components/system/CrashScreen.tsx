@@ -6,6 +6,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { analytics } from '@/services/analytics';
+import { crashReporter } from '@/services/crash';
 import { colors, spacing } from '@/theme';
 
 /**
@@ -14,8 +15,10 @@ import { colors, spacing } from '@/theme';
  */
 export function CrashScreen({ error, retry }: ErrorBoundaryProps) {
   useEffect(() => {
-    // The error's type only: messages could contain anything.
+    // Analytics gets the error's type only: messages could contain anything.
     analytics.track('app_error', { name: error.name || 'Error' });
+    // The crash reporter gets the whole error (with its stack) to fix it.
+    crashReporter.captureException(error, { source: 'error-boundary' });
   }, [error]);
 
   return (

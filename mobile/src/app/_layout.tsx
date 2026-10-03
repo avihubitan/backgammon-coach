@@ -4,7 +4,7 @@ import { PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans/70
 import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans/800ExtraBold';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -17,6 +17,7 @@ import { iconFont } from '@/components/ui/Icon';
 import { BoardThemeProvider } from '@/features/settings/BoardThemeProvider';
 import { installNetwork, loadDefaultNetwork } from '@/game';
 import { analytics, startAnalyticsSession } from '@/services/analytics';
+import { crashReporter } from '@/services/crash';
 import { soundBank } from '@/services/feedback';
 import { reminderService } from '@/services/reminders';
 import { syncService } from '@/services/sync';
@@ -46,7 +47,12 @@ const navigationTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+  useEffect(() => {
+    if (navigationRef) crashReporter.trackNavigation(navigationRef);
+  }, [navigationRef]);
+
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
@@ -110,3 +116,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default crashReporter.wrap(RootLayout);

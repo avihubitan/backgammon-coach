@@ -1,13 +1,15 @@
 {
   "name": "backgammon-coach-mobile",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "version": "1.0.0",
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/ui": "~57.0.21",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@sentry/react-native": "~7.11.0",
     "expo": "~57.0.26",
+    "expo-application": "~57.0.3",
     "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.20",
     "expo-crypto": "~57.0.3",

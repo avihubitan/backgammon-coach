@@ -101,6 +101,9 @@ environment variables for the matching environment (development, preview, produc
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY`             | RevenueCat public SDK key (iOS). Empty: no real purchases on iOS.  |
 | `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`         | RevenueCat public SDK key (Android).                               |
 | `EXPO_PUBLIC_STORE`                          | `mock` forces the simulated store in development builds.           |
+| `EXPO_PUBLIC_SENTRY_DSN`                     | Crash reporting (Sentry). Empty: crashes aren't reported.          |
+| `EXPO_PUBLIC_APP_VARIANT`                    | Set by `eas.json` per profile; tags reports, hides test tools.     |
+| `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT` | Build time only: upload source maps and debug symbols. |
 
 | API          | Purpose                                                                          |
 | ------------ | -------------------------------------------------------------------------------- |
@@ -126,6 +129,16 @@ RevenueCat dashboard setup: one entitlement `premium` attached to every product,
 offering with Monthly and Annual packages (Lifetime is in the catalogue but switched off). Product
 identifiers are in `features/monetization/catalog.ts`. Cached Premium works offline until three
 days past its end date.
+
+## Crash reporting
+
+Sentry, behind `services/crash` (`CrashReporter`; the web build has a no-op). It starts first, from
+`index.ts`, so start-up errors are caught; the root layout reports screen changes as breadcrumbs,
+and the crash screen reports errors it catches. It follows the "Share anonymous usage data" switch
+(remembered in secure storage so an opted-out player sends nothing, even at start-up). No IP
+addresses, user details, screenshots or device names are sent (`sendDefaultPii: false`, events
+scrubbed). Source maps and debug symbols upload during EAS builds only when `SENTRY_AUTH_TOKEN` is
+set (`app.config.ts` adds the Sentry plugin then); otherwise the upload step would fail the build.
 
 ## Notifications
 

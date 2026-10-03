@@ -195,7 +195,7 @@ export function ProfileScreen() {
         <ToggleRow
           testID="setting-analytics"
           label="Share anonymous usage data"
-          description="Helps improve lessons. No personal information is collected."
+          description="Usage statistics and crash reports help us improve the app. Nothing that identifies you."
           value={settings.analytics}
           onChange={(analytics) => settings.update({ analytics })}
         />
