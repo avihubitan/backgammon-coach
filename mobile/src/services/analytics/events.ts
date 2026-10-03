@@ -46,6 +46,9 @@ export interface AnalyticsEvents {
     mistake_category?: string;
   };
 
+  streak_freeze_earned: { streak: number };
+  streak_freeze_used: { freezes: number; streak: number };
+
   practice_session_completed: { kind: string; steps: number; first_try: number; xp: number };
   daily_challenge_completed: { challenge_id: string; xp: number };
 

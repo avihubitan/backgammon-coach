@@ -74,6 +74,9 @@ export interface Reward {
   levelAfter: number;
   streak: number;
   streakExtended: boolean;
+  /** Streak freezes spent today to keep the streak going. */
+  freezesUsed: number;
+  freezeEarned: boolean;
   dailyGoalReached: boolean;
   newAchievements: string[];
 }
@@ -86,16 +89,25 @@ export interface LessonReward extends Reward {
   bestStars: number;
 }
 
-/** Adds XP for today, updates the streak and daily goal, and unlocks achievements. */
+/**
+ * Adds XP for today, updates the streak and daily goal, and unlocks achievements.
+ * `active` says whether this counts as a day of learning for the streak: any XP
+ * does, and so does finishing a lesson or drill even when every answer was shown.
+ */
 export function grantXp(
   data: ProgressData,
   amount: number,
   today: string,
   context: Omit<AchievementContext, 'progress'> = {},
+  active = amount > 0,
 ): { data: ProgressData; reward: Reward } {
   const levelBefore = levelInfo(data.xp).level;
   const todayBefore = data.xpByDay[today] ?? 0;
-  const { streak, extended } = amount > 0 ? registerActivity(data.streak, today) : { streak: data.streak, extended: false };
+  const activity =
+    active || amount > 0
+      ? registerActivity(data.streak, today)
+      : { streak: data.streak, extended: false, freezesUsed: 0, freezeEarned: false };
+  const { streak, extended } = activity;
   let next: ProgressData = {
     ...data,
     xp: data.xp + amount,
@@ -122,6 +134,8 @@ export function grantXp(
       levelAfter: levelInfo(next.xp).level,
       streak: visibleStreak(next.streak, today),
       streakExtended: extended,
+      freezesUsed: activity.freezesUsed,
+      freezeEarned: activity.freezeEarned,
       dailyGoalReached: todayBefore < data.dailyGoalXp && todayBefore + amount >= data.dailyGoalXp,
       newAchievements,
     },
@@ -176,7 +190,8 @@ export function applyLessonResult(
   };
 
   const xp = lessonXpBreakdown(lesson, exerciseResults, outcome, firstCompletion, replay);
-  const granted = grantXp(withLesson, xp.total, today);
+  // Finishing a lesson counts for the streak, passed or not.
+  const granted = grantXp(withLesson, xp.total, today, {}, true);
   return {
     data: granted.data,
     reward: {

@@ -76,6 +76,17 @@ describe('merging snapshots', () => {
     expect(merged.achievements).toEqual({ 'first-steps': '2026-09-01', century: '2026-09-20' });
   });
 
+  it('keeps the streak freezes that belong to the streak it keeps', () => {
+    const spent = base({
+      progress: { ...initialProgress(), streak: { current: 12, longest: 12, lastActiveDay: '2026-10-03', freezes: 0 } },
+    });
+    const stale = base({
+      progress: { ...initialProgress(), streak: { current: 10, longest: 10, lastActiveDay: '2026-10-01', freezes: 1 } },
+    });
+    expect(mergeSnapshots(stale, spent).progress.streak).toEqual({ current: 12, longest: 12, lastActiveDay: '2026-10-03', freezes: 0 });
+    expect(mergeSnapshots(spent, stale).progress.streak.freezes).toBe(0);
+  });
+
   it('takes settings from the newer copy and keeps skill stats consistent', () => {
     const older = base({
       createdAt: '2026-10-01T10:00:00.000Z',

@@ -19,18 +19,21 @@ import {
   nextLesson,
   premiumLessonsLeft,
   sectionProgress,
-  visibleStreak,
+  streakStatus,
 } from '@/features/learning/progression';
 import { todayXp } from '@/features/learning/progressModel';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
 
+import { StreakCard } from './StreakCard';
+
 export function HomeScreen() {
   const progress = useProgressStore();
   const today = todayKey();
   const level = levelInfo(progress.xp);
-  const streak = visibleStreak(progress.streak, today);
+  const streakNow = streakStatus(progress.streak, today);
+  const streak = streakNow.days;
   const xpToday = todayXp(progress, today);
   const goal = progress.dailyGoalXp;
   const canAccess = useFeatureAccess().canAccessLesson;
@@ -41,7 +44,6 @@ export function HomeScreen() {
   const premiumSection = premiumLeft.length > 0 ? getSection(premiumLeft[0].sectionId) : undefined;
   const startedPath = Object.values(progress.lessons).some((record) => record.completed);
   const playUnlocked = isFeatureUnlocked('play', progress.lessons);
-  const goalMet = xpToday >= goal;
 
   return (
     <Screen
@@ -188,33 +190,7 @@ export function HomeScreen() {
 
       <DailyChallengeCard enterDelay={180} compact />
 
-      <Card style={styles.dailyCard} enterDelay={240}>
-        <View style={styles.dailyTop}>
-          <View style={[styles.flame, { backgroundColor: streak > 0 ? 'rgba(255,138,61,0.15)' : colors.surfaceRaised }]}>
-            <Icon name="fire" size={30} color={streak > 0 ? colors.streak : colors.textMuted} />
-          </View>
-          <View style={styles.flex}>
-            <AppText variant="subheading">
-              {streak > 0 ? `${streak}-day streak` : 'Start a streak today'}
-            </AppText>
-            <AppText variant="small" color="textSecondary">
-              {goalMet
-                ? 'Daily goal done. Nice work!'
-                : streak > 0 && progress.streak.lastActiveDay !== today
-                  ? 'Learn today to keep your streak alive.'
-                  : `Earn ${goal - xpToday} more XP to hit today’s goal.`}
-            </AppText>
-          </View>
-        </View>
-        <View style={styles.goalRow}>
-          <View style={styles.flex}>
-            <ProgressBar progress={xpToday / goal} color={goalMet ? colors.success : colors.streak} height={10} />
-          </View>
-          <AppText variant="caption" color="textSecondary" style={styles.goalText}>
-            {Math.min(xpToday, goal)} / {goal} XP
-          </AppText>
-        </View>
-      </Card>
+      <StreakCard status={streakNow} xpToday={xpToday} goal={goal} enterDelay={240} />
 
       <Card
         style={styles.playCard}
@@ -288,16 +264,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dailyCard: { gap: spacing.md },
-  dailyTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  flame: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goalRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  goalText: { minWidth: 70, textAlign: 'right' },
   playCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });

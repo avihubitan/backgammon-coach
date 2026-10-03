@@ -26,8 +26,8 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
     whether it is rising, game by game.
   - Mistakes are saved and come back as practice until you fix them twice.
 - **Practice:** skill drills, a daily challenge, and lesson replays.
-- **Progress:** XP and levels, stars, a streak, a daily goal and achievements. Everything is stored
-  on the device.
+- **Progress:** XP and levels, stars, a streak, a daily goal and achievements. Every week in a row
+  earns a streak freeze (up to two) that covers a missed day. Everything is stored on the device.
 
 ## Free and Premium
 

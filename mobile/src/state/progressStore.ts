@@ -13,8 +13,14 @@ import {
   type Reward,
 } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
+import { analytics } from '@/services/analytics';
 
 import { persistStorage } from './storage';
+
+function trackStreak(reward: Reward) {
+  if (reward.freezesUsed > 0) analytics.track('streak_freeze_used', { freezes: reward.freezesUsed, streak: reward.streak });
+  if (reward.freezeEarned) analytics.track('streak_freeze_earned', { streak: reward.streak });
+}
 
 interface ProgressActions {
   completeOnboarding: () => void;
@@ -26,8 +32,11 @@ interface ProgressActions {
     /** Which lessons the learner can open, so unlocks skip premium ones they can't. */
     canAccess?: LessonAccess,
   ) => LessonReward;
-  /** XP from practice drills, games or challenges, with what achievements need to know about them. */
-  awardXp: (amount: number, context?: Omit<AchievementContext, 'progress'>) => Reward;
+  /**
+   * XP from practice drills, games or challenges, with what achievements need to know about them.
+   * `active` counts the day for the streak even without XP (a finished drill).
+   */
+  awardXp: (amount: number, context?: Omit<AchievementContext, 'progress'>, active?: boolean) => Reward;
   recordPracticeSession: () => void;
   setDailyGoal: (xp: number) => void;
   resetProgress: () => void;
@@ -59,12 +68,14 @@ export const useProgressStore = create<ProgressStore>()(
           canAccess,
         );
         set(data);
+        trackStreak(reward);
         return reward;
       },
 
-      awardXp: (amount, context = {}) => {
-        const { data, reward } = grantXp(get(), amount, dayKey(clock()), context);
+      awardXp: (amount, context = {}, active = amount > 0) => {
+        const { data, reward } = grantXp(get(), amount, dayKey(clock()), context, active);
         set(data);
+        trackStreak(reward);
         return reward;
       },
 

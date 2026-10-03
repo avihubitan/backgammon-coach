@@ -11,6 +11,7 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { useCountUp } from '@/components/ui/useCountUp';
 import { starsForAccuracy } from '@/features/lessons/engine/session';
 import type { PracticeKind } from '@/state/practiceStore';
+import { freezeLines } from '@/features/learning/streakLines';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 import type { PracticeResult } from './PracticeSessionScreen';
@@ -54,6 +55,7 @@ export function PracticeComplete({ title, kind, result, onAgain, onDone }: Pract
   if (reward.streakExtended && reward.streak > 0) {
     lines.push({ icon: 'fire', color: colors.streak, text: `${reward.streak}-day streak!` });
   }
+  lines.push(...freezeLines(reward));
   if (reward.dailyGoalReached) lines.push({ icon: 'target', color: colors.success, text: 'Daily goal reached' });
 
   return (

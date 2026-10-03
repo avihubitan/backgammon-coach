@@ -56,6 +56,27 @@ describe('applying lesson results', () => {
     expect(data.achievements['opening-book']).toBeUndefined();
   });
 
+  it('keeps the streak going for a finished lesson, even a failed one without XP', () => {
+    const failed = outcome({ passed: false, stars: 0, accuracy: 0.2, firstTryCorrect: 0 });
+    const { data, reward } = applyLessonResult(initialProgress(), first.id, failed, '2026-03-10');
+    expect(reward.xpGained).toBe(0);
+    expect(reward.streakExtended).toBe(true);
+    expect(data.streak.lastActiveDay).toBe('2026-03-10');
+  });
+
+  it('counts a day for the streak only with XP, unless told it was a finished session', () => {
+    expect(grantXp(initialProgress(), 0, '2026-03-10').data.streak.lastActiveDay).toBeNull();
+    const finished = grantXp(initialProgress(), 0, '2026-03-10', {}, true);
+    expect(finished.reward.streakExtended).toBe(true);
+    expect(finished.data.streak.current).toBe(1);
+  });
+
+  it('reports streak freezes spent and earned', () => {
+    const data = { ...initialProgress(), streak: { current: 6, longest: 6, lastActiveDay: '2026-03-08', freezes: 1 } };
+    const { reward } = grantXp(data, 10, '2026-03-10');
+    expect(reward).toMatchObject({ streak: 7, freezesUsed: 1, freezeEarned: true });
+  });
+
   it('starts a streak and unlocks the first achievement', () => {
     const { data, reward } = applyLessonResult(initialProgress(), first.id, outcome(), '2026-03-10');
     expect(reward.streak).toBe(1);

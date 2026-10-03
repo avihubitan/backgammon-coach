@@ -154,7 +154,8 @@ export function PracticeSessionScreen({ kind }: { kind: string }) {
         const progress = useProgressStore.getState();
         // Count the session first so practice achievements see it.
         progress.recordPracticeSession();
-        const reward = progress.awardXp(xp);
+        // A finished session keeps the streak going, even if every answer was shown.
+        const reward = progress.awardXp(xp, {}, true);
         usePracticeStore.getState().recordSession(kind as PracticeKind, outcome.firstTryCorrect);
         reportChallengeEvent({ type: 'practice-session', category: kind as PracticeKind });
         analytics.track('practice_session_completed', {

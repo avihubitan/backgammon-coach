@@ -4,7 +4,10 @@ import {
   blockingLesson,
   dayKey,
   emptyLessonRecord,
+  daysBetween,
   emptyStreak,
+  FREEZE_EVERY,
+  MAX_FREEZES,
   exerciseXp,
   isFeatureUnlocked,
   lessonStatus,
@@ -18,7 +21,10 @@ import {
   registerActivity,
   sectionProgress,
   shiftDay,
+  streakStatus,
   visibleStreak,
+  type ActivityResult,
+  type StreakState,
   xpForLevel,
   type LessonRecords,
 } from '../progression';
@@ -181,7 +187,7 @@ describe('unlocking', () => {
 describe('streaks', () => {
   it('starts a streak on the first active day', () => {
     const { streak, extended } = registerActivity(emptyStreak(), '2026-03-10');
-    expect(streak).toEqual({ current: 1, longest: 1, lastActiveDay: '2026-03-10' });
+    expect(streak).toEqual({ current: 1, longest: 1, lastActiveDay: '2026-03-10', freezes: 0 });
     expect(extended).toBe(true);
   });
 
@@ -211,6 +217,97 @@ describe('streaks', () => {
     expect(visibleStreak(streak, '2026-03-10')).toBe(4);
     expect(visibleStreak(streak, '2026-03-11')).toBe(4);
     expect(visibleStreak(streak, '2026-03-12')).toBe(0);
+  });
+});
+
+/** Active on each of the given days, in order. */
+function activeOn(days: string[], start: StreakState = emptyStreak()) {
+  let streak = start;
+  const results: ActivityResult[] = [];
+  for (const day of days) {
+    const result = registerActivity(streak, day);
+    results.push(result);
+    streak = result.streak;
+  }
+  return { streak, results };
+}
+
+const week = (from: string, n = FREEZE_EVERY) => Array.from({ length: n }, (_, index) => shiftDay(from, index));
+
+describe('streak freezes', () => {
+  it('earns a freeze for every week in a row, up to the limit', () => {
+    const { streak, results } = activeOn(week('2026-03-01', FREEZE_EVERY * 3));
+    expect(results.filter((result) => result.freezeEarned)).toHaveLength(MAX_FREEZES);
+    expect(results[FREEZE_EVERY - 1].freezeEarned).toBe(true);
+    expect(results[FREEZE_EVERY - 2].freezeEarned).toBe(false);
+    expect(streak.freezes).toBe(MAX_FREEZES);
+    expect(streak.current).toBe(FREEZE_EVERY * 3);
+  });
+
+  it('covers a missed day and keeps the streak growing', () => {
+    const { streak } = activeOn(week('2026-03-01'));
+    expect(streak.freezes).toBe(1);
+    // 2026-03-08 is missed.
+    const next = registerActivity(streak, '2026-03-09');
+    expect(next.freezesUsed).toBe(1);
+    expect(next.streak.current).toBe(FREEZE_EVERY + 1);
+    expect(next.streak.freezes).toBe(0);
+  });
+
+  it('starts again when the gap is longer than the freezes, keeping them', () => {
+    const { streak } = activeOn(week('2026-03-01'));
+    const next = registerActivity(streak, '2026-03-10');
+    expect(next.freezesUsed).toBe(0);
+    expect(next.streak.current).toBe(1);
+    expect(next.streak.freezes).toBe(1);
+    expect(next.streak.longest).toBe(FREEZE_EVERY);
+  });
+
+  it('can bridge two missed days with two freezes', () => {
+    const start: StreakState = { current: 20, longest: 20, lastActiveDay: '2026-03-10', freezes: 2 };
+    const next = registerActivity(start, '2026-03-13');
+    expect(next.freezesUsed).toBe(2);
+    expect(next.streak).toEqual({ current: 21, longest: 21, lastActiveDay: '2026-03-13', freezes: 1 });
+    // Day 21 is a full week again, so a new freeze arrives at once.
+    expect(next.freezeEarned).toBe(true);
+  });
+
+  it('treats saves from before freezes as having none', () => {
+    const old = { current: 5, longest: 5, lastActiveDay: '2026-03-10' };
+    expect(registerActivity(old, '2026-03-12').streak.current).toBe(1);
+    expect(registerActivity(old, '2026-03-11').streak.freezes).toBe(0);
+  });
+
+  it('keeps showing a streak that freezes are covering', () => {
+    const streak: StreakState = { current: 9, longest: 9, lastActiveDay: '2026-03-10', freezes: 1 };
+    expect(streakStatus(streak, '2026-03-11')).toEqual({ days: 9, activeToday: false, covering: 0, freezes: 1, nextFreezeIn: 5 });
+    expect(streakStatus(streak, '2026-03-12')).toEqual({ days: 9, activeToday: false, covering: 1, freezes: 0, nextFreezeIn: 5 });
+    expect(streakStatus(streak, '2026-03-13').days).toBe(0);
+    expect(visibleStreak(streak, '2026-03-12')).toBe(9);
+  });
+
+  it('counts down to the next freeze', () => {
+    expect(streakStatus({ current: 6, longest: 6, lastActiveDay: '2026-03-10', freezes: 0 }, '2026-03-10').nextFreezeIn).toBe(1);
+    expect(streakStatus({ current: 7, longest: 7, lastActiveDay: '2026-03-10', freezes: 1 }, '2026-03-10').nextFreezeIn).toBe(7);
+    // Not active yet today: today counts.
+    expect(streakStatus({ current: 6, longest: 6, lastActiveDay: '2026-03-09', freezes: 0 }, '2026-03-10').nextFreezeIn).toBe(1);
+    expect(streakStatus(emptyStreak(), '2026-03-10').nextFreezeIn).toBe(FREEZE_EVERY);
+    // A full reserve earns nothing more.
+    expect(streakStatus({ current: 30, longest: 30, lastActiveDay: '2026-03-10', freezes: 2 }, '2026-03-10').nextFreezeIn).toBeNull();
+  });
+
+  it('neither grows nor breaks the streak when the clock moves back a day', () => {
+    const streak: StreakState = { current: 5, longest: 5, lastActiveDay: '2026-03-11', freezes: 0 };
+    const result = registerActivity(streak, '2026-03-10');
+    expect(result.extended).toBe(false);
+    expect(result.streak).toBe(streak);
+    expect(streakStatus(streak, '2026-03-10')).toMatchObject({ days: 5, activeToday: true });
+  });
+
+  it('counts calendar days across months and years', () => {
+    expect(daysBetween('2026-02-28', '2026-03-01')).toBe(1);
+    expect(daysBetween('2025-12-31', '2026-01-02')).toBe(2);
+    expect(daysBetween('2026-03-10', '2026-03-10')).toBe(0);
   });
 });
 

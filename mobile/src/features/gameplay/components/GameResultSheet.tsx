@@ -7,10 +7,11 @@ import { LevelUpOverlay } from '@/components/fx/LevelUpOverlay';
 import { ParticleBurst } from '@/components/fx/ParticleBurst';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { isPersonalBest, moveQuality, qualityBand } from '@/features/coach/playQuality';
 import { BAND_COLOR } from '@/features/coach/qualityStyle';
 import { getAchievement } from '@/features/learning/achievements';
+import { freezeLines } from '@/features/learning/streakLines';
 import type { GameResult, MatchScore } from '@/game';
 import { useGameStore } from '@/state/gameStore';
 import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
@@ -45,6 +46,17 @@ export function GameResultSheet({
   const won = result.winner === 'player1';
   const isMatch = matchLength > 1;
   const matchWon = isMatch && outcome.matchOver && match.player1 >= matchLength;
+  // Streak news first, then achievements.
+  const chips: { icon: IconName; color: string; text: string }[] = [
+    ...(outcome.streak.streakExtended && outcome.streak.streak > 0
+      ? [{ icon: 'fire' as const, color: colors.streak, text: `${outcome.streak.streak}-day streak!` }]
+      : []),
+    ...freezeLines(outcome.streak),
+    ...outcome.newAchievements.flatMap((id) => {
+      const achievement = getAchievement(id);
+      return achievement ? [{ icon: achievement.icon, color: colors.info, text: achievement.title }] : [];
+    }),
+  ];
   const reason =
     result.reason === 'dropped-double'
       ? won
@@ -135,38 +147,34 @@ export function GameResultSheet({
               </AppText>
             </AppText>
           ) : null}
-          {outcome.newAchievements.length > 0 ? (
+          {chips.length > 0 ? (
             <View style={styles.achievements} testID="game-achievements">
-              {outcome.newAchievements.slice(0, 3).map((id, index) => {
-                const achievement = getAchievement(id);
-                if (!achievement) return null;
-                return (
-                  <Animated.View
-                    key={id}
-                    style={[
-                      styles.achievement,
-                      {
-                        animationName: {
-                          from: { opacity: 0, transform: [{ scale: 0.7 }] },
-                          to: { opacity: 1, transform: [{ scale: 1 }] },
-                        },
-                        animationDuration: 300,
-                        animationDelay: 450 + index * 120,
-                        animationFillMode: 'backwards',
+              {chips.slice(0, 4).map((chip, index) => (
+                <Animated.View
+                  key={chip.text}
+                  style={[
+                    styles.achievement,
+                    {
+                      animationName: {
+                        from: { opacity: 0, transform: [{ scale: 0.7 }] },
+                        to: { opacity: 1, transform: [{ scale: 1 }] },
                       },
-                    ]}
-                  >
-                    <Icon name={achievement.icon} size={16} color={colors.info} />
-                    <AppText variant="caption" color="text">
-                      {achievement.title}
-                    </AppText>
-                  </Animated.View>
-                );
-              })}
-              {outcome.newAchievements.length > 3 ? (
+                      animationDuration: 300,
+                      animationDelay: 450 + index * 120,
+                      animationFillMode: 'backwards',
+                    },
+                  ]}
+                >
+                  <Icon name={chip.icon} size={16} color={chip.color} />
+                  <AppText variant="caption" color="text">
+                    {chip.text}
+                  </AppText>
+                </Animated.View>
+              ))}
+              {chips.length > 4 ? (
                 <View style={styles.achievement}>
                   <AppText variant="caption" color="textSecondary">
-                    +{outcome.newAchievements.length - 3} more
+                    +{chips.length - 4} more
                   </AppText>
                 </View>
               ) : null}

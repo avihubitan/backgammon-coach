@@ -16,6 +16,7 @@ import { getAchievement } from '@/features/learning/achievements';
 import type { LessonReward } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
+import { freezeLines } from '@/features/learning/streakLines';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 interface LessonCompleteProps {
@@ -81,6 +82,7 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
   if (reward.streakExtended && reward.streak > 0) {
     extras.push({ icon: 'fire', color: colors.streak, text: `${reward.streak}-day streak!` });
   }
+  extras.push(...freezeLines(reward));
   if (reward.dailyGoalReached) extras.push({ icon: 'target', color: colors.success, text: 'Daily goal reached' });
   if (leveledUp) {
     extras.push({ icon: 'arrow-up-bold-circle', color: colors.primary, text: `Level ${reward.levelAfter} reached!` });

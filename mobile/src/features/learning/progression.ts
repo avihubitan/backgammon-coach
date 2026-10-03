@@ -282,30 +282,109 @@ export function shiftDay(key: string, days: number): string {
   return dayKey(date);
 }
 
+/** Whole calendar days from `from` to `to` (both YYYY-MM-DD). */
+export function daysBetween(from: string, to: string): number {
+  const utc = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((utc(to) - utc(from)) / 86_400_000);
+}
+
 export interface StreakState {
   current: number;
   longest: number;
   lastActiveDay: string | null;
+  /** Streak freezes in reserve; each one covers a missed day. Saves from before freezes lack it. */
+  freezes?: number;
 }
 
-export const emptyStreak = (): StreakState => ({ current: 0, longest: 0, lastActiveDay: null });
+/** A streak freeze is earned every this many days in a row... */
+export const FREEZE_EVERY = 7;
+/** ...and at most this many are kept. */
+export const MAX_FREEZES = 2;
 
-/** Records activity on `today`; returns the new streak and whether it grew. */
-export function registerActivity(streak: StreakState, today: string): { streak: StreakState; extended: boolean } {
-  if (streak.lastActiveDay === today) return { streak, extended: false };
-  const continues = streak.lastActiveDay === shiftDay(today, -1);
+export const emptyStreak = (): StreakState => ({ current: 0, longest: 0, lastActiveDay: null, freezes: 0 });
+
+/** Days with no activity between the last active day and `today` (0 if active today or yesterday). */
+function missedDays(streak: StreakState, today: string): number {
+  return streak.lastActiveDay ? Math.max(0, daysBetween(streak.lastActiveDay, today) - 1) : 0;
+}
+
+export interface ActivityResult {
+  streak: StreakState;
+  /** The streak grew today. */
+  extended: boolean;
+  /** Freezes spent covering missed days. */
+  freezesUsed: number;
+  /** A freeze was earned for reaching another week in a row. */
+  freezeEarned: boolean;
+}
+
+/**
+ * Records activity on `today`. Missed days are covered by freezes when there
+ * are enough of them; otherwise the streak starts again (the freezes are kept).
+ */
+export function registerActivity(streak: StreakState, today: string): ActivityResult {
+  // Already counted today. A last day "after" today means the clock moved back (travel west): leave it.
+  if (streak.lastActiveDay !== null && streak.lastActiveDay >= today) {
+    return { streak, extended: false, freezesUsed: 0, freezeEarned: false };
+  }
+  const freezes = streak.freezes ?? 0;
+  const missed = missedDays(streak, today);
+  const continues = streak.lastActiveDay !== null && streak.current > 0 && missed <= freezes;
+  const freezesUsed = continues ? missed : 0;
   const current = continues ? streak.current + 1 : 1;
+  const freezeEarned = current % FREEZE_EVERY === 0 && freezes - freezesUsed < MAX_FREEZES;
   return {
-    streak: { current, longest: Math.max(streak.longest, current), lastActiveDay: today },
+    streak: {
+      current,
+      longest: Math.max(streak.longest, current),
+      lastActiveDay: today,
+      freezes: freezes - freezesUsed + (freezeEarned ? 1 : 0),
+    },
     extended: true,
+    freezesUsed,
+    freezeEarned,
   };
 }
 
-/** The streak to display today: it survives until the end of the day after the last activity. */
+export interface StreakStatus {
+  /** The streak to show today (0 once it is lost). */
+  days: number;
+  activeToday: boolean;
+  /** Missed days that freezes are covering; they are spent when the player is next active. */
+  covering: number;
+  /** Freezes left after covering those days. */
+  freezes: number;
+  /** Days in a row still needed for the next freeze (null when the reserve is full). */
+  nextFreezeIn: number | null;
+}
+
+/**
+ * The streak as the player sees it today. It survives the day after the last
+ * activity, and longer while freezes can cover the days in between.
+ */
+export function streakStatus(streak: StreakState, today: string): StreakStatus {
+  const freezes = streak.freezes ?? 0;
+  const missed = missedDays(streak, today);
+  const alive = streak.lastActiveDay !== null && streak.current > 0 && missed <= freezes;
+  const covering = alive ? missed : 0;
+  const left = freezes - covering;
+  const days = alive ? streak.current : 0;
+  return {
+    days,
+    activeToday: streak.lastActiveDay !== null && streak.lastActiveDay >= today,
+    covering,
+    freezes: left,
+    // Counting today when the player hasn't been active yet.
+    nextFreezeIn: left >= MAX_FREEZES ? null : FREEZE_EVERY - (days % FREEZE_EVERY),
+  };
+}
+
+/** The streak to display today. */
 export function visibleStreak(streak: StreakState, today: string): number {
-  if (!streak.lastActiveDay) return 0;
-  if (streak.lastActiveDay === today || streak.lastActiveDay === shiftDay(today, -1)) return streak.current;
-  return 0;
+  return streakStatus(streak, today).days;
 }
 
 /** Keeps only the most recent `days` entries of a per-day map. */

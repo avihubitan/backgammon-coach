@@ -19,6 +19,7 @@ import {
 } from '@/game';
 import { MOVE_STEP_MS } from '@/components/board/motion';
 import { scheduleReviews } from '@/features/coach/reviewQueue';
+import type { Reward } from '@/features/learning/progressModel';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { analytics } from '@/services/analytics';
 import { feedback } from '@/services/feedback';
@@ -39,6 +40,8 @@ export interface GameOutcome {
   matchOver: boolean;
   newAchievements: string[];
   levelUp: number | null;
+  /** The streak after this game, and any freeze it spent or earned. */
+  streak: Pick<Reward, 'streak' | 'streakExtended' | 'freezesUsed' | 'freezeEarned'>;
 }
 
 function latestState(): GameState | null {
@@ -104,6 +107,7 @@ export function useGameController() {
       matchOver: recorded?.matchOver ?? true,
       newAchievements: reward.newAchievements,
       levelUp: reward.levelAfter > reward.levelBefore ? reward.levelAfter : null,
+      streak: reward,
     });
   };
 
