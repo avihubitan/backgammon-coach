@@ -29,7 +29,7 @@ function ToastBanner({ toast }: { toast: Toast }) {
   }, [toast.id, dismiss]);
 
   return (
-    <View pointerEvents="box-none" style={[styles.layer, { top: insets.top + spacing.sm }]}>
+    <View style={[styles.layer, { top: insets.top + spacing.sm }, { pointerEvents: 'box-none' }]}>
       <Animated.View
         style={{
           animationName: {

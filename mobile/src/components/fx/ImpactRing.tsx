@@ -44,7 +44,7 @@ export function ImpactRing({ x, y, size, color = '#FFFFFF', delay = 0, duration 
 
   if (reduceMotion) return null;
   return (
-    <View pointerEvents="none" style={[styles.origin, { left: x, top: y }]}>
+    <View style={[styles.origin, { left: x, top: y }, { pointerEvents: 'none' }]}>
       <Animated.View
         style={[
           styles.circle,

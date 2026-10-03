@@ -76,7 +76,6 @@ export function LessonNode({
     <View style={styles.wrap}>
       {showCurrent ? (
         <Animated.View
-          pointerEvents="none"
           style={[
             styles.bubble,
             justOpened
@@ -99,6 +98,7 @@ export function LessonNode({
                   animationDirection: 'alternate',
                   animationTimingFunction: 'ease-in-out',
                 },
+            { pointerEvents: 'none' },
           ]}
         >
           <AppText variant="caption" color={color}>
@@ -109,7 +109,6 @@ export function LessonNode({
       ) : null}
       {showCurrent ? (
         <Animated.View
-          pointerEvents="none"
           style={[
             styles.halo,
             {
@@ -122,6 +121,7 @@ export function LessonNode({
               animationIterationCount: 'infinite',
               animationDirection: 'alternate',
             },
+            { pointerEvents: 'none' },
           ]}
         />
       ) : null}

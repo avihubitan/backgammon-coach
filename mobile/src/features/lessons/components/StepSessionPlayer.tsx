@@ -231,7 +231,7 @@ export function StepSessionPlayer({
         </View>
       ) : null}
 
-      <View pointerEvents="none" style={styles.fxLayer}>
+      <View style={[styles.fxLayer, { pointerEvents: 'none' }]}>
         {flights.map((flight) => (
           <FlyingXp key={flight.id} from={flight.from} to={flight.to} amount={flight.amount} onArrive={() => landXp(flight)} />
         ))}

@@ -102,7 +102,7 @@ export function ParticleBurst({
 
   if (reduceMotion) return null;
   return (
-    <View pointerEvents="none" style={[styles.origin, { left: x, top: y }]}>
+    <View style={[styles.origin, { left: x, top: y }, { pointerEvents: 'none' }]}>
       {particles.map((particle, index) => (
         <Particle key={index} spec={particle} progress={progress} gravity={gravity} />
       ))}

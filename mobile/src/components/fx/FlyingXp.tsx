@@ -76,7 +76,7 @@ export function FlyingXp({ from, to, amount, onArrive }: FlyingXpProps) {
 
   if (reduceMotion) return null;
   return (
-    <Animated.View pointerEvents="none" style={[styles.token, style]}>
+    <Animated.View style={[styles.token, style, { pointerEvents: 'none' }]}>
       <Icon name="lightning-bolt" size={16} color={colors.textInverse} />
       <AppText variant="smallStrong" color="textInverse">
         +{amount} XP

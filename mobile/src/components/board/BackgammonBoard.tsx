@@ -507,7 +507,6 @@ export function BackgammonBoard({
           return (
             <Animated.View
               key={`hl-${index}-${rectIndex}`}
-              pointerEvents="none"
               style={[
                 styles.abs,
                 {
@@ -522,6 +521,7 @@ export function BackgammonBoard({
                   animationName: { from: { opacity: 0 }, to: { opacity: 1 } },
                   animationDuration: 350,
                 },
+                { pointerEvents: 'none' },
               ]}
             />
           );
@@ -532,7 +532,6 @@ export function BackgammonBoard({
         ? Array.from({ length: 24 }, (_, i) => i + 1).map((point) => (
             <Text
               key={`n-${point}`}
-              pointerEvents="none"
               style={[
                 styles.pointNumber,
                 {
@@ -540,6 +539,7 @@ export function BackgammonBoard({
                   top: isTopPoint(point) ? (m.frameY - 12) / 2 : m.innerBottom + (m.frameY - 12) / 2,
                   fontSize: Math.max(8, Math.min(11, m.col * 0.36)),
                 },
+                { pointerEvents: 'none' },
               ]}
             >
               {point}
@@ -556,7 +556,6 @@ export function BackgammonBoard({
         return (
           <Animated.View
             key={`ghost-${to}`}
-            pointerEvents="none"
             style={[
               styles.abs,
               {
@@ -567,6 +566,7 @@ export function BackgammonBoard({
                 animationDuration: 220,
                 animationFillMode: 'forwards',
               },
+              { pointerEvents: 'none' },
             ]}
           >
             <CheckerFace player={movingPlayer} size={m.checker} />
@@ -601,8 +601,7 @@ export function BackgammonBoard({
         return (
           <View
             key={`count-${key}`}
-            pointerEvents="none"
-            style={[styles.abs, styles.countBadge, { left: top.x - 9, top: top.y - 8 }]}
+            style={[styles.abs, styles.countBadge, { left: top.x - 9, top: top.y - 8 }, { pointerEvents: 'none' }]}
           >
             <Text style={[styles.countText, { color: player === 'player1' ? '#2A2119' : '#F6EFDF' }]}>
               {count}
@@ -620,7 +619,6 @@ export function BackgammonBoard({
             <Animated.View
               key={`mv-${String(source)}`}
               testID={`movable-${String(source)}`}
-              pointerEvents="none"
               style={[
                 styles.abs,
                 styles.ring,
@@ -633,6 +631,7 @@ export function BackgammonBoard({
                   borderColor: boardColors.movable,
                 },
                 MOVABLE_PULSE,
+                { pointerEvents: 'none' },
               ]}
             />
           );
@@ -645,7 +644,6 @@ export function BackgammonBoard({
             <Animated.View
               key="t-off"
               testID="target-off"
-              pointerEvents="none"
               style={[
                 styles.abs,
                 {
@@ -660,6 +658,7 @@ export function BackgammonBoard({
                   zIndex: 65,
                 },
                 PULSE,
+                { pointerEvents: 'none' },
               ]}
             />
           );
@@ -671,7 +670,6 @@ export function BackgammonBoard({
           <Animated.View
             key={`t-${to}`}
             testID={`target-${to}`}
-            pointerEvents="none"
             style={[
               styles.abs,
               styles.ring,
@@ -687,6 +685,7 @@ export function BackgammonBoard({
                 boxShadow: `0px 0px 10px ${isHit ? boardColors.hitTarget : boardColors.target}`,
               },
               PULSE,
+              { pointerEvents: 'none' },
             ]}
           />
         );
@@ -708,8 +707,7 @@ export function BackgammonBoard({
           return (
             <View
               key={`lbl-${index}`}
-              pointerEvents="none"
-              style={[styles.abs, styles.labelWrap, { left: 0, width: m.width, top: anchor.y - 11 }]}
+              style={[styles.abs, styles.labelWrap, { left: 0, width: m.width, top: anchor.y - 11 }, { pointerEvents: 'none' }]}
             >
               <View
                 style={[
@@ -729,7 +727,7 @@ export function BackgammonBoard({
         })}
 
       {plan.impacts.map((impact) => (
-        <View key={impact.id} pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 96 }]}>
+        <View key={impact.id} style={[StyleSheet.absoluteFill, { zIndex: 96 }, { pointerEvents: 'none' }]}>
           <ImpactRing x={impact.at.x} y={impact.at.y} size={m.checker * 1.3} delay={impact.delay} color="#FFE6A8" />
           <ParticleBurst
             x={impact.at.x}
@@ -847,7 +845,7 @@ function Celebration({
   });
   const last = centers[centers.length - 1];
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 97 }]}>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 97 }, { pointerEvents: 'none' }]}>
       {centers.map((c, index) => (
         <Animated.View
           key={index}
@@ -956,8 +954,7 @@ function DiceRow({ dice, metrics: m, sounds }: { dice: BoardDice; metrics: Board
   }, [rollKey, sounds]);
   return (
     <View
-      pointerEvents="none"
-      style={[styles.abs, styles.diceRow, { left: center.x - total / 2, top: center.y - size / 2, gap }]}
+      style={[styles.abs, styles.diceRow, { left: center.x - total / 2, top: center.y - size / 2, gap }, { pointerEvents: 'none' }]}
     >
       {dice.values.map((value, index) => (
         <RollingDie
@@ -982,7 +979,6 @@ function CubeView({ cube, metrics: m }: { cube: BoardCube; metrics: BoardMetrics
   const y = cube.owner === 'player1' ? m.midY + offset : cube.owner === 'player2' ? m.midY - offset : m.midY;
   return (
     <View
-      pointerEvents="none"
       accessibilityLabel={`Doubling cube at ${cube.value}`}
       style={[
         styles.abs,
@@ -996,6 +992,7 @@ function CubeView({ cube, metrics: m }: { cube: BoardCube; metrics: BoardMetrics
           transitionProperty: 'top',
           transitionDuration: 300,
         } as object,
+        { pointerEvents: 'none' },
       ]}
     >
       <Text style={[styles.cubeText, { fontSize: size * 0.48 }]}>{cube.value}</Text>

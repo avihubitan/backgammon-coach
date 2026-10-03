@@ -42,7 +42,7 @@ export function XpPill({ value, bumpKey = 0, ref, testID }: XpPillProps) {
       accessibilityLabel={`${value} XP earned`}
       style={[styles.pill, style]}
     >
-      <Animated.View pointerEvents="none" style={[styles.flash, flashStyle]} />
+      <Animated.View style={[styles.flash, flashStyle, { pointerEvents: 'none' }]} />
       <Icon name="lightning-bolt" size={16} color={colors.xp} />
       <AppText variant="smallStrong" color={colors.xp} style={styles.value}>
         {value}

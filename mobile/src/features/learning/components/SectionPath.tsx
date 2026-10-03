@@ -113,7 +113,6 @@ export function SectionPath({ section, stops, width, currentRef, onPress, onReve
               // The road to a freshly unlocked lesson paves itself.
               <Animated.View
                 key={`reveal-${index}`}
-                pointerEvents="none"
                 style={[
                   styles.abs,
                   {
@@ -128,6 +127,7 @@ export function SectionPath({ section, stops, width, currentRef, onPress, onReve
                     animationDelay: 250,
                     animationFillMode: 'backwards',
                   },
+                  { pointerEvents: 'none' },
                 ]}
               >
                 <Svg width={width} height={height}>

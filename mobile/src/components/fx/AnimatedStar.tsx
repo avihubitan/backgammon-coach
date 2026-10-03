@@ -71,7 +71,6 @@ export function AnimatedStar({ earned, size, delay, index, sound = true }: Anima
         <Icon name="star" size={size} color={earned ? colors.star : colors.starEmpty} />
         {earned ? (
           <Animated.View
-            pointerEvents="none"
             style={[
               styles.shine,
               {
@@ -88,6 +87,7 @@ export function AnimatedStar({ earned, size, delay, index, sound = true }: Anima
                 animationDelay: delay + 380,
                 animationFillMode: 'both',
               },
+              { pointerEvents: 'none' },
             ]}
           />
         ) : null}

@@ -86,7 +86,7 @@ export function PaywallScreen({ source }: { source: string }) {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]} testID="paywall">
-      <View style={styles.glow} pointerEvents="none" />
+      <View style={[styles.glow, { pointerEvents: 'none' }]} />
       <View style={styles.topBar}>
         <IconButton testID="paywall-close" icon="close" accessibilityLabel="Close" onPress={close} />
       </View>

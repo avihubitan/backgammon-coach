@@ -52,7 +52,6 @@ export function LevelUpOverlay({ level, onClose }: LevelUpOverlayProps) {
       ]}
     >
       <Animated.View
-        pointerEvents="none"
         style={[
           styles.rays,
           {
@@ -65,6 +64,7 @@ export function LevelUpOverlay({ level, onClose }: LevelUpOverlayProps) {
             animationIterationCount: 'infinite',
             animationTimingFunction: 'linear',
           },
+          { pointerEvents: 'none' },
         ]}
       >
         <Svg width={rayRadius * 2} height={rayRadius * 2}>
@@ -74,7 +74,7 @@ export function LevelUpOverlay({ level, onClose }: LevelUpOverlayProps) {
         </Svg>
       </Animated.View>
 
-      <View pointerEvents="none" style={[styles.glow, { left: width / 2 - BADGE, top: centerY - BADGE }]} />
+      <View style={[styles.glow, { left: width / 2 - BADGE, top: centerY - BADGE }, { pointerEvents: 'none' }]} />
 
       <ParticleBurst
         x={width / 2}
