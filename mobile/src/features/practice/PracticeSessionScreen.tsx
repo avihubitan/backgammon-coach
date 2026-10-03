@@ -20,7 +20,7 @@ import { usePracticeStore, type PracticeKind } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
-import { isMastered, pickForPractice } from './mistakes';
+import { isMastered, pickForPractice, withFocus } from './mistakes';
 import { PracticeComplete } from './PracticeComplete';
 import {
   buildDrillSession,
@@ -35,9 +35,10 @@ const isDrill = (kind: string): kind is DrillCategory => DRILL_CATEGORIES.some((
 /** Practice earns XP at the replay rate: steady, but never faster than new lessons. */
 const practiceXp = (outcome: Parameters<typeof exerciseXp>[0]) => exerciseXp(outcome, true);
 
-function buildSession(kind: PracticeKind, seed: number): PracticeSession | null {
+function buildSession(kind: PracticeKind, seed: number, focus?: string): PracticeSession | null {
   if (kind === 'mistakes') {
-    const picks = pickForPractice(useMistakesStore.getState().mistakes, SESSION_LENGTH);
+    const all = useMistakesStore.getState().mistakes;
+    const picks = withFocus(pickForPractice(all, SESSION_LENGTH), all, focus, SESSION_LENGTH);
     return picks.length > 0 ? buildMistakeSession(picks) : null;
   }
   return buildDrillSession(kind, seed);
@@ -51,7 +52,8 @@ export interface PracticeResult {
 }
 
 /** A short practice run: five drills from one skill, or positions from your own games. */
-export function PracticeSessionScreen({ kind }: { kind: string }) {
+/** `focus`: a mistake to practise first (from a game review). */
+export function PracticeSessionScreen({ kind, focus }: { kind: string; focus?: string }) {
   const insets = useSafeAreaInsets();
   const lessons = useProgressStore((state) => state.lessons);
   const canPracticeMistakes = useFeatureAccess().canUseAdvancedTraining();
@@ -60,7 +62,7 @@ export function PracticeSessionScreen({ kind }: { kind: string }) {
     kind === 'mistakes'
       ? canPracticeMistakes
       : unlockedDrillCategories(lessons, curriculum).some((info) => info.id === kind);
-  const [run, setRun] = useState(() => ({ id: 0, session: valid && unlocked ? buildSession(kind as PracticeKind, Date.now()) : null }));
+  const [run, setRun] = useState(() => ({ id: 0, session: valid && unlocked ? buildSession(kind as PracticeKind, Date.now(), focus) : null }));
   const [result, setResult] = useState<PracticeResult | null>(null);
   const answered = useRef(new Set<string>());
 

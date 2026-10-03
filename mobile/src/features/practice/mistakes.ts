@@ -69,6 +69,13 @@ export function pickForPractice(mistakes: UserMistake[], count: number): UserMis
     .slice(0, count);
 }
 
+/** A practice run that starts with one chosen position (from a game review), then the usual picks. */
+export function withFocus(picks: UserMistake[], all: UserMistake[], focusId: string | undefined, count: number): UserMistake[] {
+  const focus = focusId ? all.find((mistake) => mistake.id === focusId) : undefined;
+  if (!focus) return picks;
+  return [focus, ...picks.filter((mistake) => mistake.id !== focus.id)].slice(0, count);
+}
+
 export function recordAttempt(mistake: UserMistake, correct: boolean, now: string): UserMistake {
   return {
     ...mistake,

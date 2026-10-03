@@ -2,7 +2,7 @@ import { allCheckersHome, hasContact, madePoints, opponentOf, pipDistance, posit
 import type { DiceRoll } from '../dice/dice';
 import type { TurnRecord } from '../engine/game';
 import { formatPlay } from '../moves/notation';
-import { applyPlay } from '../rules/movement';
+import { applyPlay, hasBorneOffAll } from '../rules/movement';
 import type { BoardState, CheckerMove, Player } from '../types';
 
 import { equityAfterMove, hasNetwork, rankByEquity, winChanceOnRoll } from './engine';
@@ -305,6 +305,25 @@ export function describePlay(before: BoardState, player: Player, moves: readonly
     return `It cuts the rolls that would hit you from ${shotsBefore} to ${shots} out of 36.`;
   }
   return 'It keeps your checkers best placed to build points on the next rolls.';
+}
+
+/** What each play leads to, in terms a beginner can weigh: shots and winning chances. */
+export interface MoveOutcome {
+  /** Opponent rolls (of 36) that hit a blot after the played move, and after the coach's. */
+  shots: { played: number; best: number };
+  /** The player's chance of winning after each move (0..1). */
+  winChance: { played: number; best: number };
+}
+
+export function moveOutcome(move: Pick<MoveReview, 'boardBefore' | 'player' | 'played' | 'best'>): MoveOutcome {
+  const opponent = opponentOf(move.player);
+  const after = (moves: readonly CheckerMove[]) => applyPlay(move.boardBefore, move.player, moves);
+  const shots = (board: BoardState) => extractFeatures(board, move.player).exposure.hittingRolls;
+  // After a move the opponent is to roll: our chance is what they don't win.
+  const win = (board: BoardState) => (hasBorneOffAll(board, move.player) ? 1 : 1 - winChanceOnRoll(board, opponent));
+  const played = after(move.played);
+  const best = after(move.best);
+  return { shots: { played: shots(played), best: shots(best) }, winChance: { played: win(played), best: win(best) } };
 }
 
 const praiseFor = (severity: Severity) =>

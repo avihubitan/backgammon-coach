@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import {
   categoryLabel,
   formatPlay,
+  moveOutcome,
   reviewGame,
   type MoveReview,
   type Severity,
@@ -25,6 +26,11 @@ import { analytics } from '@/services/analytics';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { todayKey } from '@/state/progressStore';
+
+/** Explanations that already compare the two moves' shots. */
+const SAFETY_HEADLINES = new Set(['You had a safer option', 'A slightly safer play existed']);
+
+const percent = (chance: number) => `${Math.round(chance * 100)}%`;
 
 export const SEVERITY_STYLE: Record<Severity, { label: string; color: string }> = {
   best: { label: 'Best', color: colors.success },
@@ -136,6 +142,14 @@ export function GameReviewScreen({
     : [];
 
   const position = (current ? review.moves.indexOf(current) : 0) + 1;
+  // What each move leads to (only worked out for the move on screen).
+  const outcome = current && current.severity !== 'best' && current.severity !== 'fine' ? moveOutcome(current) : null;
+  // The shots line, unless the explanation already compares them.
+  const showShots =
+    !!outcome &&
+    outcome.shots.played > outcome.shots.best &&
+    outcome.shots.played >= 4 &&
+    !SAFETY_HEADLINES.has(current?.headline ?? '');
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -232,10 +246,45 @@ export function GameReviewScreen({
               <AppText variant="body" color="textSecondary">
                 {current.explanation}
               </AppText>
+              {outcome && (showShots || access.canAnalyzeGame()) ? (
+                <View style={styles.outcomes} testID="review-outcome">
+                  {showShots ? (
+                    <View style={styles.outcomeRow}>
+                      <Icon name="target" size={16} color={colors.streak} />
+                      <AppText variant="small" color="textSecondary" style={styles.flex}>
+                        Your move: hit by {outcome.shots.played} of 36 rolls · the coach’s: {outcome.shots.best}
+                      </AppText>
+                    </View>
+                  ) : null}
+                  {access.canAnalyzeGame() ? (
+                    <View style={styles.outcomeRow}>
+                      <Icon name="chart-line" size={16} color={colors.info} />
+                      <AppText variant="small" color="textSecondary" style={styles.flex}>
+                        Winning chances: {percent(outcome.winChance.played)} after your move ·{' '}
+                        {percent(outcome.winChance.best)} after the coach’s
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
               <View style={styles.toggleRow}>
                 <ToggleChip active={!showBest} label={`You: ${formatPlay('player1', current.played)}`} onPress={() => setShowBest(false)} />
                 <ToggleChip active={showBest} label={`Best: ${formatPlay('player1', current.best)}`} onPress={() => setShowBest(true)} />
               </View>
+              {fullReview && (current.severity === 'mistake' || current.severity === 'blunder') ? (
+                <Button
+                  testID="review-practise-position"
+                  label="Practise this position"
+                  icon={access.canUseAdvancedTraining() ? 'target' : 'crown'}
+                  variant="secondary"
+                  size="medium"
+                  onPress={() =>
+                    access.canUseAdvancedTraining()
+                      ? router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes', focus: `${game.id}:${current.index}` } })
+                      : router.push({ pathname: '/paywall', params: { source: 'mistakes' } })
+                  }
+                />
+              ) : null}
               {technical ? (
                 <AppText variant="caption" color="textMuted">
                   Equity: yours {current.playedEquity.toFixed(3)} · best {current.bestEquity.toFixed(3)} · loss{' '}
@@ -390,6 +439,8 @@ function ToggleChip({ active, label, onPress }: { active: boolean; label: string
 }
 
 const styles = StyleSheet.create({
+  outcomes: { gap: 4 },
+  outcomeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: SCREEN_GUTTER },
   topBar: {

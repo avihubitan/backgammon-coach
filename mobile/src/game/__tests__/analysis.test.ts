@@ -2,6 +2,7 @@ import {
   createBoard,
   describePlay,
   explainDifference,
+  moveOutcome,
   findPlayByNotation,
   initialBoard,
   installNetwork,
@@ -83,6 +84,28 @@ describe('describing a play', () => {
     const board = createBoard({ player1: { 10: 3, 9: 3, 4: 4 }, player2: { 15: 4, 20: 6 } });
     const play = findPlayByNotation(board, 'player1', [6, 5], '10/4 9/4')!.moves;
     expect(describePlay(board, 'player1', play)).toMatch(/pure race/);
+  });
+});
+
+describe('what a move leads to', () => {
+  it('counts the shots and winning chances after each move', () => {
+    const board = initialBoard();
+    const played = findPlayByNotation(board, 'player1', [3, 1], '24/23 13/10')!.moves;
+    const best = findPlayByNotation(board, 'player1', [3, 1], '8/5 6/5')!.moves;
+    const outcome = moveOutcome({ boardBefore: board, player: 'player1', played, best });
+    expect(outcome.shots.best).toBe(0);
+    expect(outcome.shots.played).toBeGreaterThan(10);
+    for (const chance of [outcome.winChance.played, outcome.winChance.best]) {
+      expect(chance).toBeGreaterThan(0);
+      expect(chance).toBeLessThan(1);
+    }
+    expect(outcome.winChance.best).toBeGreaterThan(outcome.winChance.played);
+  });
+
+  it('counts a finished bear-off as a win', () => {
+    const board = createBoard({ player1: { 2: 1 }, player2: { 19: 3 } });
+    const off = findPlayByNotation(board, 'player1', [6, 5], '2/off')!.moves;
+    expect(moveOutcome({ boardBefore: board, player: 'player1', played: off, best: off }).winChance.played).toBe(1);
   });
 });
 
