@@ -58,8 +58,10 @@
     "build:web": "expo export -p web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "check:env": "node scripts/check-env.js",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "eas-build-post-install": "node scripts/check-env.js"
   },
   "private": true,
   "jest": {
