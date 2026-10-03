@@ -12,7 +12,8 @@ or Docker, as noted. Nothing has been checked on a physical phone yet:
 | App icon and splash | Done | iOS icon, Android adaptive and monochrome icons, notification icon |
 | Bundle id / package | Done in config | `com.backgammoncoach.app` on both; not yet registered with Apple or Google |
 | Version and build numbers | Done in config | 1.0.0; EAS manages build numbers (`appVersionSource: remote`) once `eas init` has run |
-| EAS profiles | Checked offline | development, preview, production; pass Expo's `eas.json` schema; never built (needs an Expo account) |
+| EAS profiles | Checked offline | development, preview, production; pass Expo's `eas.json` schema; never built (needs an Expo account: `eas init`) |
+| Build environment check | Done | `npm run check:env -- --profile <name>`; also runs on EAS after install and stops a build with unsafe or broken service settings |
 | Native config | Checked offline | `expo prebuild` for iOS and Android; permissions and Info.plist reviewed; Hermes bundles compile |
 | Development build | Not done | Needs `eas init`, Apple Developer account, registered iPhones |
 | TestFlight | Not done | Needs the App Store Connect app record |
@@ -27,7 +28,7 @@ or Docker, as noted. Nothing has been checked on a physical phone yet:
 | Notifications | Code done | Local reminders; tap opens Home; test reminder in preview builds; not checked on a phone |
 | Cloud backend | Checked in Docker | Image + MongoDB 7 + smoke test; no hosting, managed database or HTTPS domain yet |
 | Backup deletion | Done | In the app and the API |
-| Real device testing | Not done | [DEVICE_TESTING.md](DEVICE_TESTING.md) |
+| Real device testing | Not done | Waits for the first preview build; [DEVICE_TESTING.md](DEVICE_TESTING.md) has the plan and a results table. Device-only risks found by review and in the browser are fixed (see [BETA_READINESS.md](BETA_READINESS.md)) |
 | App Store screenshots | Not done | 6.9" and 6.5" iPhone; 13" iPad |
 | Play Store screenshots and feature graphic | Not done | |
 | Store listings, age ratings | Not done | |
@@ -88,8 +89,12 @@ or Docker, as noted. Nothing has been checked on a physical phone yet:
       symbols upload. Turn on "Prevent storing of IP addresses".
 - [ ] PostHog project (US or EU). `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST`; turn on
       "Discard client IP data"; build the dashboard in [BETA.md](BETA.md).
+- [ ] `npx eas-cli@latest env:pull --environment preview && npm run check:env -- --profile preview`
+      shows no errors (then the same for production).
 - [ ] On a preview build: a test error appears in Sentry with readable file names; events appear in
       PostHog with `build_variant = preview`.
+- [ ] Turn "Share anonymous usage data" off on a phone: no new events in PostHog and no new Sentry
+      reports (native crash handling stops completely from the next start).
 
 ## 5. Backend (only needed for cloud backup)
 
@@ -111,5 +116,7 @@ or Docker, as noted. Nothing has been checked on a physical phone yet:
 - [ ] Decide what testers get: Premium through sandbox purchases (free in TestFlight) or keep it paid
       to watch the paywall. See [BETA.md](BETA.md).
 - [ ] A contact email for testers, in the invite and the store listing.
+- [ ] Decide whether progress should go into the phone's own iCloud/Google backup (today it
+      doesn't; [BETA_BACKLOG.md](BETA_BACKLOG.md)).
 - [ ] Before the public release: switch off the daily "How was this?" question
       (`QUICK_FEEDBACK_ENABLED`) and settle the open decisions in [PRIVACY.md](PRIVACY.md).

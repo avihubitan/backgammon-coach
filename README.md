@@ -6,10 +6,12 @@ opponent, and a coach that reviews your games and turns your mistakes into pract
 
 **Learn → Play → Get feedback → Practise your mistakes → Improve.**
 
+Where the device beta stands and the next action: [`docs/BETA_READINESS.md`](docs/BETA_READINESS.md).
 Status and next steps: [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md). Release status and
 store setup: [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md). Installing on phones and what to
 test: [`docs/DEVICE_TESTING.md`](docs/DEVICE_TESTING.md). The closed beta's questions and metrics:
-[`docs/BETA.md`](docs/BETA.md). Data the app collects: [`docs/PRIVACY.md`](docs/PRIVACY.md).
+[`docs/BETA.md`](docs/BETA.md). Data the app collects: [`docs/PRIVACY.md`](docs/PRIVACY.md). Ideas
+waiting for beta feedback: [`docs/BETA_BACKLOG.md`](docs/BETA_BACKLOG.md).
 
 ## What's in the app
 
@@ -206,6 +208,10 @@ answers must match its winning chances). A broken lesson fails the tests.
 cd mobile && npm test && npm run typecheck && npm run lint
 cd backend && npm test && npm run typecheck
 ```
+
+Before an EAS build, `cd mobile && npm run check:env -- --profile preview` checks that build's
+service settings (keys, addresses, nothing secret in public variables) without printing them; EAS
+runs the same check after install.
 
 ## Deploying the API
 

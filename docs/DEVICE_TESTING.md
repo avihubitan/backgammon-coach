@@ -3,7 +3,37 @@
 Nothing has been checked on a physical phone yet. Everything so far ran in tests, in Chromium at
 phone sizes, as Hermes bundles, and as generated native projects (see "Already verified" at the
 end). This page is the plan for the first device pass: how to install the app, which phones, and
-what to check.
+what to check. Record results in [section 8](#8-results).
+
+## Quickest way to a first phone
+
+An Android phone and an Expo account are all it takes; no Google or Apple account is needed for
+this step. From your own computer:
+
+```bash
+cd mobile
+npx eas-cli@latest login
+npx eas-cli@latest init                 # links the existing app; writes extra.eas.projectId into app.json
+git add app.json && git commit -m "Link the EAS project" && git push
+npm run check:env -- --profile preview  # optional: which services this build will have
+npx eas-cli@latest build --profile preview --platform android
+```
+
+EAS creates and keeps the Android signing key. When the build finishes, open its link on the
+phone and install the APK. With no service keys set, the build still runs: Premium says it isn't on
+sale yet, and no crash reports or analytics leave the phone. Run Flows 1–4 and 6 with it. The
+iPhone build needs the Apple Developer membership in step 2 below.
+
+`eas init` must run from `mobile/` (where `eas.json` is). It asks to create the project
+`@<your account>/backgammon-coach`; say yes. Nothing else in the repository changes.
+
+**From a Claude Code cloud session instead of your computer**, two environment settings are needed
+(the session's environment menu → Edit): an Expo access token (a robot user's token is safest) as
+the environment variable `EXPO_TOKEN`, and Network access set to Custom with `api.expo.dev`,
+`expo.dev` and `storage.googleapis.com` (where EAS uploads the project) added under Allowed domains,
+keeping the default package-manager list. See
+[network access](https://code.claude.com/docs/en/cloud-environments#network-access). Even then, the
+first iOS build needs an interactive Apple sign-in, so do that one on your computer.
 
 ## 1. Get the app onto a phone
 
@@ -32,6 +62,14 @@ One-time setup (needs accounts; nothing here can be done without them):
    | `EXPO_PUBLIC_TERMS_URL`, `EXPO_PUBLIC_PRIVACY_URL` | optional | yes | yes |
 
    `EXPO_PUBLIC_APP_VARIANT` is set by `eas.json`. A production build ignores a Test Store key.
+
+   Check the values before building, without printing them:
+   `npx eas-cli@latest env:pull --environment preview && npm run check:env -- --profile preview`.
+   The same check runs on EAS after install: it stops a build only for settings that would ship a
+   broken or unsafe app (a secret key in an `EXPO_PUBLIC_` variable, a Test Store key in
+   production, an http API address, a malformed DSN or link); missing services are warnings.
+   Building locally (`expo export`, `expo run:*`) after changing an `EXPO_PUBLIC_` value needs
+   `--clear`: Metro's cache otherwise keeps the old value.
 
 Builds:
 
@@ -72,12 +110,18 @@ Run every flow on every phone with a preview build. Note pass/fail and anything 
 - Dragging a checker feels immediate; the screen doesn't scroll while you drag.
 - Feedback, XP and stars animate smoothly; the next lesson unlocks and the path shows it.
 - "How was this lesson?" appears (at most once a day); "Not good" opens the box.
+- The daily loop: Home's "Your coach's pick" opens its drill or lesson, and shows it done after;
+  the daily challenge counts progress; the streak and daily goal update after a lesson. Over a few
+  days: a missed day uses a ready streak freeze.
 
 **Flow 3: game.** Home → Play → choose a level → roll → move → Coach Watch → finish → review.
 - Dice and checker animations are smooth; the computer's turn doesn't freeze the screen.
 - Make a clear mistake: Coach Watch asks "Are you sure?"; try all three answers on different turns.
 - Hints: three per game for free players.
 - Kill the app mid-game, reopen: the game resumes.
+- Leave the game while the computer is moving (X, or Android back → Leave), then Play → Resume:
+  the computer replays its turn and the game goes on (this used to freeze, or crash a release
+  build).
 - The result sheet fits on the small iPhone, with "How was this game?".
 
 **Flow 4: coach.** Game → mistake → Coach Watch → review → practise the position → practice.
@@ -109,6 +153,27 @@ internal testing track).
 - Learn on both; after a sync both have everything.
 - Phone A: Delete my backup → Phone B says "This backup was deleted" on its next start; its progress
   stays.
+
+**Flow 8: phone behaviour.**
+- Android back: in a lesson it asks "Leave this lesson?", in a game "Leave the game?", on an open
+  dialog it closes the dialog, on a tab it leaves the app. Test with gesture and 3-button
+  navigation.
+- Keyboard: Profile → Restore from a code: the keyboard doesn't cover Restore (iPhone SE), the Go
+  key restores, a whole code fits in the box. "Send feedback": the box stays above the keyboard.
+- Safe areas (the app is portrait only): nothing under the notch, Dynamic Island, home indicator
+  or Android navigation bar on Home, a lesson, a game, the paywall and every dialog.
+- Background and resume: start a lesson, switch apps for a minute, come back: same step. Leave
+  the app in the background overnight (don't kill it): next morning Home shows today (0 XP, "Learn
+  today to keep your streak alive"), not yesterday's "Daily goal done".
+- Links: an unknown link opens a "Page not found" page with "Go to Home":
+  `adb shell am start -a android.intent.action.VIEW -d "backgammoncoach://does-not-exist"` or, on
+  an iPhone, type `backgammoncoach://does-not-exist` into Safari.
+- Reinstall: delete and reinstall the app. Progress is gone (expected: it lives on the phone, and
+  neither iCloud nor Google backup includes it, see [BETA_BACKLOG.md](BETA_BACKLOG.md)); Restore
+  purchases brings Premium back. On an iPhone, turning backup back on reconnects to the same
+  backup (the code stays in the Keychain) and brings progress back.
+- A long-used save: after 20+ games and many lessons, kill and reopen the app: it opens as fast as
+  before, and Profile's games list scrolls smoothly.
 
 ## 4. Offline (airplane mode)
 
@@ -147,11 +212,38 @@ iPhone SE 3 · iOS 18.5 · 1.0.0 (14) · preview · Flow 3 · FAIL · result she
 
 Crashes show up in Sentry with the build number; add the time they happened.
 
+## 8. Results
+
+Copy this table per phone. Pass, fail (with a line in the report format above) or "not run".
+
+```
+Phone · OS · build (Profile → bottom) · date
+| Flow                         | Result | Notes |
+| ---------------------------- | ------ | ----- |
+| 1 Fresh install + onboarding |        |       |
+| 2 Learning                   |        |       |
+| 3 Game (incl. leave mid-turn)|        |       |
+| 4 Coach + mistake practice   |        |       |
+| 5 Premium (sandbox)          |        |       |
+| 6 Notifications              |        |       |
+| 7 Backup                     |        |       |
+| 8 Phone behaviour            |        |       |
+| Offline                      |        |       |
+| Speed (cold start ×3, s)     |        |       |
+| Accessibility                |        |       |
+| Sentry test error seen       |        |       |
+| PostHog events seen          |        |       |
+```
+
 ## Already verified (not on phones)
 
-- 1,150+ unit tests, typecheck and lint.
+- 1,180+ unit tests, typecheck and lint.
 - The web export in Chromium at phone sizes, including iPhone SE: every main route, onboarding,
   lessons, full games, reviews, feedback, backup and deletion against the API in Docker.
+- Also in Chromium, for the device-only risks fixed before the device pass: a damaged or
+  unreadable save, per-move storage writes, reloading during the computer's turn (four times in
+  one game), resuming two days later with a fake clock, unknown links, and restoring a backup
+  with the Enter key.
 - Hermes bytecode bundles for iOS and Android compile (`expo export -p ios -p android`).
 - `expo prebuild` for both platforms: permissions, Info.plist, entitlements, Sentry upload steps;
   `eas.json` passes Expo's schema.
