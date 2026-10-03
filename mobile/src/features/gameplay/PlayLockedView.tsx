@@ -9,15 +9,14 @@ import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { allLessons, curriculum } from '@/curriculum';
 import { START } from '@/curriculum/builders';
-import { FEATURE_UNLOCKS, nextLesson, type LessonRecords } from '@/features/learning/progression';
+import { nextLesson, PLAY_EARLY_SECTION, type LessonRecords } from '@/features/learning/progression';
 import { createBoard } from '@/game';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 
 /** Shown on the Play tab until the learner knows enough rules to enjoy a full game. */
 export function PlayLockedView({ records }: { records: LessonRecords }) {
   const { width } = useWindowDimensions();
-  const unlock = FEATURE_UNLOCKS.find((feature) => feature.id === 'play')!;
-  const sectionIndex = curriculum.findIndex((section) => section.id === unlock.requiresSection);
+  const sectionIndex = curriculum.findIndex((section) => section.id === PLAY_EARLY_SECTION);
   const required = sectionIndex >= 0 ? curriculum.slice(0, sectionIndex + 1).flatMap((section) => section.lessons) : allLessons;
   const done = required.filter((lesson) => records[lesson.id]?.completed).length;
   const sectionTitle = curriculum[sectionIndex]?.title ?? 'the rules sections';
@@ -38,12 +37,13 @@ export function PlayLockedView({ records }: { records: LessonRecords }) {
           Play vs Computer
         </AppText>
         <AppText variant="body" color="textSecondary" align="center">
-          Finish “{sectionTitle}” first. By then you’ll know every rule you need for a full game.
+          Finish “{sectionTitle}” first. You’ll know the board, your checkers and which way they move, and the
+          coach helps with the rest.
         </AppText>
       </View>
       <Card style={styles.progressCard}>
         <View style={styles.row}>
-          <AppText variant="subheading">Rules learned</AppText>
+          <AppText variant="subheading">{sectionTitle}</AppText>
           <AppText variant="smallStrong" color="textSecondary">
             {done}/{required.length} lessons
           </AppText>

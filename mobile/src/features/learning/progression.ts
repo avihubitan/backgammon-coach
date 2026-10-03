@@ -265,6 +265,26 @@ export function isFeatureUnlocked(
   return section.lessons.every((lesson) => records[lesson.id]?.completed);
 }
 
+const sectionDone = (sectionId: string, records: LessonRecords, sections: Section[]) => {
+  const section = sections.find((candidate) => candidate.id === sectionId);
+  return !!section && section.lessons.length > 0 && section.lessons.every((lesson) => records[lesson.id]?.completed);
+};
+
+/** The section after which a learner may try full games, before knowing every rule. */
+export const PLAY_EARLY_SECTION = 'board';
+
+export type PlayAccess = 'locked' | 'early' | 'open';
+
+/**
+ * Full games open once the learner knows the board ('early': the board only
+ * allows legal moves and the coach can show the best one), and are fully
+ * recommended once every rule has been taught ('open').
+ */
+export function playAccess(records: LessonRecords, sections: Section[] = curriculum): PlayAccess {
+  if (isFeatureUnlocked('play', records, sections)) return 'open';
+  return sectionDone(PLAY_EARLY_SECTION, records, sections) ? 'early' : 'locked';
+}
+
 // ---------------------------------------------------------------------------
 // Streaks and days
 

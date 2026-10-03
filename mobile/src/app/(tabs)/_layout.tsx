@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import { useEffect } from 'react';
 
 import { TabBar } from '@/components/navigation/TabBar';
-import { isFeatureUnlocked } from '@/features/learning/progression';
+import { playAccess } from '@/features/learning/progression';
 import { soundBank } from '@/services/feedback';
 import { useProgressStore } from '@/state/progressStore';
 import { colors } from '@/theme';
@@ -21,7 +21,7 @@ export default function TabsLayout() {
 
   if (!onboardingCompleted) return <Redirect href="/onboarding" />;
 
-  const locked = isFeatureUnlocked('play', lessons) ? [] : ['play'];
+  const locked = playAccess(lessons) === 'locked' ? ['play'] : [];
 
   return (
     <Tabs

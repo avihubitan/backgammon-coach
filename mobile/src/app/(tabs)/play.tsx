@@ -4,13 +4,14 @@ import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { PlayHub } from '@/features/gameplay/PlayHub';
 import { PlayLockedView } from '@/features/gameplay/PlayLockedView';
-import { isFeatureUnlocked } from '@/features/learning/progression';
+import { playAccess } from '@/features/learning/progression';
 import { useProgressStore } from '@/state/progressStore';
 import { spacing } from '@/theme';
 
 export default function PlayRoute() {
   const lessons = useProgressStore((state) => state.lessons);
-  const unlocked = isFeatureUnlocked('play', lessons);
+  const access = playAccess(lessons);
+  const unlocked = access !== 'locked';
   return (
     <Screen
       testID="play-screen"
@@ -25,7 +26,7 @@ export default function PlayRoute() {
         </View>
       }
     >
-      {unlocked ? <PlayHub /> : <PlayLockedView records={lessons} />}
+      {unlocked ? <PlayHub early={access === 'early'} /> : <PlayLockedView records={lessons} />}
     </Screen>
   );
 }

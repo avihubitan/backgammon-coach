@@ -13,10 +13,11 @@ import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
 import { CoachPickCard } from '@/features/coach/CoachPickCard';
 import {
   currentSection,
-  isFeatureUnlocked,
   levelInfo,
   maxLessonXp,
   nextLesson,
+  PLAY_EARLY_SECTION,
+  playAccess,
   premiumLessonsLeft,
   sectionProgress,
   streakStatus,
@@ -44,7 +45,8 @@ export function HomeScreen() {
   const premiumLeft = lesson ? [] : premiumLessonsLeft(progress.lessons, allLessons, canAccess);
   const premiumSection = premiumLeft.length > 0 ? getSection(premiumLeft[0].sectionId) : undefined;
   const startedPath = Object.values(progress.lessons).some((record) => record.completed);
-  const playUnlocked = isFeatureUnlocked('play', progress.lessons);
+  const play = playAccess(progress.lessons);
+  const playUnlocked = play !== 'locked';
 
   return (
     <Screen
@@ -207,9 +209,11 @@ export function HomeScreen() {
         <View style={styles.flex}>
           <AppText variant="subheading">Play vs Computer</AppText>
           <AppText variant="small" color="textSecondary">
-            {playUnlocked
+            {play === 'open'
               ? 'Put your skills to the test in a full game.'
-              : `Unlocks after “${curriculum.find((s) => s.id === 'bearing-off')?.title ?? 'Bearing Off'}”. You’ll know every rule by then.`}
+              : play === 'early'
+                ? 'Try a full game. The coach helps you along the way.'
+                : `Unlocks after “${curriculum.find((s) => s.id === PLAY_EARLY_SECTION)?.title ?? 'Meet the Board'}”.`}
           </AppText>
         </View>
         <Icon name="chevron-right" size={24} color="textMuted" />

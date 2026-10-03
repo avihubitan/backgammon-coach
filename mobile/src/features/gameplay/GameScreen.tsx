@@ -8,7 +8,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
-import { canDouble, canEndTurn, pipCount } from '@/game';
+import { allCheckersHome, canDouble, canEndTurn, pipCount } from '@/game';
 import { useGameStore } from '@/state/gameStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
@@ -70,6 +70,10 @@ export function GameScreen() {
     if (state.phase === 'rolling') return game.lastAiPlay ? `${game.lastAiPlay.text}. Your roll!` : 'Your turn. Roll the dice!';
     if (turn && canEndTurn(state)) return 'Done? Confirm your move, or undo to try again.';
     if (state.board.bar.player1 > 0) return 'You’re on the bar: enter in the computer’s home board first.';
+    // The first bear-off turn of the game: say how it works.
+    if (turn && turn.moves.length === 0 && state.board.off.player1 === 0 && allCheckersHome(state.board, 'player1')) {
+      return 'All your checkers are home: bear them off! Tap a checker, then the tray on the right.';
+    }
     return 'Drag a checker where it should go, or tap it and then its spot.';
   })();
 

@@ -17,6 +17,8 @@ import {
   newlyUnlockedLessons,
   nextLesson,
   premiumLessonsLeft,
+  PLAY_EARLY_SECTION,
+  playAccess,
   pruneDays,
   registerActivity,
   sectionProgress,
@@ -176,6 +178,16 @@ describe('unlocking', () => {
       expect(newlyUnlockedLessons(previewA.id, path).map((lesson) => lesson.id)).toEqual([premiumA1.id]);
       expect(premiumLessonsLeft(records, path)).toEqual([]);
     });
+  });
+
+  it('opens full games early, after the board, and fully after the rules', () => {
+    const through = (sectionId: string) =>
+      done(...curriculum.slice(0, curriculum.findIndex((section) => section.id === sectionId) + 1).flatMap((section) => section.lessons.map((lesson) => lesson.id)));
+    expect(playAccess({})).toBe('locked');
+    expect(playAccess(done(...curriculum[0].lessons.slice(0, -1).map((lesson) => lesson.id)))).toBe('locked');
+    expect(playAccess(through(PLAY_EARLY_SECTION))).toBe('early');
+    expect(playAccess(through('position'))).toBe('early');
+    expect(playAccess(through('bearing-off'))).toBe('open');
   });
 
   it('unlocks practice once the first section is complete', () => {

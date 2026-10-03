@@ -39,7 +39,8 @@ const LEVELS: { id: AiLevel; title: string; description: string; icon: IconName;
 
 const MATCH_LENGTHS = [1, 3, 5];
 
-export function PlayHub() {
+/** `early`: the learner knows the board but hasn't met every rule yet. */
+export function PlayHub({ early = false }: { early?: boolean }) {
   const active = useGameStore((store) => store.active);
   const finished = useGameStore((store) => store.finished);
   const stats = useGameStore((store) => store.stats);
@@ -67,6 +68,19 @@ export function PlayHub() {
             </AppText>
           </View>
           <Button testID="resume-game" label="Resume" fullWidth={false} size="medium" onPress={() => router.push('/game')} />
+        </Card>
+      ) : null}
+
+      {early && !resumable ? (
+        <Card style={styles.early} testID="play-early-note">
+          <Icon name="school" size={22} color={colors.info} />
+          <View style={styles.flex}>
+            <AppText variant="smallStrong">New to some of the rules? That’s fine.</AppText>
+            <AppText variant="small" color="textSecondary">
+              The board only lets you make legal moves, and the coach can show you the best one. Hitting and
+              bearing off get their own lessons later.
+            </AppText>
+          </View>
         </Card>
       ) : null}
 
@@ -216,6 +230,7 @@ function Record({ label, value }: { label: string; value: string | number }) {
 }
 
 const styles = StyleSheet.create({
+  early: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, backgroundColor: colors.infoSoft },
   wrap: { gap: spacing.lg },
   flex: { flex: 1 },
   resume: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
