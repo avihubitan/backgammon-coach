@@ -3,7 +3,7 @@ import { createFeatureAccess } from '@/features/monetization/access';
 import { FREE_ENTITLEMENTS } from '@/features/monetization/entitlements';
 import { useGameStore } from '@/state/gameStore';
 
-import { coachWatchApplies, watchPlay } from '../coachWatch';
+import { coachWatchApplies, QUIET_TURNS, watchPlay, watchSpacingAllows } from '../coachWatch';
 import { nextGameInMatch, startActiveGame } from '../gameModel';
 
 beforeAll(() => installNetwork(null));
@@ -62,8 +62,36 @@ describe('when Coach Watch looks', () => {
 
   it('counts checks per game, and each game of a match starts afresh', () => {
     useGameStore.setState({ active: startActiveGame('m2', { level: 'beginner', matchLength: 3, cubeEnabled: false }, '2026-03-10T10:00:00.000Z') });
-    useGameStore.getState().countWatch();
-    expect(useGameStore.getState().active!.watchUsed).toBe(1);
-    expect(nextGameInMatch(useGameStore.getState().active!).watchUsed).toBe(0);
+    useGameStore.getState().countWatch(6);
+    expect(useGameStore.getState().active!).toMatchObject({ watchUsed: 1, watchLastPly: 6 });
+    expect(nextGameInMatch(useGameStore.getState().active!)).toMatchObject({ watchUsed: 0, watchLastPly: undefined });
+  });
+});
+
+describe('spacing between Coach Watch stops', () => {
+  const mine = { player: 'player1', moves: [{}] };
+  const theirs = { player: 'player2', moves: [{}] };
+  const cube = { player: 'player1', moves: [], cubeAction: 'double' };
+  // The coach stopped the player on the turn that starts at history length 4.
+  const upTo = (myMoves: number) => {
+    const history: { player: string; moves: unknown[]; cubeAction?: string }[] = [mine, theirs, mine, theirs];
+    for (let i = 0; i < myMoves; i++) history.push(mine, theirs);
+    return history;
+  };
+
+  it('lets the next moves pass before stopping again for a mistake', () => {
+    expect(watchSpacingAllows({ history: upTo(1), lastStopPly: 4, severity: 'mistake' })).toBe(false);
+    expect(watchSpacingAllows({ history: upTo(QUIET_TURNS), lastStopPly: 4, severity: 'mistake' })).toBe(false);
+    expect(watchSpacingAllows({ history: upTo(QUIET_TURNS + 1), lastStopPly: 4, severity: 'mistake' })).toBe(true);
+  });
+
+  it('always stops for a blunder, and for the first mistake of a game', () => {
+    expect(watchSpacingAllows({ history: upTo(1), lastStopPly: 4, severity: 'blunder' })).toBe(true);
+    expect(watchSpacingAllows({ history: upTo(0), lastStopPly: undefined, severity: 'mistake' })).toBe(true);
+  });
+
+  it('counts only the player’s own moves, not the computer’s or cube decisions', () => {
+    const history = [...upTo(1), cube, theirs, cube, theirs];
+    expect(watchSpacingAllows({ history, lastStopPly: 4, severity: 'mistake' })).toBe(false);
   });
 });

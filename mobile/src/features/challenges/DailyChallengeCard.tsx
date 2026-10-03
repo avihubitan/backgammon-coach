@@ -69,7 +69,7 @@ export function DailyChallengeCard({ enterDelay, compact = false }: { enterDelay
               {done ? 'Done!' : `+${challenge.xp} XP`}
             </AppText>
           </View>
-          <AppText variant="bodyStrong" numberOfLines={1} testID="daily-challenge-title">
+          <AppText variant="bodyStrong" numberOfLines={2} testID="daily-challenge-title">
             {challenge.title}
           </AppText>
           <View style={styles.progressRow}>

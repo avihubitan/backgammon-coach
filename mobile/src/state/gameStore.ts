@@ -38,7 +38,8 @@ interface GamesActions {
   /** Counts a coach hint against this game. */
   countHint: () => void;
   /** Counts a Coach Watch check against this game. */
-  countWatch: () => void;
+  /** Coach Watch stopped the player on the turn at this history length. */
+  countWatch: (ply: number) => void;
   abandonGame: () => void;
   saveReview: (gameId: string, review: FinishedGame['review']) => void;
   resetGames: () => void;
@@ -99,9 +100,9 @@ export const useGameStore = create<GamesData & GamesActions>()(
         if (active) set({ active: { ...active, hintsUsed: (active.hintsUsed ?? 0) + 1 } });
       },
 
-      countWatch: () => {
+      countWatch: (ply) => {
         const active = get().active;
-        if (active) set({ active: { ...active, watchUsed: (active.watchUsed ?? 0) + 1 } });
+        if (active) set({ active: { ...active, watchUsed: (active.watchUsed ?? 0) + 1, watchLastPly: ply } });
       },
 
       abandonGame: () => set({ active: null }),

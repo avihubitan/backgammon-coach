@@ -82,7 +82,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
   {
     id: 'first-try',
     title: 'Answer 3 exercises on the first try',
-    description: 'Take a breath, count the pips, then move.',
+    description: 'Take your time: check each move before you make it.',
     icon: 'bullseye-arrow',
     target: 3,
     xp: 35,

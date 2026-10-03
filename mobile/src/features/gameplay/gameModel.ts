@@ -38,6 +38,8 @@ export interface ActiveGame {
   hintsUsed?: number;
   /** Coach Watch checks shown in this game. */
   watchUsed?: number;
+  /** History length when Coach Watch last stopped the player (spacing between stops). */
+  watchLastPly?: number;
 }
 
 export interface FinishedGame {
@@ -84,6 +86,7 @@ export function startActiveGame(id: string, settings: GameSettings, now: string)
     gameNumber: 1,
     hintsUsed: 0,
     watchUsed: 0,
+    watchLastPly: undefined,
   };
 }
 
@@ -97,6 +100,7 @@ export function nextGameInMatch(active: ActiveGame): ActiveGame {
     // Each game of a match gets its own hints and checks.
     hintsUsed: 0,
     watchUsed: 0,
+    watchLastPly: undefined,
   };
 }
 

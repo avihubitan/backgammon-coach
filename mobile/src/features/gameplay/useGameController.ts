@@ -30,7 +30,7 @@ import { useProgressStore } from '@/state/progressStore';
 import { useSettingsStore } from '@/state/settingsStore';
 
 import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
-import { coachWatchApplies, watchPlay, type CoachWatchVerdict } from './coachWatch';
+import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllows } from './coachWatch';
 import { gameXp } from './gameModel';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
@@ -335,7 +335,8 @@ export function useGameController() {
     if (!applies) return false;
     const verdict = watchPlay(current.turn);
     if (!verdict) return false;
-    useGameStore.getState().countWatch();
+    if (!watchSpacingAllows({ history: current.history, lastStopPly: game.watchLastPly, severity: verdict.severity })) return false;
+    useGameStore.getState().countWatch(current.history.length);
     analytics.track('coach_watch_triggered', { level: game.settings.level, severity: verdict.severity, premium: limit === null });
     haptics.tap();
     setSelected(null);
