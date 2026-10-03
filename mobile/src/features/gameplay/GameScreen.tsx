@@ -7,6 +7,7 @@ import { BackgammonBoard } from '@/components/board/BackgammonBoard';
 import { computeMetrics } from '@/components/board/geometry';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
+import { useBackPress } from '@/components/system/useBackPress';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import { allCheckersHome, canDouble, canEndTurn, pipCount } from '@/game';
@@ -37,6 +38,8 @@ export function GameScreen() {
   const continueMatch = useGameStore((store) => store.continueMatch);
   const abandonGame = useGameStore((store) => store.abandonGame);
   const [confirm, setConfirm] = useState<'leave' | 'resign' | null>(null);
+  // Android back asks first, like the close button. Open dialogs and the result sheet handle back themselves.
+  useBackPress(!!game.active && !!game.state && confirm === null && !game.outcome, () => setConfirm('leave'));
 
   const { active, state } = game;
   if (!active || !state) {

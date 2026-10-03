@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FlyingXp, type ScreenPoint } from '@/components/fx/FlyingXp';
 import { Button } from '@/components/ui/Button';
+import { useBackPress } from '@/components/system/useBackPress';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -79,6 +80,8 @@ export function StepSessionPlayer({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [confirmExit, setConfirmExit] = useState(false);
+  // Android back asks first, like the close button (the dialog handles back while it's open).
+  useBackPress(!confirmExit, () => setConfirmExit(true));
   const [combo, setCombo] = useState(0);
   const [shownXp, setShownXp] = useState(0);
   const [xpBump, setXpBump] = useState(0);

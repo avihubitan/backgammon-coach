@@ -19,7 +19,7 @@ import { analytics } from '@/services/analytics';
 import { newId } from '@/utils/id';
 
 import { isPlainObject, mergeChecked } from './sanitize';
-import { persistStorage } from './storage';
+import { createGamesStorage } from './storage';
 
 interface GamesData {
   active: ActiveGame | null;
@@ -126,7 +126,8 @@ export const useGameStore = create<GamesData & GamesActions>()(
     {
       name: 'bg-coach/games',
       version: 1,
-      storage: persistStorage,
+      // Finished games are saved apart from the game in progress (see createGamesStorage).
+      storage: createGamesStorage(),
       merge: mergeChecked<GamesData & GamesActions, Pick<GamesData, 'active' | 'finished' | 'stats' | 'lastSettings'>>(
         { active: null, finished: [], stats: emptyGameStats(), lastSettings: DEFAULT_SETTINGS },
         (saved) => ({

@@ -70,7 +70,7 @@ export function GameResultSheet({
           : 'The computer bore off first.';
 
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal visible transparent animationType="fade" onRequestClose={onDone}>
       <View style={styles.backdrop}>
         <Animated.View
           testID="game-result"
