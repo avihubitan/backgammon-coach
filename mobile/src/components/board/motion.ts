@@ -54,6 +54,10 @@ export type SoundCueKind = 'place' | 'hit' | 'bearoff';
 export interface SoundCue {
   at: number;
   kind: SoundCueKind;
+  /** Whose checker it is: the player's own landings are felt as well as heard. */
+  player: Player;
+  /** A hit checker landing on the bar: heard, never felt (the hit already was). */
+  knocked?: boolean;
 }
 
 /** A checker reaching the bear-off tray, for a small glint where it lands. */
@@ -195,7 +199,7 @@ export function planMotions(
       impacts.push({ id: `${updateId}:${checker.id}`, at: from, delay: landing, victim: checker.player });
       hitPoints.add(`${point}`);
     }
-    cues.push({ at: delay + duration, kind: 'place' });
+    cues.push({ at: delay + duration, kind: 'place', player: checker.player, knocked: true });
   }
   // The hitters come down hard on the blot.
   for (const checker of moved) {
@@ -214,7 +218,7 @@ export function planMotions(
       glints.push({ id: `${updateId}:${checker.id}`, at: checkerCenter(m, checker, nextSizes), delay: at });
     }
     const landedOnHit = checker.location.kind === 'point' && hitPoints.has(`${checker.location.point}`);
-    cues.push({ at, kind: motion.kind === 'bearoff' ? 'bearoff' : landedOnHit ? 'hit' : 'place' });
+    cues.push({ at, kind: motion.kind === 'bearoff' ? 'bearoff' : landedOnHit ? 'hit' : 'place', player: checker.player });
   }
   cues.sort((a, b) => a.at - b.at);
 
@@ -266,7 +270,7 @@ export function mergeCues(cues: readonly SoundCue[], windowMs = 45): SoundCue[] 
   for (const cue of [...cues].sort((a, b) => a.at - b.at)) {
     const last = merged[merged.length - 1];
     if (last && cue.at - last.at < windowMs) {
-      if (rank[cue.kind] > rank[last.kind]) merged[merged.length - 1] = { at: last.at, kind: cue.kind };
+      if (rank[cue.kind] > rank[last.kind]) merged[merged.length - 1] = { ...cue, at: last.at };
       continue;
     }
     merged.push({ ...cue });

@@ -6,6 +6,12 @@ import type { SoundId } from './sounds';
 export type { SoundCategory, SoundId } from './sounds';
 
 /**
+ * Whose board event it is. The player's own moves get sound and a touch; the
+ * opponent's only a softer sound, so the phone doesn't buzz through its turn.
+ */
+export type Whose = 'own' | 'theirs';
+
+/**
  * Every "juicy" moment in the game goes through here, so sound and haptics
  * stay consistent and can be switched off in one place.
  */
@@ -15,16 +21,16 @@ export interface GameFeedback {
   /** A wrong answer: gentle, never harsh. */
   error(): void;
   /** A checker lands on a point. */
-  checkerMove(): void;
+  checkerMove(whose?: Whose): void;
   checkerSelect(): void;
-  /** A blot is hit and sent to the bar. */
-  hit(): void;
-  bearOff(): void;
-  diceRoll(): void;
+  /** A blot is hit and sent to the bar: the player's hit ('own'), or the player being hit ('theirs'). */
+  hit(whose?: Whose): void;
+  bearOff(whose?: Whose): void;
+  diceRoll(whose?: Whose): void;
   /** The dice settle after a roll. */
-  diceLand(): void;
-  /** The dice settle showing doubles: four moves. */
-  doubles(): void;
+  diceLand(whose?: Whose): void;
+  /** The dice settle showing doubles: four moves. Only the player's own get a chime. */
+  doubles(whose?: Whose): void;
   /** A game against the computer ends: a celebration for a win, only a soft touch for a loss. */
   gameEnd(won: boolean): void;
   /** XP arriving at a counter. */
@@ -42,6 +48,9 @@ export const soundBank = new SoundBank();
 
 const PLACE_SOUNDS: SoundId[] = ['place1', 'place2', 'place3'];
 let placeIndex = 0;
+/** The opponent's moves sound a little further away. */
+const THEIRS = { volume: 0.75 };
+const volumeFor = (whose: Whose) => (whose === 'own' ? undefined : THEIRS);
 
 export const feedback: GameFeedback = {
   success: () => {
@@ -52,29 +61,34 @@ export const feedback: GameFeedback = {
     soundBank.play('error');
     haptics.warning();
   },
-  checkerMove: () => {
+  checkerMove: (whose = 'own') => {
     placeIndex = (placeIndex + 1) % PLACE_SOUNDS.length;
-    soundBank.play(PLACE_SOUNDS[placeIndex]);
-    haptics.light();
+    soundBank.play(PLACE_SOUNDS[placeIndex], volumeFor(whose));
+    if (whose === 'own') haptics.light();
   },
   checkerSelect: () => {
     soundBank.play('select');
     haptics.tap();
   },
-  hit: () => {
+  hit: (whose = 'own') => {
     soundBank.play('hit');
-    haptics.heavy();
+    // Being hit is felt too, a little less than landing a hit.
+    if (whose === 'own') haptics.heavy();
+    else haptics.medium();
   },
-  bearOff: () => {
-    soundBank.play('bearoff');
-    haptics.medium();
+  bearOff: (whose = 'own') => {
+    soundBank.play('bearoff', volumeFor(whose));
+    if (whose === 'own') haptics.medium();
   },
-  diceRoll: () => {
-    soundBank.play('dice');
-    haptics.light();
+  diceRoll: (whose = 'own') => {
+    soundBank.play('dice', whose === 'own' ? undefined : { volume: 0.7 });
+    if (whose === 'own') haptics.light();
   },
-  diceLand: () => haptics.medium(),
-  doubles: () => {
+  diceLand: (whose = 'own') => {
+    if (whose === 'own') haptics.medium();
+  },
+  doubles: (whose = 'own') => {
+    if (whose !== 'own') return;
     soundBank.play('star1', { volume: 0.55 });
     haptics.success();
   },

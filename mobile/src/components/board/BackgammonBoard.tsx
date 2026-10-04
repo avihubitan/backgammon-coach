@@ -61,7 +61,7 @@ import {
   type DropInfo,
   type Motion,
   type MotionPlan,
-  type SoundCueKind,
+  type SoundCue,
 } from './motion';
 import type { BoardArrow, BoardCube, BoardDice, BoardHighlight, BoardRegion, HighlightTone } from './types';
 
@@ -309,9 +309,9 @@ export function BackgammonBoard({
   useEffect(() => {
     if (!sounds || plan.cues.length === 0) return;
     for (const cue of mergeCues(plan.cues)) {
-      soundTimers.current.push(setTimeout(() => playCue(cue.kind), cue.at));
+      soundTimers.current.push(setTimeout(() => playCue(cue, movingPlayer), cue.at));
     }
-  }, [plan, sounds]);
+  }, [plan, sounds, movingPlayer]);
   useEffect(() => () => soundTimers.current.forEach(clearTimeout), []);
 
   // A hit jolts the board, just perceptibly; wrong answers shake it a little more.
@@ -863,13 +863,13 @@ export function BackgammonBoard({
       ) : null}
 
       {dice ? (
-        <DiceRow dice={dice} metrics={m} sounds={sounds} />
+        <DiceRow dice={dice} metrics={m} sounds={sounds} own={dice.player === movingPlayer} />
       ) : leavingDice ? (
         <Animated.View
           key={`leaving-${leavingDice.rollId ?? 'd'}`}
           style={[StyleSheet.absoluteFill, DICE_LEAVE, { zIndex: 70, pointerEvents: 'none' }]}
         >
-          <DiceRow dice={{ ...leavingDice, animate: false, split: false, winner: null }} metrics={m} sounds={false} />
+          <DiceRow dice={{ ...leavingDice, animate: false, split: false, winner: null }} metrics={m} sounds={false} own={false} />
         </Animated.View>
       ) : null}
       {cube ? <CubeView cube={cube} metrics={m} /> : null}
@@ -981,10 +981,12 @@ function entranceDelay(checker: PlacedChecker): number {
   return 80 + columnIndex(checker.location.point) * 22 + checker.index * 14;
 }
 
-function playCue(kind: SoundCueKind) {
-  if (kind === 'hit') feedback.hit();
-  else if (kind === 'bearoff') feedback.bearOff();
-  else feedback.checkerMove();
+/** A landing, heard (and, for the player's own checkers, felt). */
+function playCue(cue: SoundCue, you: Player) {
+  const whose = cue.player === you ? 'own' : 'theirs';
+  if (cue.kind === 'hit') feedback.hit(whose);
+  else if (cue.kind === 'bearoff') feedback.bearOff(whose);
+  else feedback.checkerMove(cue.knocked ? 'theirs' : whose);
 }
 
 /** A good move: the checkers that just landed glow, with a burst of sparkles. */
@@ -1106,16 +1108,17 @@ function ArrowPath({ arrow, board, metrics: m }: { arrow: BoardArrow; board: Boa
   );
 }
 
-function DiceRow({ dice, metrics: m, sounds }: { dice: BoardDice; metrics: BoardMetrics; sounds: boolean }) {
+function DiceRow({ dice, metrics: m, sounds, own }: { dice: BoardDice; metrics: BoardMetrics; sounds: boolean; own: boolean }) {
   const many = dice.values.length > 2;
   const size = many ? Math.round(m.dieSize * 0.78) : m.dieSize;
   const gap = size * 0.28;
   const total = dice.values.length * size + (dice.values.length - 1) * gap;
   const together = diceCenter(m, dice.player);
   const rollKey = dice.animate ? `${dice.rollId ?? 'd'}` : null;
+  const whose = own ? 'own' : 'theirs';
   useEffect(() => {
-    if (rollKey !== null && sounds) feedback.diceRoll();
-  }, [rollKey, sounds]);
+    if (rollKey !== null && sounds) feedback.diceRoll(whose);
+  }, [rollKey, sounds, whose]);
   return (
     <>
       {dice.values.map((value, index) => {
@@ -1150,7 +1153,7 @@ function DiceRow({ dice, metrics: m, sounds }: { dice: BoardDice; metrics: Board
               // Doubles: two dice are thrown, the other two pop in once they land.
               copy={many && index >= 2}
               delay={many && index >= 2 ? DICE_SETTLE_MS + (index - 2) * 70 : dice.split ? 0 : index * 50}
-              onSettle={index === 0 && sounds ? (many ? feedback.doubles : feedback.diceLand) : undefined}
+              onSettle={index === 0 && sounds ? () => (many ? feedback.doubles(whose) : feedback.diceLand(whose)) : undefined}
               standing={dice.winner === null || dice.winner === undefined ? null : dice.winner === index ? 'won' : 'lost'}
             />
           </Animated.View>

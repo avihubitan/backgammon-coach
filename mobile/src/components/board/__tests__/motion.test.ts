@@ -33,7 +33,7 @@ describe('planMotions', () => {
     expect(motion).toMatchObject({ kind: 'move', delay: 0 });
     expect(motion.duration).toBeGreaterThanOrEqual(220);
     expect(motion.duration).toBeLessThan(MOVE_STEP_MS);
-    expect(plan.cues).toEqual([{ at: motion.duration, kind: 'place' }]);
+    expect(plan.cues).toEqual([{ at: motion.duration, kind: 'place', player: 'player1' }]);
     expect(plan.impacts).toEqual([]);
     expect(Object.keys(plan.motions)).toHaveLength(1);
   });
@@ -66,6 +66,9 @@ describe('planMotions', () => {
     expect(plan.impacts).toHaveLength(1);
     expect(plan.impacts[0]).toMatchObject({ delay: landing, victim: 'player2' });
     expect(plan.cues.map((cue) => cue.kind)).toEqual(['hit', 'place']);
+    // The hit is the hitter's; the knocked checker's landing on the bar is only heard.
+    expect(plan.cues[0]).toMatchObject({ player: 'player1' });
+    expect(plan.cues[1]).toMatchObject({ player: 'player2', knocked: true });
     expect(plan.totalMs).toBe(victimMotion.delay + victimMotion.duration);
   });
 
@@ -92,7 +95,7 @@ describe('planMotions', () => {
     const { plan } = step(board, [{ from: 2, to: 'off', die: 2, hit: false }]);
     const motion = Object.values(plan.motions)[0];
     expect(motion.kind).toBe('bearoff');
-    expect(plan.cues).toEqual([{ at: motion.duration, kind: 'bearoff' }]);
+    expect(plan.cues).toEqual([{ at: motion.duration, kind: 'bearoff', player: 'player1' }]);
     // A glint where it lands in the tray, as it lands.
     expect(plan.glints).toHaveLength(1);
     expect(plan.glints[0].delay).toBe(motion.duration);
@@ -137,13 +140,13 @@ describe('timing helpers', () => {
   it('merges near-simultaneous sounds, keeping the strongest', () => {
     expect(
       mergeCues([
-        { at: 100, kind: 'place' },
-        { at: 120, kind: 'hit' },
-        { at: 300, kind: 'place' },
+        { at: 100, kind: 'place', player: 'player2' },
+        { at: 120, kind: 'hit', player: 'player1' },
+        { at: 300, kind: 'place', player: 'player1' },
       ]),
     ).toEqual([
-      { at: 100, kind: 'hit' },
-      { at: 300, kind: 'place' },
+      { at: 100, kind: 'hit', player: 'player1' },
+      { at: 300, kind: 'place', player: 'player1' },
     ]);
   });
 });
@@ -178,7 +181,7 @@ describe('dragging and dropping', () => {
     const plan = planMotions(before, next, m, 1, { player: 'player1', at });
     const mover = next.find((checker) => checker.moved)!;
     expect(plan.motions[mover.id]).toMatchObject({ kind: 'move', delay: 0, duration: SETTLE_MS, from: at });
-    expect(plan.cues).toEqual([{ at: SETTLE_MS, kind: 'place' }]);
+    expect(plan.cues).toEqual([{ at: SETTLE_MS, kind: 'place', player: 'player1' }]);
   });
 
   it('times a hit from the settle, and leaves the other player alone', () => {

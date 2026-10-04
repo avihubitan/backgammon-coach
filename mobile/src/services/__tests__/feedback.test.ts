@@ -1,4 +1,12 @@
+import { haptics } from '@/services/haptics';
+
+import { feedback, soundBank } from '../feedback';
 import { SoundBank } from '../feedback/audio';
+
+jest.mock('@/services/haptics', () => ({
+  setHapticsEnabled: jest.fn(),
+  haptics: { tap: jest.fn(), light: jest.fn(), medium: jest.fn(), heavy: jest.fn(), success: jest.fn(), warning: jest.fn(), error: jest.fn() },
+}));
 
 function fakePlayers() {
   const created: { play: jest.Mock; seekTo: jest.Mock; volume: number }[] = [];
@@ -80,5 +88,47 @@ describe('menu music', () => {
     expect(player.volume).toBe(0);
     expect(player.pause).toHaveBeenCalled();
     expect(bank.isMusicPlaying()).toBe(false);
+  });
+});
+
+describe('whose move it is', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(soundBank, 'play').mockImplementation(() => {});
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  const touches = () => Object.values(haptics).reduce((sum, fn) => sum + (fn as jest.Mock).mock.calls.length, 0);
+
+  it('lets the player feel their own moves, dice and bear-offs', () => {
+    feedback.diceRoll();
+    feedback.diceLand();
+    feedback.checkerMove();
+    feedback.bearOff();
+    feedback.doubles();
+    expect(touches()).toBe(5);
+  });
+
+  it('keeps the phone still through the opponent’s turn, which is only heard, more softly', () => {
+    feedback.diceRoll('theirs');
+    feedback.diceLand('theirs');
+    feedback.checkerMove('theirs');
+    feedback.bearOff('theirs');
+    expect(touches()).toBe(0);
+    for (const [, options] of jest.mocked(soundBank.play).mock.calls) expect(options?.volume).toBeLessThan(1);
+  });
+
+  it('chimes only for the player’s own doubles', () => {
+    feedback.doubles('theirs');
+    expect(soundBank.play).not.toHaveBeenCalled();
+    feedback.doubles('own');
+    expect(soundBank.play).toHaveBeenCalledWith('star1', { volume: 0.55 });
+  });
+
+  it('makes a hit felt both ways, landing one harder than taking one', () => {
+    feedback.hit('own');
+    expect(haptics.heavy).toHaveBeenCalledTimes(1);
+    feedback.hit('theirs');
+    expect(haptics.medium).toHaveBeenCalledTimes(1);
   });
 });
