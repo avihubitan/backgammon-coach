@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { ParticleBurst } from '@/components/fx/ParticleBurst';
@@ -12,6 +12,12 @@ export const END_BANNER_DELAY_MS = 450;
 export const RESULT_SHEET_DELAY_MS = { won: 1700, lost: 1300 } as const;
 
 const TYPE_LINE = { single: null, gammon: 'Gammon!', backgammon: 'Backgammon!' } as const;
+
+// The web wants the CSS shorthand; phones the separate properties.
+const TEXT_SHADOW =
+  Platform.OS === 'web'
+    ? ({ textShadow: '0px 2px 8px rgba(0, 0, 0, 0.6)' } as object)
+    : { textShadowColor: 'rgba(0, 0, 0, 0.6)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } };
 
 /**
  * The moment between the last move and the result sheet, over the board: a
@@ -95,11 +101,6 @@ const styles = StyleSheet.create({
   wrap: { zIndex: 120, alignItems: 'center', justifyContent: 'center' },
   scrim: { backgroundColor: 'rgba(8, 9, 11, 0.55)', borderRadius: 12 },
   center: { alignItems: 'center', gap: 2, paddingHorizontal: 16 },
-  title: { textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
-  winTitle: {
-    color: colors.primary,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowRadius: 8,
-    textShadowOffset: { width: 0, height: 2 },
-  },
+  title: { ...TEXT_SHADOW },
+  winTitle: { color: colors.primary, ...TEXT_SHADOW },
 });

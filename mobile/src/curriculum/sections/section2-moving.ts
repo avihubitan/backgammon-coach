@@ -229,7 +229,7 @@ export const movingSection: Section = {
           },
           goal: { type: 'any' },
           solution: '13/9 6/1',
-          correct: 'Well found. The glowing spots always show where a checker can legally land.',
+          correct: 'Well found. The highlighted spots always show where a checker can legally land.',
           wrong: 'Try a different order: one route is blocked, the other is open.',
         },
       ],
