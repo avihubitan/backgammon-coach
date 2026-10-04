@@ -17,6 +17,7 @@ import type { GameResult, MatchScore } from '@/game';
 import { useGameStore } from '@/state/gameStore';
 import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
+import { resultCopy } from '../resultCopy';
 import type { GameOutcome } from '../useGameController';
 
 interface GameResultSheetProps {
@@ -60,18 +61,9 @@ export function GameResultSheet({
       return achievement ? [{ icon: achievement.icon, color: colors.info, text: achievement.title }] : [];
     }),
   ];
-  const reason =
-    result.reason === 'dropped-double'
-      ? won
-        ? `${opponentName} dropped your double.`
-        : 'You dropped the double.'
-      : result.reason === 'resigned'
-        ? 'You resigned this game.'
-        : won
-          ? 'You bore off all your checkers first.'
-          : `${opponentName} bore off first.`;
   // A loss isn't the end of anything: the review is the next step.
-  const reviewFirst = !won && !!onReview;
+  const copy = resultCopy({ result, opponentName, isMatch, matchOver: outcome.matchOver, matchWon, canReview: !!onReview });
+  const reviewFirst = copy.reviewFirst;
   const xpShown = useCountUp(outcome.xp, 520, 650);
 
   return (
@@ -126,10 +118,10 @@ export function GameResultSheet({
             ) : null}
           </View>
           <AppText variant="display" align="center">
-            {isMatch && outcome.matchOver ? (matchWon ? 'Match won!' : 'Good match') : won ? 'You won!' : 'Good game'}
+            {copy.title}
           </AppText>
           <AppText variant="body" color="textSecondary" align="center">
-            {reviewFirst ? `${reason} Let’s see what you can improve.` : reason}
+            {copy.line}
           </AppText>
           <View style={styles.chips}>
             <View style={styles.chip}>
