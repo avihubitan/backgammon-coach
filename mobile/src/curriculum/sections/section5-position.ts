@@ -1,4 +1,4 @@
-import { highlightPoint, START } from '../builders';
+import { highlightPoint, pointTargets, START } from '../builders';
 import type { Section } from '../types';
 
 export const positionSection: Section = {
@@ -16,7 +16,14 @@ export const positionSection: Section = {
       description: 'A safe base in enemy territory.',
       icon: 'anchor',
       difficulty: 3,
-      category: 'positioning',
+      skill: 'anchors',
+      purpose: {
+        outcome: 'Recognise an anchor and make one with your back checkers.',
+        requires: ['points'],
+        shows: 'what',
+        decision: 'make',
+        inGame: 'When your back checkers can land together in their home board, an anchor keeps them safe.',
+      },
       passingScore: 0.5,
       xp: 20,
       objectives: [
@@ -35,6 +42,19 @@ export const positionSection: Section = {
           },
         },
         {
+          id: 'tap-anchor',
+          kind: 'tap',
+          prompt: 'Tap your **anchor**.',
+          board: { position: { player1: { 24: 1, 21: 2, 13: 4, 8: 3, 6: 5 }, player2: { 1: 2, 12: 4, 17: 3, 19: 4, 20: 2 } } },
+          answers: pointTargets(21),
+          correct: 'Yes: two of your checkers on their 4-point. Nothing can hit them there.',
+          wrong: 'An anchor is two or more of your checkers in **their** home board, top right.',
+          wrongCases: [
+            { targets: pointTargets(24), text: 'That checker is alone: a blot, not an anchor. An anchor needs two.' },
+            { targets: pointTargets(13, 8, 6), text: 'Those points are on your side of the board. An anchor sits in their home board.' },
+          ],
+        },
+        {
           id: 'make',
           kind: 'move',
           prompt: 'You rolled **3-2**. Make an anchor with your two back checkers.',
@@ -49,6 +69,28 @@ export const positionSection: Section = {
           solution: '24/22 13/10',
           correct: 'Anchored! Your back checkers are safe, and they always have a place to land.',
           wrong: 'Your back checkers are on the 24- and 22-points. Which number brings one onto the other?',
+        },
+        {
+          id: 'better-anchor',
+          kind: 'choice',
+          prompt: 'Your back checkers start as an anchor on the **24-point**. Where would an anchor serve them better?',
+          board: {
+            position: START,
+            highlights: [highlightPoint(24, 'info', 'Now'), highlightPoint(20, 'gold', 'Higher')],
+          },
+          options: [
+            {
+              id: 'twenty',
+              text: 'Higher up, on the 20-point',
+              correct: true,
+              explanation: 'Yes. From the 20-point your checkers are closer to escaping, and you hold their best point.',
+            },
+            {
+              id: 'stay',
+              text: 'The 24-point is best: it’s furthest from danger',
+              explanation: 'It’s safe, but deep. They can build points in front of it and trap your checkers there.',
+            },
+          ],
         },
         {
           id: 'why',
@@ -82,7 +124,15 @@ export const positionSection: Section = {
       description: 'Pointing on blots and running to safety.',
       icon: 'sword-cross',
       difficulty: 3,
-      category: 'strategy',
+      skill: 'hitting',
+      alsoTrains: ['escaping'],
+      purpose: {
+        outcome: 'Hit and make the point in one move, and run a back checker to safety.',
+        requires: ['hitting', 'points', 'primes'],
+        shows: 'pointing',
+        decision: 'point-on-5',
+        inGame: 'A blot in your home board is a target: hit it with two checkers when you can.',
+      },
       passingScore: 0.5,
       xp: 25,
       objectives: [
@@ -138,6 +188,7 @@ export const positionSection: Section = {
         {
           id: 'run-6-5',
           kind: 'move',
+          skill: 'escaping',
           prompt: 'You rolled **6-5**. Run one back checker all the way to safety.',
           board: { position: START, dice: [6, 5] },
           goal: { type: 'plays', plays: ['24/13'] },

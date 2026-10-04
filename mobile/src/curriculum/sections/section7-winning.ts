@@ -1,4 +1,4 @@
-import { highlightPoint, pointTargets, quadrant, START } from '../builders';
+import { highlightPoint, pointTargets, START } from '../builders';
 import type { Section } from '../types';
 
 export const winningSection: Section = {
@@ -16,7 +16,14 @@ export const winningSection: Section = {
       description: 'Some wins count double, or triple.',
       icon: 'trophy-variant',
       difficulty: 2,
-      category: 'scoring',
+      skill: 'rules',
+      purpose: {
+        outcome: 'Tell a single win, a gammon and a backgammon apart.',
+        requires: ['bear-off'],
+        shows: 'single',
+        decision: 'quiz-backgammon',
+        inGame: 'Far ahead? Keep going: if they bear off nothing, you win twice as much.',
+      },
       passingScore: 0.5,
       xp: 20,
       objectives: [
@@ -36,14 +43,15 @@ export const winningSection: Section = {
           },
         },
         {
-          id: 'gammon',
-          kind: 'explain',
-          title: 'Gammon: 2 points',
-          text: 'If your opponent hasn’t borne off **a single checker** when you finish, that’s a **gammon**: worth **2 points**.',
-          board: {
-            position: { player2: { 19: 5, 20: 4, 22: 3, 15: 3 }, off: { player1: 15 } },
-            highlights: [quadrant('player2-home', 'danger', 'Nothing borne off')],
-          },
+          id: 'quiz-gammon',
+          kind: 'choice',
+          prompt: 'You bear off your last checker. Your opponent hasn’t taken **any** off yet. What do you think you win?',
+          board: { position: { player2: { 19: 6, 21: 5, 18: 4 }, off: { player1: 15 } } },
+          options: [
+            { id: '1', text: '1 point', explanation: 'More! When they haven’t borne off a single checker, it’s a **gammon**: 2 points.' },
+            { id: '2', text: '2 points', correct: true, explanation: 'Yes! Nothing borne off makes it a **gammon**, worth 2 points.' },
+            { id: '3', text: '3 points', explanation: 'That’s a backgammon, which needs even more: a checker still in your home board or on the bar.' },
+          ],
         },
         {
           id: 'backgammon',
@@ -56,28 +64,6 @@ export const winningSection: Section = {
           },
         },
         {
-          id: 'quiz-single',
-          kind: 'choice',
-          prompt: 'You just bore off your last checker. How many points do you win?',
-          board: { position: { player2: { 20: 3, 22: 2 }, off: { player1: 15, player2: 10 } } },
-          options: [
-            { id: '1', text: '1 point', correct: true, explanation: 'Right: your opponent bore off 10 checkers, so it’s a normal win.' },
-            { id: '2', text: '2 points (gammon)', explanation: 'A gammon needs your opponent to have borne off nothing. They have 10 off.' },
-            { id: '3', text: '3 points (backgammon)', explanation: 'They’ve borne off checkers, so it’s just a single win: 1 point.' },
-          ],
-        },
-        {
-          id: 'quiz-gammon',
-          kind: 'choice',
-          prompt: 'You just bore off your last checker. How many points do you win?',
-          board: { position: { player2: { 19: 6, 21: 5, 18: 4 }, off: { player1: 15 } } },
-          options: [
-            { id: '1', text: '1 point', explanation: 'Your opponent has nothing borne off, which makes this a gammon.' },
-            { id: '2', text: '2 points (gammon)', correct: true, explanation: 'Yes! Nothing borne off, but nothing in your home board either: a gammon.' },
-            { id: '3', text: '3 points (backgammon)', explanation: 'For a backgammon they’d also need a checker in your home board or on the bar.' },
-          ],
-        },
-        {
           id: 'quiz-backgammon',
           kind: 'choice',
           prompt: 'One last time: what does this win score?',
@@ -86,6 +72,17 @@ export const winningSection: Section = {
             { id: '1', text: '1 point', explanation: 'They’ve borne off nothing and have a checker on the bar. That’s much more than a single win.' },
             { id: '2', text: '2 points (gammon)', explanation: 'Look at the bar: a checker stuck there turns a gammon into a backgammon.' },
             { id: '3', text: '3 points (backgammon)', correct: true, explanation: 'Backgammon! No checkers off and one still on the bar.' },
+          ],
+        },
+        {
+          id: 'quiz-single',
+          kind: 'choice',
+          prompt: 'One more: you just bore off your last checker. How many points do you win?',
+          board: { position: { player2: { 20: 3, 22: 2 }, off: { player1: 15, player2: 10 } } },
+          options: [
+            { id: '1', text: '1 point', correct: true, explanation: 'Right: your opponent bore off 10 checkers, so it’s a normal win.' },
+            { id: '2', text: '2 points (gammon)', explanation: 'A gammon needs your opponent to have borne off nothing. They have 10 off.' },
+            { id: '3', text: '3 points (backgammon)', explanation: 'They’ve borne off checkers, so it’s just a single win: 1 point.' },
           ],
         },
       ],
@@ -97,7 +94,15 @@ export const winningSection: Section = {
       description: 'Show you know the whole game.',
       icon: 'flag-checkered',
       difficulty: 3,
-      category: 'movement',
+      skill: 'rules',
+      alsoTrains: ['board', 'hitting', 'bear-off'],
+      purpose: {
+        outcome: 'Play any roll legally: enter, hit, play doubles and bear off.',
+        requires: ['rules', 'hitting', 'bear-off'],
+        shows: 'intro',
+        decision: 'enter-hit',
+        inGame: 'Every rule comes up in a real game: knowing them lets you plan ahead.',
+      },
       passingScore: 0.6,
       xp: 40,
       objectives: [
@@ -115,6 +120,7 @@ export const winningSection: Section = {
         {
           id: 'setup',
           kind: 'tap',
+          skill: 'board',
           prompt: 'Where do your **five mid-point checkers** start?',
           board: { position: { player1: { 24: 2, 8: 3, 6: 5 }, player2: { 1: 2, 12: 5, 17: 3, 19: 5 } } },
           answers: pointTargets(13),
@@ -124,6 +130,7 @@ export const winningSection: Section = {
         {
           id: 'enter-hit',
           kind: 'move',
+          skill: 'hitting',
           prompt: 'You’re on the bar and rolled **4-3**. Enter **and** hit the blot on the 21-point.',
           board: {
             position: { player1: { 13: 4, 8: 3, 6: 5, 5: 2 }, player2: { 21: 1, 19: 4, 12: 4, 17: 3, 1: 2 }, bar: { player1: 1 } },
@@ -147,6 +154,7 @@ export const winningSection: Section = {
         {
           id: 'bear-off',
           kind: 'move',
+          skill: 'bear-off',
           prompt: 'You rolled **6-2**. Bear off two checkers.',
           board: { position: { player1: { 5: 1, 3: 2, 2: 1 }, player2: { 21: 4 }, off: { player1: 11 } }, dice: [6, 2] },
           goal: { type: 'bear-off', count: 2 },

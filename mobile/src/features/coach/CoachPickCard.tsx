@@ -5,7 +5,6 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
-import { curriculum } from '@/curriculum';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
@@ -29,16 +28,16 @@ function open({ action, topic }: Pick<CoachPick, 'action' | 'topic'>, doneToday:
 /** "Coach's pick": the one thing worth practising next, from the player's own games and lessons. */
 export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
   const mistakes = useMistakesStore((state) => state.mistakes);
-  const byCategory = useProgressStore((state) => state.stats.byCategory);
+  const bySkill = useProgressStore((state) => state.stats.bySkill);
   const lessons = useProgressStore((state) => state.lessons);
   const practiced = usePracticeStore((state) => state.records);
   const access = useFeatureAccess();
   const { day: today } = useToday();
   const plan = coachPlan({
     mistakes,
-    byCategory,
+    bySkill,
     lessons,
-    unlockedDrills: unlockedDrillCategories(lessons, curriculum).map((info) => info.id),
+    unlockedDrills: unlockedDrillCategories(lessons).map((info) => info.id),
     canPracticeMistakes: access.canUseAdvancedTraining(),
     canAccessLesson: access.canAccessLesson,
     today,

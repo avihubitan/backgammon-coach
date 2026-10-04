@@ -1,17 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { SkillCategory } from '@/curriculum';
 import type { AchievementContext } from '@/features/learning/achievements';
 import { dayKey, emptyLessonRecord, type ExerciseResult, type LessonAccess } from '@/features/learning/progression';
 import {
   applyLessonResult,
+  applyPracticeResults,
+  checkedSkillStats,
   grantXp,
   initialProgress,
-  type CategoryStats,
+  upgradeProgress,
   type LessonReward,
   type ProgressData,
   type Reward,
+  type SkillResult,
 } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
 import { analytics } from '@/services/analytics';
@@ -29,7 +31,7 @@ interface ProgressActions {
   recordLessonResult: (
     lessonId: string,
     outcome: LessonOutcome,
-    categoryResults?: { category: SkillCategory; firstTry: boolean }[],
+    skillResults?: SkillResult[],
     exerciseResults?: Record<string, ExerciseResult>,
     /** Which lessons the learner can open, so unlocks skip premium ones they can't. */
     canAccess?: LessonAccess,
@@ -40,6 +42,8 @@ interface ProgressActions {
    */
   awardXp: (amount: number, context?: Omit<AchievementContext, 'progress'>, active?: boolean) => Reward;
   recordPracticeSession: () => void;
+  /** First-try results from practice (drills, positions from games), filed under their skills. */
+  recordSkillResults: (results: SkillResult[]) => void;
   setDailyGoal: (xp: number) => void;
   resetProgress: () => void;
 }
@@ -59,13 +63,13 @@ export const useProgressStore = create<ProgressStore>()(
 
       completeOnboarding: () => set({ onboardingCompleted: true }),
 
-      recordLessonResult: (lessonId, outcome, categoryResults = [], exerciseResults = {}, canAccess) => {
+      recordLessonResult: (lessonId, outcome, skillResults = [], exerciseResults = {}, canAccess) => {
         const { data, reward } = applyLessonResult(
           get(),
           lessonId,
           outcome,
           dayKey(clock()),
-          categoryResults,
+          skillResults,
           exerciseResults,
           canAccess,
         );
@@ -84,14 +88,18 @@ export const useProgressStore = create<ProgressStore>()(
       recordPracticeSession: () =>
         set((state) => ({ stats: { ...state.stats, practiceSessions: state.stats.practiceSessions + 1 } })),
 
+      recordSkillResults: (results) => set(applyPracticeResults(get(), results, dayKey(clock()))),
+
       setDailyGoal: (xp) => set({ dailyGoalXp: Math.max(10, Math.min(200, Math.round(xp))) }),
 
       resetProgress: () => set(initialProgress()),
     }),
     {
       name: 'bg-coach/progress',
-      version: 1,
+      version: 2,
       storage: persistStorage,
+      // Version 1 kept answers per lesson category: they carry over to skills.
+      migrate: (persisted) => upgradeProgress(persisted) as ProgressStore,
       // A damaged field falls back to its default; everything else the player earned is kept.
       merge: mergeChecked<ProgressStore, ProgressData>(initialProgress(), (saved) => ({
         ...saved,
@@ -102,13 +110,7 @@ export const useProgressStore = create<ProgressStore>()(
         ),
         xpByDay: keepEntries<number>(saved.xpByDay, (xp) => typeof xp === 'number' && Number.isFinite(xp)),
         achievements: keepEntries<string>(saved.achievements, (day) => typeof day === 'string'),
-        stats: {
-          ...saved.stats,
-          byCategory: keepEntries<CategoryStats>(
-            saved.stats.byCategory,
-            (entry) => isPlainObject(entry) && typeof entry.attempted === 'number' && typeof entry.firstTry === 'number',
-          ),
-        },
+        stats: { ...saved.stats, bySkill: checkedSkillStats(saved.stats.bySkill) },
       })),
       partialize: (state): ProgressData => ({
         version: state.version,

@@ -10,9 +10,11 @@ import { middleGameSection } from './sections/section9-middle-game';
 import { racingSection } from './sections/section10-racing';
 import { cubeSection } from './sections/section11-cube';
 import { advancedSection } from './sections/section12-advanced';
-import type { Lesson, Section } from './types';
+import type { SkillId } from './skills';
+import type { Lesson, LessonStep, Section } from './types';
 
 export * from './types';
+export * from './skills';
 
 /** Sections in learning order. Lessons unlock one after another across sections. */
 export const curriculum: Section[] = [
@@ -55,4 +57,24 @@ export function sectionOfLesson(id: string): Section | undefined {
 /** 1-based position of a section on the learning path. */
 export function sectionNumber(id: string): number {
   return curriculum.findIndex((section) => section.id === id) + 1;
+}
+
+/** Every skill a lesson trains: its own first, then the others its steps name. */
+export function lessonSkills(lesson: Lesson): SkillId[] {
+  return [lesson.skill, ...(lesson.alsoTrains ?? [])];
+}
+
+/** The skill a scored step counts toward. */
+export function stepSkill(lesson: Pick<Lesson, 'skill'>, step: LessonStep): SkillId {
+  return step.skill ?? lesson.skill;
+}
+
+/** The first lesson on the path that trains `skill`: where it is introduced. */
+export function introducingLesson(skill: SkillId): Lesson | undefined {
+  return allLessons.find((lesson) => lessonSkills(lesson).includes(skill));
+}
+
+/** The lessons that train `skill` as their main skill, in path order. */
+export function lessonsForSkill(skill: SkillId): Lesson[] {
+  return allLessons.filter((lesson) => lesson.skill === skill);
 }

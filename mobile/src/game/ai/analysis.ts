@@ -139,6 +139,24 @@ interface Explained {
   explanation: string;
 }
 
+/**
+ * The headline of each kind of weaker move. Stable keys: Coach Watch picks its
+ * clue by them, and the coach files mistakes under skills by them.
+ */
+export const REVIEW_HEADLINES = {
+  bearOffMore: 'You could bear off more',
+  smootherBearOff: 'A smoother bear-off was possible',
+  raceEfficiently: 'Race more efficiently',
+  missedHit: 'You missed a hit',
+  anchor: 'An anchor was available',
+  point: 'You could make a point',
+  safer: 'You had a safer option',
+  slightlySafer: 'A slightly safer play existed',
+  backCheckers: 'Get your back checkers moving',
+  pressure: 'Keep the pressure on',
+  structure: 'A stronger structure was possible',
+} as const;
+
 /** Plain-language reason why `best` beats `played`. */
 export function explainDifference(
   before: BoardState,
@@ -160,7 +178,7 @@ export function explainDifference(
       const extraOff = afterBest.off[player] - afterPlayed.off[player];
       return {
         category: 'bearing-off',
-        headline: extraOff > 0 ? 'You could bear off more' : 'A smoother bear-off was possible',
+        headline: extraOff > 0 ? REVIEW_HEADLINES.bearOffMore : REVIEW_HEADLINES.smootherBearOff,
         explanation:
           extraOff > 0
             ? `${bestText} takes ${extraOff === 1 ? 'one more checker' : `${extraOff} more checkers`} off this turn. In a bear-off every checker counts.`
@@ -169,7 +187,7 @@ export function explainDifference(
     }
     return {
       category: 'racing',
-      headline: 'Race more efficiently',
+      headline: REVIEW_HEADLINES.raceEfficiently,
       explanation: `It’s a pure race now, so speed is everything. ${bestText} brings your checkers home with less wasted movement.`,
     };
   }
@@ -181,7 +199,7 @@ export function explainDifference(
     const pips = 25 - pipDistance(opponent, target);
     return {
       category: tag('hitting'),
-      headline: 'You missed a hit',
+      headline: REVIEW_HEADLINES.missedHit,
       explanation: `${bestText} hits the blot on the ${target}-point. That checker would have to start over, costing your opponent ${pips} pips.`,
     };
   }
@@ -196,7 +214,7 @@ export function explainDifference(
     const anchor = pipDistance(player, point) >= 18;
     return {
       category: tag('positioning'),
-      headline: anchor ? 'An anchor was available' : 'You could make a point',
+      headline: anchor ? REVIEW_HEADLINES.anchor : REVIEW_HEADLINES.point,
       explanation: anchor
         ? `${bestText} makes ${pointName(player, point)}: a safe base for your back checkers.`
         : `${bestText} makes ${pointName(player, point)}. Every point you make blocks your opponent and gives your checkers a safe landing spot.`,
@@ -213,7 +231,7 @@ export function explainDifference(
   if (shotsPlayed - shotsBest >= 4 && costPlayed - costBest >= 1.5) {
     return {
       category: tag(playedHits.length > bestHits.length ? 'hitting' : 'risk'),
-      headline: 'You had a safer option',
+      headline: REVIEW_HEADLINES.safer,
       explanation:
         shotsBest === 0
           ? `Your move leaves a blot that gets hit by ${shotsPlayed} of 36 rolls. ${bestText} leaves nothing to hit at all.`
@@ -226,7 +244,7 @@ export function explainDifference(
   if (fBest.backCheckers < fPlayed.backCheckers) {
     return {
       category: tag('running'),
-      headline: 'Get your back checkers moving',
+      headline: REVIEW_HEADLINES.backCheckers,
       explanation: `${bestText} brings a back checker out before your opponent can build a wall in front of it.`,
     };
   }
@@ -234,7 +252,7 @@ export function explainDifference(
   if (fBest.opponentOnBar > fPlayed.opponentOnBar) {
     return {
       category: tag('hitting'),
-      headline: 'Keep the pressure on',
+      headline: REVIEW_HEADLINES.pressure,
       explanation: `${bestText} keeps more of your opponent’s checkers on the bar.`,
     };
   }
@@ -242,14 +260,14 @@ export function explainDifference(
   if (shotsPlayed > shotsBest) {
     return {
       category: tag('risk'),
-      headline: 'A slightly safer play existed',
+      headline: REVIEW_HEADLINES.slightlySafer,
       explanation: `${bestText} leaves ${shotsBest} shots instead of ${shotsPlayed}, without giving anything up.`,
     };
   }
 
   return {
     category: tag('positioning'),
-    headline: 'A stronger structure was possible',
+    headline: REVIEW_HEADLINES.structure,
     explanation: `${bestText} keeps your checkers better placed to build points on the next rolls.`,
   };
 }

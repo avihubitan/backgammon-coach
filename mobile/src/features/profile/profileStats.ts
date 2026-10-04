@@ -1,9 +1,10 @@
 import type { IconName } from '@/components/ui/Icon';
-import type { SkillCategory } from '@/curriculum';
+import { SKILL_IDS, SKILLS, type SkillId } from '@/curriculum';
 import type { DrillCategory } from '@/curriculum/drills';
 import { shiftDay } from '@/features/learning/progression';
-import type { CategoryStats } from '@/features/learning/progressModel';
+import type { SkillStats } from '@/features/learning/progressModel';
 import { isMastered, type UserMistake } from '@/features/practice/mistakes';
+import { trainingFor } from '@/features/skills/extract';
 import type { MistakeCategory } from '@/game';
 
 /**
@@ -43,44 +44,33 @@ export interface SkillInfo {
   drill?: DrillCategory;
 }
 
-/** In learning-path order. */
-export const SKILLS: Record<SkillCategory, SkillInfo> = {
-  board: { label: 'The board', icon: 'checkerboard' },
-  movement: { label: 'Moving', icon: 'dice-multiple' },
-  hitting: { label: 'Hitting', icon: 'target', drill: 'hitting' },
-  positioning: { label: 'Building points', icon: 'wall', drill: 'points' },
-  'bearing-off': { label: 'Bearing off', icon: 'home-export-outline', drill: 'bear-off' },
-  scoring: { label: 'Scoring', icon: 'trophy-variant' },
-  opening: { label: 'Openings', icon: 'book-open-page-variant', drill: 'opening' },
-  strategy: { label: 'Strategy', icon: 'brain' },
-  racing: { label: 'Racing', icon: 'run-fast', drill: 'race' },
-  cube: { label: 'Doubling cube', icon: 'cube-outline' },
-};
+export function skillInfo(id: SkillId): SkillInfo {
+  return { label: SKILLS[id].title, icon: SKILLS[id].icon, drill: trainingFor(id).drill };
+}
 
 /** A skill needs this many answers before its accuracy is shown. */
 export const MIN_SKILL_ANSWERS = 3;
 
 export interface SkillRow extends SkillInfo {
-  id: SkillCategory;
+  id: SkillId;
   attempted: number;
   firstTry: number;
   /** First-try accuracy, 0..1. */
   accuracy: number;
 }
 
-export function skillRows(byCategory: Partial<Record<SkillCategory, CategoryStats>>): SkillRow[] {
-  return (Object.keys(SKILLS) as SkillCategory[])
-    .map((id) => {
-      const stats = byCategory[id] ?? { attempted: 0, firstTry: 0 };
-      return {
-        id,
-        ...SKILLS[id],
-        attempted: stats.attempted,
-        firstTry: stats.firstTry,
-        accuracy: stats.attempted > 0 ? stats.firstTry / stats.attempted : 0,
-      };
-    })
-    .filter((row) => row.attempted >= MIN_SKILL_ANSWERS);
+/** Skills with enough answers to show, in learning-path order. */
+export function skillRows(bySkill: Partial<Record<SkillId, Pick<SkillStats, 'attempted' | 'firstTry'>>>): SkillRow[] {
+  return SKILL_IDS.map((id) => {
+    const stats = bySkill[id] ?? { attempted: 0, firstTry: 0 };
+    return {
+      id,
+      ...skillInfo(id),
+      attempted: stats.attempted,
+      firstTry: stats.firstTry,
+      accuracy: stats.attempted > 0 ? stats.firstTry / stats.attempted : 0,
+    };
+  }).filter((row) => row.attempted >= MIN_SKILL_ANSWERS);
 }
 
 /** The weakest skill worth working on, if any is clearly below par. */

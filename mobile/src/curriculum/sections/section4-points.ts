@@ -1,4 +1,4 @@
-import { highlightPoint, highlightPoints, START } from '../builders';
+import { highlightPoint, highlightPoints, pointTargets, START } from '../builders';
 import type { Section } from '../types';
 
 export const pointsSection: Section = {
@@ -16,7 +16,14 @@ export const pointsSection: Section = {
       description: 'Two checkers together change everything.',
       icon: 'shield-half-full',
       difficulty: 2,
-      category: 'positioning',
+      skill: 'points',
+      purpose: {
+        outcome: 'Make a new point with two checkers, choosing the points that block most.',
+        requires: ['rules'],
+        shows: 'made',
+        decision: 'make-7',
+        inGame: 'With every roll, ask: can two checkers land together on a new point in front of their back checkers?',
+      },
       passingScore: 0,
       xp: 20,
       objectives: [
@@ -101,7 +108,14 @@ export const pointsSection: Section = {
       description: 'Leave fewer targets for your opponent.',
       icon: 'shield-check',
       difficulty: 2,
-      category: 'positioning',
+      skill: 'safety',
+      purpose: {
+        outcome: 'Find the play that leaves no blots in your opponent’s reach.',
+        requires: ['hitting', 'shots'],
+        shows: 'targets',
+        decision: 'clean-up',
+        inGame: 'When a hit would cost you, look for the play that leaves nothing to hit.',
+      },
       passingScore: 0.5,
       xp: 20,
       objectives: [
@@ -179,7 +193,14 @@ export const pointsSection: Section = {
       description: 'Points in a row trap your opponent.',
       icon: 'wall',
       difficulty: 3,
-      category: 'positioning',
+      skill: 'primes',
+      purpose: {
+        outcome: 'Recognise a wall and the point that turns it into a prime.',
+        requires: ['points'],
+        shows: 'wall',
+        decision: 'extend',
+        inGame: 'Build next to the points you already have: points in a row trap their back checkers.',
+      },
       passingScore: 0.5,
       xp: 20,
       objectives: [
@@ -196,6 +217,15 @@ export const pointsSection: Section = {
             position: { player1: { 8: 2, 7: 2, 6: 3, 5: 2, 13: 4 }, player2: { 2: 2, 19: 5, 17: 4 } },
             highlights: [highlightPoints([8, 7, 6, 5], 'gold', 'A 4-point wall')],
           },
+        },
+        {
+          id: 'gap',
+          kind: 'tap',
+          prompt: 'One point is missing from a long wall. Tap the point that would give you **six in a row**.',
+          board: { position: { player1: { 13: 3, 10: 2, 9: 2, 8: 2, 7: 2, 5: 2, 4: 2 }, player2: { 2: 2, 19: 5, 17: 4, 12: 4 } } },
+          answers: pointTargets(6),
+          correct: 'Yes: the 6-point joins 10-7 and 5-4 into one wall, seven points long.',
+          wrong: 'That’s the {point}-point. Look for the gap in your wall between the 7-point and the 5-point.',
         },
         {
           id: 'prime',

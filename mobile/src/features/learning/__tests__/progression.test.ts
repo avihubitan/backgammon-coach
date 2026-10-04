@@ -188,6 +188,12 @@ describe('unlocking', () => {
     expect(playAccess(through(PLAY_EARLY_SECTION))).toBe('early');
     expect(playAccess(through('position'))).toBe('early');
     expect(playAccess(through('bearing-off'))).toBe('open');
+    // Counting the race (the last bearing-off lesson) isn't a rule: games open without it.
+    const rules = through('bearing-off');
+    delete rules['bearoff-4'];
+    expect(playAccess(rules)).toBe('open');
+    delete rules['bearoff-3'];
+    expect(playAccess(rules)).toBe('early');
   });
 
   it('unlocks practice once the first section is complete', () => {

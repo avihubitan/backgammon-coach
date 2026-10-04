@@ -26,7 +26,14 @@ export const racingSection: Section = {
       description: 'Measure the race in numbers.',
       icon: 'counter',
       difficulty: 3,
-      category: 'racing',
+      skill: 'pips',
+      purpose: {
+        outcome: 'Count a whole position and tell who is ahead in the race.',
+        requires: ['pips'],
+        shows: 'count',
+        decision: 'who-leads',
+        inGame: 'Before deciding to run or wait, count: the player ahead wants a race.',
+      },
       passingScore: 0.6,
       xp: 25,
       objectives: [
@@ -37,13 +44,17 @@ export const racingSection: Section = {
       steps: [
         {
           id: 'pips',
-          kind: 'explain',
-          title: 'Pips',
-          text: 'Each checker needs as many **pips** as its point number to bear off. This one on your 8-point needs **8**.',
+          kind: 'choice',
+          prompt: 'A quick warm-up: how many pips does your checker on the **8-point** need to bear off?',
           board: {
             position: { player1: { 8: 1 }, player2: { 20: 1, 22: 1 }, off: { player1: 14, player2: 13 } },
-            highlights: [highlightPoint(8, 'gold', '8 pips')],
+            highlights: [highlightPoint(8, 'gold')],
           },
+          options: [
+            { id: '8', text: '8 pips', correct: true, explanation: 'Right: a checker needs its point number in pips. 8 from the 8-point.' },
+            { id: '17', text: '17 pips', explanation: 'That counts from your opponent’s side. From your 8-point you need just 8 pips.' },
+            { id: '6', text: '6 pips', explanation: 'It needs 2 pips to reach your home board and 6 more to get off: 8 in all.' },
+          ],
         },
         {
           id: 'count',
@@ -116,7 +127,14 @@ export const racingSection: Section = {
       description: 'Run when you’re ahead, wait when behind.',
       icon: 'arrow-decision-outline',
       difficulty: 3,
-      category: 'racing',
+      skill: 'racing',
+      purpose: {
+        outcome: 'Recognise a pure race and break contact when you lead.',
+        requires: ['pips'],
+        shows: 'race',
+        decision: 'run',
+        inGame: 'Ahead in the race? Get your last checkers past theirs and race home.',
+      },
       passingScore: 0.6,
       xp: 25,
       objectives: [
@@ -206,7 +224,15 @@ export const racingSection: Section = {
       description: 'Bring them home without wasting pips.',
       icon: 'home-import-outline',
       difficulty: 3,
-      category: 'racing',
+      skill: 'racing',
+      alsoTrains: ['bear-off'],
+      purpose: {
+        outcome: 'Bring checkers home without waste and bear off on the same roll.',
+        requires: ['racing', 'bear-off'],
+        shows: 'bear-in',
+        decision: 'cross-over',
+        inGame: 'In a race, bring stragglers home first, onto your high home points.',
+      },
       passingScore: 0.6,
       xp: 30,
       objectives: [
@@ -244,6 +270,7 @@ export const racingSection: Section = {
         {
           id: 'in-and-off',
           kind: 'move',
+          skill: 'bear-off',
           prompt: 'You rolled **4-2** with one checker left outside. Bring it home **and** bear one off.',
           board: { position: { player1: { 8: 1, 6: 3, 5: 3, 4: 3, 3: 2, 2: 3 }, player2: THEM_HOME }, dice: [4, 2] },
           goal: { type: 'plays', plays: ['8/4 2/off', '8/6 4/off'] },
@@ -260,6 +287,7 @@ export const racingSection: Section = {
         {
           id: 'race-home',
           kind: 'challenge',
+          skill: 'bear-off',
           prompt: 'Bear off all **5 checkers** in **3 rolls**. Use one die to come in and the other to bear off!',
           board: { position: { player1: { 9: 1, 6: 1, 5: 1, 4: 1, 2: 1 }, player2: THEM_HOME, off: { player1: 10 } } },
           rolls: [

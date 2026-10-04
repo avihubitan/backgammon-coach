@@ -244,13 +244,16 @@ export function newlyUnlockedLessons(
 export interface FeatureUnlock {
   id: 'play' | 'practice' | 'cube';
   title: string;
-  /** All lessons in this section must be completed. */
+  /** All lessons in this section must be completed... */
   requiresSection: string;
+  /** ...up to and including this one, when later lessons in it aren't needed. */
+  upToLesson?: string;
 }
 
 export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'practice', title: 'Practice drills', requiresSection: 'board' },
-  { id: 'play', title: 'Play vs Computer', requiresSection: 'bearing-off' },
+  // Every rule has been taught once bearing off is: counting the race comes after.
+  { id: 'play', title: 'Play vs Computer', requiresSection: 'bearing-off', upToLesson: 'bearoff-3' },
 ];
 
 export function isFeatureUnlocked(
@@ -262,7 +265,9 @@ export function isFeatureUnlocked(
   if (!unlock) return true;
   const section = sections.find((candidate) => candidate.id === unlock.requiresSection);
   if (!section || section.lessons.length === 0) return false;
-  return section.lessons.every((lesson) => records[lesson.id]?.completed);
+  const last = unlock.upToLesson ? section.lessons.findIndex((lesson) => lesson.id === unlock.upToLesson) : -1;
+  const needed = last >= 0 ? section.lessons.slice(0, last + 1) : section.lessons;
+  return needed.every((lesson) => records[lesson.id]?.completed);
 }
 
 const sectionDone = (sectionId: string, records: LessonRecords, sections: Section[]) => {

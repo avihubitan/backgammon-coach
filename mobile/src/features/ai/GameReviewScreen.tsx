@@ -14,6 +14,7 @@ import {
   formatPlay,
   moveOutcome,
   reviewGame,
+  REVIEW_HEADLINES,
   type MoveReview,
   type Severity,
 } from '@/game';
@@ -28,7 +29,7 @@ import { useEntitlementsStore } from '@/state/entitlementsStore';
 import { todayKey } from '@/state/progressStore';
 
 /** Explanations that already compare the two moves' shots. */
-const SAFETY_HEADLINES = new Set(['You had a safer option', 'A slightly safer play existed']);
+const SAFETY_HEADLINES = new Set<string>([REVIEW_HEADLINES.safer, REVIEW_HEADLINES.slightlySafer]);
 
 const percent = (chance: number) => `${Math.round(chance * 100)}%`;
 

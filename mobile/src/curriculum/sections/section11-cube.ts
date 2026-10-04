@@ -59,7 +59,14 @@ export const cubeSection: Section = {
       description: 'How the doubling cube works.',
       icon: 'numeric-2-box-multiple-outline',
       difficulty: 3,
-      category: 'cube',
+      skill: 'cube',
+      purpose: {
+        outcome: 'Know what a double, a take and a drop mean, and score a cube game.',
+        requires: ['rules'],
+        shows: 'cube',
+        decision: 'owner',
+        inGame: 'In money games and matches, the cube can turn a good position into a quick win.',
+      },
       passingScore: 0.6,
       xp: 25,
       objectives: [
@@ -83,22 +90,21 @@ export const cubeSection: Section = {
           board: { position: START, cube: OFFERED },
         },
         {
-          id: 'take-drop',
-          kind: 'explain',
-          title: 'Take or drop',
-          text: 'Your opponent can **take** and play on for 2 points, or **drop**: give up now and lose just 1 point.',
-          tip: 'Whoever takes owns the cube: only they can double next.',
-          board: { position: START, cube: { value: 2, owner: 'player2' } },
-        },
-        {
           id: 'drop',
           kind: 'choice',
-          prompt: 'You double and your opponent **drops**. What happens?',
+          prompt: 'You double. Your opponent won’t play on for twice the stakes, so they **drop**. What happens?',
           options: [
             { id: '1', text: 'You win 1 point', correct: true, explanation: 'Right: a drop ends the game at once, for the current stake.' },
             { id: '2', text: 'You win 2 points', explanation: 'Only if they take and then lose. A drop costs them the current stake: 1 point.' },
             { id: 'on', text: 'The game goes on at 2', explanation: 'That’s what a take does. A drop ends the game right away.' },
           ],
+        },
+        {
+          id: 'take-drop',
+          kind: 'explain',
+          title: 'Or they take',
+          text: 'Instead of dropping, your opponent can **take**: the game goes on, now worth **2 points**.',
+          board: { position: START, cube: { value: 2, owner: 'player2' } },
         },
         {
           id: 'owner',
@@ -135,7 +141,14 @@ export const cubeSection: Section = {
       description: 'Not too early, not too late.',
       icon: 'trending-up',
       difficulty: 4,
-      category: 'cube',
+      skill: 'cube',
+      purpose: {
+        outcome: 'Double when you are a clear favourite, and not before.',
+        requires: ['cube', 'pips'],
+        shows: 'when',
+        decision: 'race-lead',
+        inGame: 'Double when you are clearly ahead but your opponent still has a reason to take.',
+      },
       passingScore: 0.6,
       xp: 30,
       objectives: [
@@ -216,7 +229,14 @@ export const cubeSection: Section = {
       description: 'The 25% rule.',
       icon: 'scale-balance',
       difficulty: 4,
-      category: 'cube',
+      skill: 'cube',
+      purpose: {
+        outcome: 'Take with at least one chance in four; drop with less.',
+        requires: ['cube'],
+        shows: 'quarter',
+        decision: 'lost-race',
+        inGame: 'Facing a double, ask: will I win at least one game in four from here?',
+      },
       passingScore: 0.6,
       xp: 30,
       objectives: [

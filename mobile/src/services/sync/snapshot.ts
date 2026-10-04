@@ -1,6 +1,6 @@
 import type { GameStats } from '@/features/gameplay/gameModel';
 import type { LessonRecord } from '@/features/learning/progression';
-import type { CategoryStats, ProgressData } from '@/features/learning/progressModel';
+import { upgradeProgress, type ProgressData, type SkillStats } from '@/features/learning/progressModel';
 import { MAX_MISTAKES, isMastered, type UserMistake } from '@/features/practice/mistakes';
 import type { PracticeKind, PracticeRecord } from '@/state/practiceStore';
 
@@ -58,17 +58,20 @@ function mergeRecord<T>(a: Record<string, T>, b: Record<string, T>, merge: (x: T
   return out;
 }
 
-export function mergeProgress(a: ProgressData, b: ProgressData, newer: 'a' | 'b'): ProgressData {
+export function mergeProgress(first: ProgressData, second: ProgressData, newer: 'a' | 'b'): ProgressData {
+  // A copy from an older app version may still count answers per lesson category.
+  const a = upgradeProgress(first);
+  const b = upgradeProgress(second);
   const streakSource = (a.streak.lastActiveDay ?? '') >= (b.streak.lastActiveDay ?? '') ? a.streak : b.streak;
-  const byCategory = mergeRecord<CategoryStats>(
-    a.stats.byCategory as Record<string, CategoryStats>,
-    b.stats.byCategory as Record<string, CategoryStats>,
-    // Keep each skill's numbers together so its accuracy stays meaningful.
+  const bySkill = mergeRecord<SkillStats>(
+    a.stats.bySkill as Record<string, SkillStats>,
+    b.stats.bySkill as Record<string, SkillStats>,
+    // Keep each skill's numbers together so its accuracy and recent answers stay meaningful.
     (x, y) => (!x ? y! : !y ? x : y.attempted > x.attempted ? y : x),
   );
   const attemptedSource = b.stats.exercisesAttempted > a.stats.exercisesAttempted ? b.stats : a.stats;
   return {
-    version: 1,
+    version: 2,
     onboardingCompleted: a.onboardingCompleted || b.onboardingCompleted,
     lessons: mergeRecord(a.lessons, b.lessons, mergeLesson),
     // XP earned on two devices while offline can't be told apart from shared XP: keep the larger total.
@@ -79,7 +82,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, newer: 'a' | 'b'
     stats: {
       exercisesAttempted: attemptedSource.exercisesAttempted,
       exercisesFirstTry: attemptedSource.exercisesFirstTry,
-      byCategory,
+      bySkill,
       timeLearningMs: Math.max(a.stats.timeLearningMs, b.stats.timeLearningMs),
       practiceSessions: Math.max(a.stats.practiceSessions, b.stats.practiceSessions),
     },

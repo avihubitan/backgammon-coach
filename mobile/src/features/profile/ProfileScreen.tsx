@@ -9,7 +9,6 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Screen } from '@/components/ui/Screen';
 import { ToggleRow } from '@/components/ui/Toggle';
-import { curriculum } from '@/curriculum';
 import { pendingReviews, qualityTrend } from '@/features/coach/playQuality';
 import { reviewPendingGames } from '@/features/coach/reviewQueue';
 import { ACHIEVEMENTS } from '@/features/learning/achievements';
@@ -59,7 +58,7 @@ export function ProfileScreen() {
   const mistakes = useMistakesStore((state) => state.mistakes);
   const { day: today } = useToday();
   // Each block appears once there is something real to show.
-  const skills = skillRows(progress.stats.byCategory);
+  const skills = skillRows(progress.stats.bySkill);
   const focus = focusSkill(skills);
   const trend = qualityTrend(finishedGames);
 
@@ -69,7 +68,7 @@ export function ProfileScreen() {
   }, []);
 
   const focusDrillOpen =
-    !!focus?.drill && unlockedDrillCategories(progress.lessons, curriculum).some((info) => info.id === focus.drill);
+    !!focus?.drill && unlockedDrillCategories(progress.lessons).some((info) => info.id === focus.drill);
 
   return (
     <Screen

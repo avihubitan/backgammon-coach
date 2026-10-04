@@ -1,4 +1,13 @@
-import { describePlay, explainDifference, formatPlay, positionKey, rankByEquity, severityFor, type TurnState } from '@/game';
+import {
+  describePlay,
+  explainDifference,
+  formatPlay,
+  positionKey,
+  rankByEquity,
+  REVIEW_HEADLINES,
+  severityFor,
+  type TurnState,
+} from '@/game';
 
 import type { CoachHint } from './coachHint';
 
@@ -18,16 +27,16 @@ export interface CoachWatchVerdict {
 
 /** Clues by the review's headline for the same mistake. */
 const CLUES: Record<string, string> = {
-  'You missed a hit': 'There’s a hit you can make.',
-  'You could make a point': 'You can make a point with this roll.',
-  'An anchor was available': 'You can make an anchor in your opponent’s home board.',
-  'You had a safer option': 'There’s a safer way to play this roll.',
-  'A slightly safer play existed': 'There’s a safer way to play this roll.',
-  'Get your back checkers moving': 'Think about your back checkers.',
-  'Keep the pressure on': 'You can keep more pressure on your opponent.',
-  'You could bear off more': 'You can take more checkers off.',
-  'A smoother bear-off was possible': 'Look for a smoother way to bear off.',
-  'Race more efficiently': 'There’s a more efficient way to race home.',
+  [REVIEW_HEADLINES.missedHit]: 'There’s a hit you can make.',
+  [REVIEW_HEADLINES.point]: 'You can make a point with this roll.',
+  [REVIEW_HEADLINES.anchor]: 'You can make an anchor in your opponent’s home board.',
+  [REVIEW_HEADLINES.safer]: 'There’s a safer way to play this roll.',
+  [REVIEW_HEADLINES.slightlySafer]: 'There’s a safer way to play this roll.',
+  [REVIEW_HEADLINES.backCheckers]: 'Think about your back checkers.',
+  [REVIEW_HEADLINES.pressure]: 'You can keep more pressure on your opponent.',
+  [REVIEW_HEADLINES.bearOffMore]: 'You can take more checkers off.',
+  [REVIEW_HEADLINES.smootherBearOff]: 'Look for a smoother way to bear off.',
+  [REVIEW_HEADLINES.raceEfficiently]: 'There’s a more efficient way to race home.',
 };
 const DEFAULT_CLUE = 'Look for a stronger way to place your checkers.';
 

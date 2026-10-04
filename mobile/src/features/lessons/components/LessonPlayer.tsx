@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { getSection, type Lesson } from '@/curriculum';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
-import { categoryResultsFor, type LessonReward } from '@/features/learning/progressModel';
+import { skillResultsFor, type LessonReward } from '@/features/learning/progressModel';
 import { exerciseXp } from '@/features/learning/progression';
 import { summarizeSession, type LessonOutcome } from '@/features/lessons/engine/session';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
@@ -67,7 +67,7 @@ export function LessonPlayer({ lesson, source, onExit, onNextLesson }: LessonPla
         const reward = recordLessonResult(
           lesson.id,
           outcome,
-          categoryResultsFor(lesson, session.outcomes),
+          skillResultsFor(lesson.steps, session.outcomes, lesson),
           session.outcomes,
           canAccess,
         );

@@ -5,7 +5,8 @@ import {
   type DrillCategoryInfo,
   type TacticalDrill,
 } from '@/curriculum/drills';
-import type { ChoiceStep, LessonStep, MoveStep, SkillCategory } from '@/curriculum';
+import type { ChoiceStep, LessonStep, MoveStep } from '@/curriculum';
+import { skillOfMistake } from '@/features/skills/extract';
 import {
   checkersAt,
   createRng,
@@ -32,19 +33,11 @@ export function specFromBoard(board: BoardState): BoardSpec {
   return { player1, player2, bar: { ...board.bar }, off: { ...board.off } };
 }
 
-export const SKILL_FOR_DRILL: Record<DrillCategory, SkillCategory> = {
-  hitting: 'hitting',
-  safety: 'positioning',
-  points: 'positioning',
-  'bear-off': 'bearing-off',
-  race: 'racing',
-  opening: 'opening',
-};
-
 export function drillToStep(drill: TacticalDrill): MoveStep {
   return {
     id: drill.id,
     kind: 'move',
+    skill: drill.skill ?? DRILL_CATEGORIES.find((info) => info.id === drill.category)?.skill,
     prompt: drill.prompt,
     board: { position: drill.position, dice: drill.dice },
     goal: drill.goal,
@@ -60,6 +53,7 @@ export function mistakeToStep(mistake: UserMistake): MoveStep {
   return {
     id: mistake.id,
     kind: 'move',
+    skill: skillOfMistake(mistake),
     prompt: `From one of your games: you rolled **${mistake.dice.join('-')}**. Find the better move.`,
     board: { position: specFromBoard(mistake.position), dice: mistake.dice },
     goal: { type: 'plays', plays: [best] },
@@ -160,13 +154,23 @@ export interface PracticeSession {
 
 export const SESSION_LENGTH = 5;
 
-export function buildDrillSession(category: DrillCategory, seed: number, length = SESSION_LENGTH): PracticeSession {
+/** Whether the learner has finished a lesson (drills that use a later idea wait for its lesson). */
+export type LessonDone = (lessonId: string) => boolean;
+const ALL_DONE: LessonDone = () => true;
+
+export function buildDrillSession(
+  category: DrillCategory,
+  seed: number,
+  length = SESSION_LENGTH,
+  done: LessonDone = ALL_DONE,
+): PracticeSession {
   const rng = createRng(seed);
   const info = DRILL_CATEGORIES.find((entry) => entry.id === category)!;
+  const available = drillsFor(category).filter((drill) => !drill.requiresLesson || done(drill.requiresLesson));
   const steps: LessonStep[] =
     category === 'race'
-      ? Array.from({ length }, (_, index) => raceQuestion(rng, index))
-      : shuffle(drillsFor(category), rng).slice(0, length).map(drillToStep);
+      ? Array.from({ length }, (_, index) => ({ ...raceQuestion(rng, index), skill: info.skill }))
+      : shuffle(available, rng).slice(0, length).map(drillToStep);
   return { id: `drill-${category}-${seed}`, title: info.title, category, steps };
 }
 
@@ -174,9 +178,7 @@ export function buildMistakeSession(mistakes: UserMistake[]): PracticeSession {
   return { id: 'mistakes', title: 'My mistakes', category: 'mistakes', steps: mistakes.map(mistakeToStep) };
 }
 
-export function unlockedDrillCategories(records: LessonRecords, sections: { id: string; lessons: { id: string }[] }[]): DrillCategoryInfo[] {
-  return DRILL_CATEGORIES.filter((info) => {
-    const section = sections.find((candidate) => candidate.id === info.requiresSection);
-    return !!section && section.lessons.length > 0 && section.lessons.every((lesson) => records[lesson.id]?.completed);
-  });
+/** Drill categories the learner has unlocked: the lesson that teaches each one is done. */
+export function unlockedDrillCategories(records: LessonRecords): DrillCategoryInfo[] {
+  return DRILL_CATEGORIES.filter((info) => !!records[info.requiresLesson]?.completed);
 }

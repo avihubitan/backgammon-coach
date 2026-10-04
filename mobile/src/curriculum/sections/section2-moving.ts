@@ -16,7 +16,14 @@ export const movingSection: Section = {
       description: 'Two dice, two separate moves.',
       icon: 'dice-5',
       difficulty: 1,
-      category: 'movement',
+      skill: 'rules',
+      purpose: {
+        outcome: 'Play each die as its own move, or one checker with both.',
+        requires: ['rules'],
+        shows: 'two-dice',
+        decision: 'two-checkers',
+        inGame: 'Every roll is two moves: look at both numbers before you touch a checker.',
+      },
       passingScore: 0,
       xp: 15,
       objectives: [
@@ -95,7 +102,14 @@ export const movingSection: Section = {
       description: 'Same number twice? Move four times!',
       icon: 'dice-6',
       difficulty: 1,
-      category: 'movement',
+      skill: 'rules',
+      purpose: {
+        outcome: 'Play a double four times, with one checker or several.',
+        requires: ['rules'],
+        shows: 'what',
+        decision: 'total',
+        inGame: 'Doubles move a lot: 6-6 is 24 pips, so look for the biggest gain.',
+      },
       passingScore: 0,
       xp: 15,
       objectives: [
@@ -149,7 +163,14 @@ export const movingSection: Section = {
       description: 'Where you can land, and where you can’t.',
       icon: 'cancel',
       difficulty: 2,
-      category: 'movement',
+      skill: 'rules',
+      purpose: {
+        outcome: 'See which points are blocked and find a legal way around them.',
+        requires: ['rules'],
+        shows: 'blocked',
+        decision: 'which-checker',
+        inGame: 'Their made points block you: check where each number lands before you move.',
+      },
       passingScore: 0,
       xp: 15,
       objectives: [
@@ -241,7 +262,14 @@ export const movingSection: Section = {
       description: 'The rules for playing both dice.',
       icon: 'scale-balance',
       difficulty: 2,
-      category: 'movement',
+      skill: 'rules',
+      purpose: {
+        outcome: 'Play the whole roll, or the larger die when only one fits.',
+        requires: ['rules'],
+        shows: 'rule',
+        decision: 'dance',
+        inGame: 'If a number looks stuck, try the dice in the other order.',
+      },
       passingScore: 0.5,
       xp: 20,
       objectives: [

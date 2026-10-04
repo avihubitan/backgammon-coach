@@ -1,6 +1,6 @@
 import { emptyGameStats } from '@/features/gameplay/gameModel';
 import { emptyLessonRecord } from '@/features/learning/progression';
-import { initialProgress } from '@/features/learning/progressModel';
+import { emptySkillStats, initialProgress, type ProgressData } from '@/features/learning/progressModel';
 import type { UserMistake } from '@/features/practice/mistakes';
 
 import { contentKey, isSnapshot, mergeSnapshots, type SyncSnapshot } from '../snapshot';
@@ -93,7 +93,7 @@ describe('merging snapshots', () => {
       progress: {
         ...initialProgress(),
         dailyGoalXp: 30,
-        stats: { ...initialProgress().stats, byCategory: { hitting: { attempted: 10, firstTry: 9 } } },
+        stats: { ...initialProgress().stats, bySkill: { hitting: { ...emptySkillStats(), attempted: 10, firstTry: 9, recent: '1101' } } },
       },
     });
     const newer = base({
@@ -101,13 +101,25 @@ describe('merging snapshots', () => {
       progress: {
         ...initialProgress(),
         dailyGoalXp: 50,
-        stats: { ...initialProgress().stats, byCategory: { hitting: { attempted: 4, firstTry: 1 } } },
+        stats: { ...initialProgress().stats, bySkill: { hitting: { ...emptySkillStats(), attempted: 4, firstTry: 1, recent: '0001' } } },
       },
     });
     const merged = mergeSnapshots(older, newer);
     expect(merged.progress.dailyGoalXp).toBe(50);
-    expect(merged.progress.stats.byCategory.hitting).toEqual({ attempted: 10, firstTry: 9 });
+    expect(merged.progress.stats.bySkill.hitting).toMatchObject({ attempted: 10, firstTry: 9, recent: '1101' });
     expect(merged.createdAt).toBe('2026-10-02T10:00:00.000Z');
+  });
+
+  it('merges a copy from an older app version that counted answers per lesson category', () => {
+    const current = base({
+      progress: { ...initialProgress(), stats: { ...initialProgress().stats, bySkill: { hitting: { ...emptySkillStats(), attempted: 3, firstTry: 3 } } } },
+    });
+    const legacyStats = { ...initialProgress().stats, bySkill: undefined, byCategory: { hitting: { attempted: 9, firstTry: 5 }, opening: { attempted: 4, firstTry: 4 } } };
+    const legacy = base({ progress: { ...initialProgress(), version: 1, stats: legacyStats } as unknown as ProgressData });
+    const merged = mergeSnapshots(current, legacy);
+    expect(merged.progress.version).toBe(2);
+    expect(merged.progress.stats.bySkill.hitting).toMatchObject({ attempted: 9, firstTry: 5 });
+    expect(merged.progress.stats.bySkill.openings).toMatchObject({ attempted: 4, firstTry: 4 });
   });
 
   it('unions practice, challenge days and mistakes', () => {

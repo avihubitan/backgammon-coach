@@ -3,6 +3,7 @@ import type { BoardSpec, DieValue } from '@/game';
 import { OPENING_PLAYS } from '@/game';
 
 import { START } from './builders';
+import type { SkillId } from './skills';
 import type { MoveGoal } from './types';
 
 /**
@@ -23,6 +24,10 @@ export interface TacticalDrill {
   solution: string;
   /** Why the solution works, shown after the answer. */
   explanation: string;
+  /** The skill this drill trains, when it isn't its category's. */
+  skill?: SkillId;
+  /** A lesson this drill needs beyond its category's, when it uses a later idea. */
+  requiresLesson?: string;
 }
 
 export interface DrillCategoryInfo {
@@ -31,8 +36,12 @@ export interface DrillCategoryInfo {
   description: string;
   icon: IconName;
   color: string;
-  /** Section that must be completed to unlock the drills. */
-  requiresSection: string;
+  /** The skill the drills train. */
+  skill: SkillId;
+  /** Other skills some of its items train: the coach can send those here too. */
+  alsoTrains?: SkillId[];
+  /** The lesson that teaches it: the drills unlock once it's completed. */
+  requiresLesson: string;
 }
 
 export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
@@ -42,7 +51,8 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Spot every way to hit a blot.',
     icon: 'target',
     color: '#FF8A3D',
-    requiresSection: 'hitting',
+    skill: 'hitting',
+    requiresLesson: 'hitting-3',
   },
   {
     id: 'safety',
@@ -50,7 +60,8 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Leave no blots behind.',
     icon: 'shield-check',
     color: '#62B6FF',
-    requiresSection: 'points',
+    skill: 'safety',
+    requiresLesson: 'points-2',
   },
   {
     id: 'points',
@@ -58,7 +69,8 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Build your board and anchors.',
     icon: 'wall',
     color: '#B98CFF',
-    requiresSection: 'points',
+    skill: 'points',
+    requiresLesson: 'points-1',
   },
   {
     id: 'bear-off',
@@ -66,7 +78,8 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Take checkers off efficiently.',
     icon: 'home-export-outline',
     color: '#F3B847',
-    requiresSection: 'bearing-off',
+    skill: 'bear-off',
+    requiresLesson: 'bearoff-3',
   },
   {
     id: 'race',
@@ -74,7 +87,9 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Count pips in a race.',
     icon: 'counter',
     color: '#3DD68C',
-    requiresSection: 'bearing-off',
+    skill: 'pips',
+    alsoTrains: ['racing'],
+    requiresLesson: 'bearoff-4',
   },
   {
     id: 'opening',
@@ -82,7 +97,8 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     description: 'Play the standard first moves.',
     icon: 'book-open-variant',
     color: '#5FD3E8',
-    requiresSection: 'openings',
+    skill: 'openings',
+    requiresLesson: 'openings-2',
   },
 ];
 
@@ -159,6 +175,7 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
     goal: { type: 'plays', plays: ['8/4* 6/4'] },
     solution: '8/4* 6/4',
     explanation: 'Pointing on the blot: one checker hits, the other joins it, so nothing is left for a return hit.',
+    requiresLesson: 'position-2',
   },
 
   // Safety ---------------------------------------------------------------------
@@ -216,6 +233,8 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
     goal: { type: 'safe' },
     solution: '24/13',
     explanation: 'The lover’s leap: 24/18/13 brings the straggler all the way to your mid-point.',
+    skill: 'escaping',
+    requiresLesson: 'position-2',
   },
 
   // Making points --------------------------------------------------------------
@@ -251,6 +270,8 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
     goal: { type: 'make-point', point: 21 },
     solution: '24/21 13/11',
     explanation: 'Your back checkers team up on the 21-point: an anchor they can always land on.',
+    skill: 'anchors',
+    requiresLesson: 'position-1',
   },
   {
     id: 'points-4',

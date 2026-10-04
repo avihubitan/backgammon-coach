@@ -1,5 +1,6 @@
-import { getLesson, isScored, type Lesson, type SkillCategory } from '@/curriculum';
+import { getLesson, isScored, isSkillId, stepSkill, type Lesson, type LessonStep, type SkillId } from '@/curriculum';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
+import { isPlainObject } from '@/state/sanitize';
 
 import { ACHIEVEMENTS, type AchievementContext } from './achievements';
 import {
@@ -21,7 +22,7 @@ import {
 
 /** Everything about the learner's progress that is persisted on the device. */
 export interface ProgressData {
-  version: 1;
+  version: 2;
   onboardingCompleted: boolean;
   lessons: LessonRecords;
   xp: number;
@@ -33,15 +34,51 @@ export interface ProgressData {
   achievements: Record<string, string>;
 }
 
-export interface CategoryStats {
+/**
+ * How the learner does at one skill, from every scored answer that trains it:
+ * lessons, drills and positions from their own games.
+ */
+export interface SkillStats {
   attempted: number;
   firstTry: number;
+  /** The latest answers, oldest first: '1' right on the first try, '0' not. At most RECENT_ANSWERS. */
+  recent: string;
+  /** Days with at least one answer. */
+  days: number;
+  /** The last day with an answer, and the last with a first-try answer (YYYY-MM-DD). */
+  lastDay: string | null;
+  lastFirstTryDay: string | null;
 }
+
+/** How many of the latest answers a skill remembers: enough to see a trend, short enough to move. */
+export const RECENT_ANSWERS = 12;
+
+/** One scored answer, filed under the skill it trains. */
+export interface SkillResult {
+  skill: SkillId;
+  firstTry: boolean;
+}
+
+export const emptySkillStats = (): SkillStats => ({
+  attempted: 0,
+  firstTry: 0,
+  recent: '',
+  days: 0,
+  lastDay: null,
+  lastFirstTryDay: null,
+});
+
+export const isSkillStats = (value: unknown): value is SkillStats =>
+  isPlainObject(value) &&
+  typeof value.attempted === 'number' &&
+  typeof value.firstTry === 'number' &&
+  typeof value.recent === 'string' &&
+  typeof value.days === 'number';
 
 export interface LearningStats {
   exercisesAttempted: number;
   exercisesFirstTry: number;
-  byCategory: Partial<Record<SkillCategory, CategoryStats>>;
+  bySkill: Partial<Record<SkillId, SkillStats>>;
   timeLearningMs: number;
   practiceSessions: number;
 }
@@ -50,7 +87,7 @@ export const DEFAULT_DAILY_GOAL = 30;
 
 export function initialProgress(): ProgressData {
   return {
-    version: 1,
+    version: 2,
     onboardingCompleted: false,
     lessons: {},
     xp: 0,
@@ -60,7 +97,7 @@ export function initialProgress(): ProgressData {
     stats: {
       exercisesAttempted: 0,
       exercisesFirstTry: 0,
-      byCategory: {},
+      bySkill: {},
       timeLearningMs: 0,
       practiceSessions: 0,
     },
@@ -148,7 +185,7 @@ export function applyLessonResult(
   lessonId: string,
   outcome: LessonOutcome,
   today: string,
-  categoryResults: { category: SkillCategory; firstTry: boolean }[] = [],
+  skillResults: SkillResult[] = [],
   exerciseResults: Record<string, ExerciseResult> = {},
   canAccess: LessonAccess = OPEN_ACCESS,
 ): { data: ProgressData; reward: LessonReward } {
@@ -168,15 +205,6 @@ export function applyLessonResult(
     lastPlayedAt: today,
   };
 
-  const byCategory = { ...data.stats.byCategory };
-  for (const result of categoryResults) {
-    const current = byCategory[result.category] ?? { attempted: 0, firstTry: 0 };
-    byCategory[result.category] = {
-      attempted: current.attempted + 1,
-      firstTry: current.firstTry + (result.firstTry ? 1 : 0),
-    };
-  }
-
   const withLesson: ProgressData = {
     ...data,
     lessons: { ...data.lessons, [lessonId]: record },
@@ -184,7 +212,7 @@ export function applyLessonResult(
       ...data.stats,
       exercisesAttempted: data.stats.exercisesAttempted + outcome.scoredSteps,
       exercisesFirstTry: data.stats.exercisesFirstTry + outcome.firstTryCorrect,
-      byCategory,
+      bySkill: applySkillResults(data.stats.bySkill, skillResults, today),
       timeLearningMs: data.stats.timeLearningMs + Math.max(0, Math.min(outcome.durationMs, 60 * 60 * 1000)),
     },
   };
@@ -205,18 +233,104 @@ export function applyLessonResult(
   };
 }
 
-/** Per-category first-try results for a finished lesson, used for skill statistics. */
-export function categoryResultsFor(
-  lesson: Lesson,
+/**
+ * First-try results of a finished lesson or practice run, each filed under the
+ * skill its step trains (the step's own, else `fallback`: the lesson's skill).
+ */
+export function skillResultsFor(
+  steps: readonly LessonStep[],
   outcomes: Record<string, { mistakes: number; solved: boolean; revealed: boolean }>,
-): { category: SkillCategory; firstTry: boolean }[] {
-  return lesson.steps.filter(isScored).map((step) => {
+  fallback: Pick<Lesson, 'skill'>,
+): SkillResult[] {
+  return steps.filter(isScored).map((step) => {
     const outcome = outcomes[step.id];
     return {
-      category: lesson.category,
+      skill: stepSkill(fallback, step),
       firstTry: !!outcome && outcome.solved && !outcome.revealed && outcome.mistakes === 0,
     };
   });
+}
+
+/** Adds answers to the per-skill statistics. */
+export function applySkillResults(
+  bySkill: Partial<Record<SkillId, SkillStats>>,
+  results: readonly SkillResult[],
+  today: string,
+): Partial<Record<SkillId, SkillStats>> {
+  const next = { ...bySkill };
+  for (const result of results) {
+    const current = next[result.skill] ?? emptySkillStats();
+    next[result.skill] = {
+      attempted: current.attempted + 1,
+      firstTry: current.firstTry + (result.firstTry ? 1 : 0),
+      recent: (current.recent + (result.firstTry ? '1' : '0')).slice(-RECENT_ANSWERS),
+      days: current.days + (current.lastDay === today ? 0 : 1),
+      lastDay: today,
+      lastFirstTryDay: result.firstTry ? today : current.lastFirstTryDay,
+    };
+  }
+  return next;
+}
+
+/** Records answers from practice (drills and positions from games) toward their skills. */
+export function applyPracticeResults(data: ProgressData, results: readonly SkillResult[], today: string): ProgressData {
+  if (results.length === 0) return data;
+  return {
+    ...data,
+    stats: {
+      ...data.stats,
+      exercisesAttempted: data.stats.exercisesAttempted + results.length,
+      exercisesFirstTry: data.stats.exercisesFirstTry + results.filter((result) => result.firstTry).length,
+      bySkill: applySkillResults(data.stats.bySkill, results, today),
+    },
+  };
+}
+
+/** Where the lesson categories of progress version 1 went in the skill taxonomy. */
+const SKILL_OF_CATEGORY: Record<string, SkillId> = {
+  board: 'board',
+  movement: 'rules',
+  scoring: 'rules',
+  hitting: 'hitting',
+  positioning: 'points',
+  'bearing-off': 'bear-off',
+  opening: 'openings',
+  racing: 'racing',
+  strategy: 'plans',
+  cube: 'cube',
+};
+
+/**
+ * Saved progress in today's shape. Version 1 counted answers per lesson
+ * category; they carry over to the skill each category became, so nothing the
+ * learner did is lost. Anything else passes through for the store's checks.
+ */
+export function upgradeProgress<T>(saved: T): T {
+  if (!isPlainObject(saved) || !isPlainObject(saved.stats)) return saved;
+  const stats = saved.stats;
+  if (stats.bySkill !== undefined) return saved;
+  const bySkill: Partial<Record<SkillId, SkillStats>> = {};
+  if (isPlainObject(stats.byCategory)) {
+    for (const [category, entry] of Object.entries(stats.byCategory)) {
+      const skill = SKILL_OF_CATEGORY[category];
+      if (!skill || !isPlainObject(entry) || typeof entry.attempted !== 'number' || typeof entry.firstTry !== 'number') continue;
+      const current = bySkill[skill] ?? emptySkillStats();
+      bySkill[skill] = { ...current, attempted: current.attempted + entry.attempted, firstTry: current.firstTry + entry.firstTry };
+    }
+  }
+  const rest: Record<string, unknown> = { ...stats };
+  delete rest.byCategory;
+  return { ...saved, version: 2, stats: { ...rest, bySkill } } as T;
+}
+
+/** Per-skill statistics a save may hold: known skills with the expected fields. */
+export function checkedSkillStats(value: unknown): Partial<Record<SkillId, SkillStats>> {
+  if (!isPlainObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([skill, entry]) => isSkillId(skill) && isSkillStats(entry))
+      .map(([skill, entry]) => [skill, { ...emptySkillStats(), ...(entry as SkillStats) }]),
+  ) as Partial<Record<SkillId, SkillStats>>;
 }
 
 export function todayXp(data: ProgressData, today: string): number {

@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Screen } from '@/components/ui/Screen';
 import { Stars } from '@/components/ui/Stars';
-import { allLessons, curriculum, getSection } from '@/curriculum';
+import { allLessons, getLesson, getSection } from '@/curriculum';
 import { DRILL_CATEGORIES } from '@/curriculum/drills';
 import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
@@ -24,7 +24,7 @@ export function PracticeScreen() {
   const lessons = useProgressStore((state) => state.lessons);
   const records = usePracticeStore((state) => state.records);
   const mistakes = useMistakesStore((state) => state.mistakes);
-  const unlocked = new Set(unlockedDrillCategories(lessons, curriculum).map((info) => info.id));
+  const unlocked = new Set(unlockedDrillCategories(lessons).map((info) => info.id));
   const openMistakes = mistakes.filter((mistake) => !isMastered(mistake)).length;
   const canPracticeMistakes = useFeatureAccess().canUseAdvancedTraining();
   const completed = allLessons
@@ -52,7 +52,7 @@ export function PracticeScreen() {
         {DRILL_CATEGORIES.map((info, index) => {
           const open = unlocked.has(info.id);
           const record = records[info.id];
-          const section = curriculum.find((entry) => entry.id === info.requiresSection);
+          const lesson = getLesson(info.requiresLesson);
           return (
             <View key={info.id} style={styles.cell}>
               <Card
@@ -73,7 +73,7 @@ export function PracticeScreen() {
                   {info.title}
                 </AppText>
                 <AppText variant="caption" color="textSecondary" numberOfLines={2} style={styles.drillText}>
-                  {open ? info.description : `Unlocks after “${section?.title ?? ''}”`}
+                  {open ? info.description : `Unlocks after “${lesson?.title ?? ''}”`}
                 </AppText>
                 {open ? (
                   <AppText variant="caption" color={record ? 'success' : 'textMuted'}>

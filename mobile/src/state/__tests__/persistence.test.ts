@@ -79,9 +79,43 @@ describe('progress persistence', () => {
     expect(state.lessons.broken).toBeUndefined();
     expect(state.xpByDay).toEqual({ '2026-03-10': 30 });
     expect(state.stats.exercisesAttempted).toBe(12);
-    expect(state.stats.byCategory).toEqual({});
+    expect(state.stats.bySkill).toEqual({});
     // Still a working store.
     state.awardXp(10);
     expect(useProgressStore.getState().xp).toBe(310);
+  });
+
+  it('carries answers saved per lesson category (version 1) over to skills', async () => {
+    const version1 = {
+      version: 1,
+      onboardingCompleted: true,
+      xp: 120,
+      lessons: { 'board-1': { completed: true } },
+      stats: {
+        exercisesAttempted: 30,
+        exercisesFirstTry: 22,
+        byCategory: {
+          hitting: { attempted: 8, firstTry: 6 },
+          movement: { attempted: 5, firstTry: 4 },
+          scoring: { attempted: 3, firstTry: 1 },
+          unknown: { attempted: 9, firstTry: 9 },
+          broken: 'x',
+        },
+        timeLearningMs: 5000,
+        practiceSessions: 2,
+      },
+    };
+    await AsyncStorage.setItem('bg-coach/progress', JSON.stringify({ state: version1, version: 1 }));
+    await useProgressStore.persist.rehydrate();
+
+    const state = useProgressStore.getState();
+    expect(state.xp).toBe(120);
+    expect(state.version).toBe(2);
+    expect(state.stats.exercisesAttempted).toBe(30);
+    expect(state.stats.bySkill.hitting).toMatchObject({ attempted: 8, firstTry: 6, recent: '' });
+    // Moving and scoring are both part of the rules now.
+    expect(state.stats.bySkill.rules).toMatchObject({ attempted: 8, firstTry: 5 });
+    expect(Object.keys(state.stats.bySkill).sort()).toEqual(['hitting', 'rules']);
+    expect((state.stats as unknown as Record<string, unknown>).byCategory).toBeUndefined();
   });
 });

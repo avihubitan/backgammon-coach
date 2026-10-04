@@ -7,7 +7,7 @@ export const bearingOffSection: Section = {
   subtitle: 'Bring them home, take them off',
   icon: 'home-export-outline',
   color: '#F3B847',
-  goal: 'Bear off all your checkers efficiently.',
+  goal: 'Bear off efficiently, and know who’s ahead in the race home.',
   lessons: [
     {
       id: 'bearoff-1',
@@ -16,7 +16,14 @@ export const bearingOffSection: Section = {
       description: 'Everyone home before anyone leaves.',
       icon: 'home-import-outline',
       difficulty: 2,
-      category: 'bearing-off',
+      skill: 'bear-off',
+      purpose: {
+        outcome: 'Know when bearing off can start, and bring the last checkers home.',
+        requires: ['rules'],
+        shows: 'rule',
+        decision: 'can-start',
+        inGame: 'Bring every checker home before you take any off.',
+      },
       passingScore: 0,
       xp: 20,
       objectives: [
@@ -78,7 +85,14 @@ export const bearingOffSection: Section = {
       description: 'Each number removes a checker from its point.',
       icon: 'tray-arrow-up',
       difficulty: 2,
-      category: 'bearing-off',
+      skill: 'bear-off',
+      purpose: {
+        outcome: 'Bear off with exact numbers, or move inside your board when you can’t.',
+        requires: ['bear-off'],
+        shows: 'how',
+        decision: 'exact',
+        inGame: 'In the bear-off, each number takes a checker off its own point when it can.',
+      },
       passingScore: 0,
       xp: 20,
       objectives: [
@@ -133,7 +147,14 @@ export const bearingOffSection: Section = {
       description: 'What to do with a roll that overshoots.',
       icon: 'arrow-collapse-up',
       difficulty: 3,
-      category: 'bearing-off',
+      skill: 'bear-off',
+      purpose: {
+        outcome: 'Use big numbers from the highest point, and clear a whole board in few rolls.',
+        requires: ['bear-off'],
+        shows: 'highest',
+        decision: 'challenge',
+        inGame: 'A number bigger than your highest checker still bears one off: from the top.',
+      },
       passingScore: 0.5,
       xp: 25,
       objectives: [
@@ -197,6 +218,105 @@ export const bearingOffSection: Section = {
           goal: { type: 'bear-off-all' },
           success: 'All home and all off! You’d win this race.',
           failure: 'So close! Use each roll to take checkers off. Big numbers clear your highest points first.',
+        },
+      ],
+    },
+    {
+      id: 'bearoff-4',
+      sectionId: 'bearing-off',
+      title: 'Who’s Ahead?',
+      description: 'Count the race home, one checker at a time.',
+      icon: 'counter',
+      difficulty: 2,
+      skill: 'pips',
+      alsoTrains: ['racing'],
+      purpose: {
+        outcome: 'Count a small position and tell who is ahead in the race.',
+        requires: ['rules'],
+        shows: 'one-checker',
+        decision: 'who-ahead',
+        inGame: 'Once the armies have passed each other, count: the player ahead wants a race.',
+      },
+      passingScore: 0.5,
+      xp: 20,
+      objectives: [
+        { id: 'pip', text: 'Count the pips one checker needs' },
+        { id: 'count', text: 'Add up a small position' },
+        { id: 'race', text: 'Spot a pure race' },
+      ],
+      steps: [
+        {
+          id: 'closer',
+          kind: 'choice',
+          prompt: 'One checker each. Who is closer to bearing off?',
+          board: { position: { player1: { 9: 1 }, player2: { 20: 1 }, off: { player1: 14, player2: 14 } } },
+          options: [
+            {
+              id: 'you',
+              text: 'You',
+              explanation: 'Your checker on the 9-point needs 9 pips. Theirs counts from their side: your 20-point is their 5-point.',
+            },
+            {
+              id: 'them',
+              text: 'Your opponent',
+              correct: true,
+              explanation: 'Right. Your 20-point is their 5-point, so their checker needs only 5 pips. Yours needs 9.',
+            },
+          ],
+        },
+        {
+          id: 'one-checker',
+          kind: 'explain',
+          title: 'Pips',
+          text: 'Each checker needs its point number in **pips** to get off. Theirs count from their side: your 20-point is their 5-point.',
+          board: {
+            position: { player1: { 9: 1 }, player2: { 20: 1 }, off: { player1: 14, player2: 14 } },
+            highlights: [highlightPoint(9, 'gold', '9 pips'), highlightPoint(20, 'info', '5 pips')],
+          },
+        },
+        {
+          id: 'add-up',
+          kind: 'choice',
+          prompt: 'Add up every checker. What’s **your** pip count?',
+          board: { position: { player1: { 6: 2, 4: 1, 2: 1 }, player2: { 22: 2, 20: 1 }, off: { player1: 11, player2: 12 } } },
+          options: [
+            { id: '12', text: '12 pips', explanation: 'The 6-point holds two checkers, so it counts twice: 6 + 6 + 4 + 2 = 18.' },
+            { id: '18', text: '18 pips', correct: true, explanation: 'Right: 6 + 6 + 4 + 2 = 18 pips to bear everything off.' },
+            { id: '20', text: '20 pips', explanation: 'Count each checker once: 6 + 6 + 4 + 2 = 18.' },
+          ],
+        },
+        {
+          id: 'pure-race',
+          kind: 'choice',
+          skill: 'racing',
+          prompt: 'Is this a **pure race** yet?',
+          board: {
+            position: { player1: { 22: 1, 8: 3, 6: 5, 5: 3, 4: 3 }, player2: { 19: 5, 20: 5, 21: 5 } },
+            highlights: [highlightPoint(22, 'gold')],
+          },
+          options: [
+            {
+              id: 'no',
+              text: 'Not yet: your checker on 22 still has to pass theirs',
+              correct: true,
+              explanation: 'Right. Until your last checker passes theirs, it can hit and be hit. After that, it’s a pure race.',
+            },
+            {
+              id: 'yes',
+              text: 'Yes: everyone is heading home',
+              explanation: 'Not yet. Your checker on the 22-point is behind their checkers, so it can still hit or be hit.',
+            },
+          ],
+        },
+        {
+          id: 'who-ahead',
+          kind: 'choice',
+          prompt: 'A pure race, and it’s your roll. Count both sides: who’s ahead?',
+          board: { position: { player1: { 5: 2, 3: 2, 1: 1 }, player2: { 20: 3, 22: 2 }, off: { player1: 10, player2: 10 } } },
+          options: [
+            { id: 'you', text: 'You', correct: true, explanation: 'Yes: you need 5 + 5 + 3 + 3 + 1 = 17 pips, they need 21. Lower is better in a race.' },
+            { id: 'them', text: 'Your opponent', explanation: 'Count again: you need 17 pips (5 + 5 + 3 + 3 + 1), they need 21. The lower count leads.' },
+          ],
         },
       ],
     },

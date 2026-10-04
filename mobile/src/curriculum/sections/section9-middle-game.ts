@@ -33,7 +33,15 @@ export const middleGameSection: Section = {
       description: 'Trap a checker behind a wall.',
       icon: 'fence',
       difficulty: 3,
-      category: 'strategy',
+      skill: 'primes',
+      alsoTrains: ['plans'],
+      purpose: {
+        outcome: 'Grow a wall into a full prime and roll it forward.',
+        requires: ['primes', 'hitting'],
+        shows: 'plan',
+        decision: 'roll',
+        inGame: 'Got a checker trapped behind your wall? Add points in front of it and keep it there.',
+      },
       passingScore: 0.6,
       xp: 30,
       objectives: [
@@ -42,6 +50,31 @@ export const middleGameSection: Section = {
         { id: 'why', text: 'See why a trapped checker hurts them' },
       ],
       steps: [
+        {
+          id: 'spot',
+          kind: 'choice',
+          skill: 'plans',
+          prompt: 'One of their checkers is stuck on your 2-point, behind your wall. What’s your plan?',
+          board: { position: { player1: { 13: 3, 10: 1, 8: 2, 7: 2, 6: 3, 5: 2, 4: 2 }, player2: PRIMING_THEM } },
+          options: [
+            {
+              id: 'prime',
+              text: 'Lengthen the wall to keep it trapped',
+              correct: true,
+              explanation: 'Yes. Add points to the wall until it’s six long: then that checker can’t get past at all.',
+            },
+            {
+              id: 'race',
+              text: 'Race your checkers home',
+              explanation: 'The trapped checker is your advantage. Keep it there by building more points in front of it.',
+            },
+            {
+              id: 'break',
+              text: 'Break the wall to attack elsewhere',
+              explanation: 'Breaking the wall lets the trapped checker escape. Make the wall longer instead.',
+            },
+          ],
+        },
         {
           id: 'plan',
           kind: 'explain',
@@ -103,6 +136,7 @@ export const middleGameSection: Section = {
         {
           id: 'why',
           kind: 'choice',
+          skill: 'plans',
           prompt: 'Why is a trapped checker such good news for you?',
           options: [
             {
@@ -132,7 +166,15 @@ export const middleGameSection: Section = {
       description: 'Attack before they can anchor.',
       icon: 'lightning-bolt',
       difficulty: 4,
-      category: 'strategy',
+      skill: 'hitting',
+      alsoTrains: ['plans'],
+      purpose: {
+        outcome: 'Attack blots in your home board and close it out.',
+        requires: ['hitting', 'points'],
+        shows: 'blitz',
+        decision: 'close-out',
+        inGame: 'Their checker on the bar and blots in your board? Attack before they anchor.',
+      },
       passingScore: 0.6,
       xp: 30,
       objectives: [
@@ -141,6 +183,26 @@ export const middleGameSection: Section = {
         { id: 'close', text: 'Close your board' },
       ],
       steps: [
+        {
+          id: 'spot',
+          kind: 'choice',
+          skill: 'plans',
+          prompt: 'They have a checker on the bar and two blots in your home board. What’s your plan?',
+          board: { position: BLITZ },
+          options: [
+            {
+              id: 'attack',
+              text: 'Attack: hit the blots and make home points',
+              correct: true,
+              explanation: 'Yes. With a checker on the bar and blots in your board, attack before they can anchor.',
+            },
+            {
+              id: 'wait',
+              text: 'Play safe and wait',
+              explanation: 'Waiting lets them come in and make an anchor. Their blots are right in front of your builders: attack.',
+            },
+          ],
+        },
         {
           id: 'blitz',
           kind: 'explain',
@@ -207,6 +269,7 @@ export const middleGameSection: Section = {
         {
           id: 'when',
           kind: 'choice',
+          skill: 'plans',
           prompt: 'When is a blitz a good idea?',
           options: [
             {
@@ -236,7 +299,15 @@ export const middleGameSection: Section = {
       description: 'Keep an anchor and wait for your shot.',
       icon: 'shield-sword',
       difficulty: 4,
-      category: 'strategy',
+      skill: 'anchors',
+      alsoTrains: ['plans', 'safety'],
+      purpose: {
+        outcome: 'Pick the best anchor and keep it while you wait for a shot.',
+        requires: ['anchors', 'pips'],
+        shows: 'holding',
+        decision: 'make-anchor',
+        inGame: 'Behind in the race? Keep an anchor high in their board and wait for your chance.',
+      },
       passingScore: 0.6,
       xp: 30,
       objectives: [
@@ -245,6 +316,26 @@ export const middleGameSection: Section = {
         { id: 'hold', text: 'Hold it while you wait for a shot' },
       ],
       steps: [
+        {
+          id: 'spot',
+          kind: 'choice',
+          skill: 'plans',
+          prompt: 'You hold their 5-point, but you trail in the race. What’s your plan?',
+          board: { position: HOLDING, highlights: [highlightPoint(20, 'gold', 'Your anchor')] },
+          options: [
+            {
+              id: 'hold',
+              text: 'Keep the anchor and wait for a shot',
+              correct: true,
+              explanation: 'Yes. Behind in the race, the anchor is your chance: hold it until they leave a blot.',
+            },
+            {
+              id: 'run',
+              text: 'Run the back checkers and race',
+              explanation: 'You’re behind, so a straight race favours them. Hold the anchor and wait for a shot.',
+            },
+          ],
+        },
         {
           id: 'holding',
           kind: 'explain',
@@ -303,6 +394,7 @@ export const middleGameSection: Section = {
         {
           id: 'hold',
           kind: 'move',
+          skill: 'safety',
           prompt: 'You rolled **6-5**. Keep your anchor and leave **no blots**.',
           board: { position: HOLDING, dice: [6, 5] },
           goal: { type: 'safe' },
@@ -319,6 +411,7 @@ export const middleGameSection: Section = {
         {
           id: 'behind',
           kind: 'choice',
+          skill: 'plans',
           prompt: 'You’re **far behind** in the race. What should your back checkers do?',
           options: [
             {

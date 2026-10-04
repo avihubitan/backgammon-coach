@@ -19,7 +19,7 @@ export function currentChallengeContext(): ChallengeContext {
     completedSections: curriculum
       .filter((section) => section.lessons.length > 0 && section.lessons.every((lesson) => lessons[lesson.id]?.completed))
       .map((section) => section.id),
-    unlockedDrills: unlockedDrillCategories(lessons, curriculum).map((info) => info.id),
+    unlockedDrills: unlockedDrillCategories(lessons).map((info) => info.id),
     playUnlocked: isFeatureUnlocked('play', lessons),
     openMistakes: useMistakesStore.getState().mistakes.filter((mistake) => !isMastered(mistake)).length,
     canPracticeMistakes: currentFeatureAccess().canUseAdvancedTraining(),

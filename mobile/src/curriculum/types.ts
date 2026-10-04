@@ -2,6 +2,8 @@ import type { IconName } from '@/components/ui/Icon';
 import type { BoardSpec, DieValue, MoveSource, MoveTarget, Player } from '@/game';
 import type { BoardArrow, BoardHighlight } from '@/types/board';
 
+import type { SkillId } from './skills';
+
 /**
  * The curriculum is pure, JSON-serialisable data. Adding a lesson never
  * requires touching screen code: the lesson player renders any step below.
@@ -22,6 +24,8 @@ export type TapTarget = { kind: 'point'; point: number } | { kind: 'bar' } | { k
 
 interface StepBase {
   id: string;
+  /** The skill this step trains, when it isn't the lesson's own (it must be one the lesson lists). */
+  skill?: SkillId;
 }
 
 /** Short explanation, optionally illustrated on the board. Not scored. */
@@ -159,18 +163,22 @@ export interface LessonObjective {
   text: string;
 }
 
-/** Skill tags used for statistics and personalised practice. */
-export type SkillCategory =
-  | 'board'
-  | 'movement'
-  | 'hitting'
-  | 'positioning'
-  | 'bearing-off'
-  | 'scoring'
-  | 'cube'
-  | 'opening'
-  | 'racing'
-  | 'strategy';
+/**
+ * What a lesson is for. Every lesson changes something the learner does at
+ * the board; the curriculum tests check each field.
+ */
+export interface LessonPurpose {
+  /** The behaviour the lesson builds, as something the learner can now do. */
+  outcome: string;
+  /** Skills the lesson builds on: each one is taught by an earlier lesson. */
+  requires: SkillId[];
+  /** The step that shows the idea on the board. */
+  shows: string;
+  /** The key decision the learner makes on their own, on a position. It comes after `shows`. */
+  decision: string;
+  /** Where the idea comes up in a real game, in one sentence. */
+  inGame: string;
+}
 
 export interface Lesson {
   id: string;
@@ -179,7 +187,11 @@ export interface Lesson {
   description: string;
   icon: IconName;
   difficulty: 1 | 2 | 3 | 4 | 5;
-  category: SkillCategory;
+  /** The skill the lesson trains. Its scored steps count toward it unless a step names another. */
+  skill: SkillId;
+  /** Other skills some of its steps train (each step that does says so with `skill`). */
+  alsoTrains?: SkillId[];
+  purpose: LessonPurpose;
   objectives: LessonObjective[];
   steps: LessonStep[];
   /** Fraction (0..1) of scored steps needed to pass. 0 means finishing is enough. */

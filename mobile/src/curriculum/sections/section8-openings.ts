@@ -20,7 +20,15 @@ export const openingsSection: Section = {
       description: 'The four rolls that make a point at once.',
       icon: 'star-shooting',
       difficulty: 3,
-      category: 'opening',
+      skill: 'openings',
+      alsoTrains: ['rules'],
+      purpose: {
+        outcome: 'Make a new point with 3-1, 4-2, 6-1 and 5-3 on the first move.',
+        requires: ['points', 'rules'],
+        shows: 'best-rolls',
+        decision: 'five-three',
+        inGame: 'Roll 3-1, 4-2, 6-1 or 5-3 on your first move? Make the point.',
+      },
       passingScore: 0.6,
       xp: 25,
       objectives: [
@@ -30,11 +38,20 @@ export const openingsSection: Section = {
       steps: [
         {
           id: 'first-roll',
-          kind: 'explain',
-          title: 'The opening roll',
-          text: 'To start, each player rolls **one die**. The higher number moves first and plays **both** numbers.',
-          tip: 'That’s why your first move is never a double.',
-          board: { position: START },
+          kind: 'choice',
+          skill: 'rules',
+          prompt: 'To start, you roll a **5** and your opponent rolls a **2**. What happens?',
+          board: { position: START, dice: [5, 2] },
+          options: [
+            {
+              id: 'you',
+              text: 'You move first, playing 5-2',
+              correct: true,
+              explanation: 'Yes: the higher die goes first and plays both numbers. That’s why your first move is never a double.',
+            },
+            { id: 'again', text: 'You both roll again', explanation: 'Only a tie means rolling again. A 5 beats a 2, so you start with 5-2.' },
+            { id: 'them', text: 'Your opponent moves first', explanation: 'The higher number starts: that’s you, playing 5-2.' },
+          ],
         },
         {
           id: 'best-rolls',
@@ -109,7 +126,14 @@ export const openingsSection: Section = {
       description: 'What to do when you can’t make a point.',
       icon: 'directions-fork',
       difficulty: 3,
-      category: 'opening',
+      skill: 'openings',
+      purpose: {
+        outcome: 'Choose between running, splitting and building when no point can be made.',
+        requires: ['openings', 'anchors'],
+        shows: 'plans',
+        decision: 'four-three',
+        inGame: 'No point to make on your first move? Run, split, or bring builders down.',
+      },
       passingScore: 0.6,
       xp: 25,
       objectives: [
@@ -243,7 +267,14 @@ export const openingsSection: Section = {
       description: 'A strong first move for any roll.',
       icon: 'school',
       difficulty: 4,
-      category: 'opening',
+      skill: 'openings',
+      purpose: {
+        outcome: 'Play a strong move for any opening roll.',
+        requires: ['openings'],
+        shows: 'intro',
+        decision: 'six-four',
+        inGame: 'Your first move of every game: play the standard move and save your thinking for later.',
+      },
       passingScore: 0.6,
       xp: 40,
       objectives: [

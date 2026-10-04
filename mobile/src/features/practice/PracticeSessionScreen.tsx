@@ -6,18 +6,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { curriculum } from '@/curriculum';
+import { getLesson } from '@/curriculum';
 import { DRILL_CATEGORIES, type DrillCategory } from '@/curriculum/drills';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { exerciseXp } from '@/features/learning/progression';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics, type LaunchSource } from '@/services/analytics';
-import type { Reward } from '@/features/learning/progressModel';
+import { skillResultsFor, type Reward } from '@/features/learning/progressModel';
 import { StepSessionPlayer } from '@/features/lessons/components/StepSessionPlayer';
 import { summarizeSteps, type LessonOutcome } from '@/features/lessons/engine/session';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore, type PracticeKind } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
+import { skillOfDrill } from '@/features/skills/extract';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { isMastered, pickForPractice, withFocus } from './mistakes';
@@ -41,7 +42,8 @@ function buildSession(kind: PracticeKind, seed: number, focus?: string): Practic
     const picks = withFocus(pickForPractice(all, SESSION_LENGTH), all, focus, SESSION_LENGTH);
     return picks.length > 0 ? buildMistakeSession(picks) : null;
   }
-  return buildDrillSession(kind, seed);
+  const lessons = useProgressStore.getState().lessons;
+  return buildDrillSession(kind, seed, SESSION_LENGTH, (lessonId) => !!lessons[lessonId]?.completed);
 }
 
 export interface PracticeResult {
@@ -61,7 +63,7 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
   const unlocked =
     kind === 'mistakes'
       ? canPracticeMistakes
-      : unlockedDrillCategories(lessons, curriculum).some((info) => info.id === kind);
+      : unlockedDrillCategories(lessons).some((info) => info.id === kind);
   const [run, setRun] = useState(() => ({ id: 0, session: valid && unlocked ? buildSession(kind as PracticeKind, Date.now(), focus) : null }));
   const [result, setResult] = useState<PracticeResult | null>(null);
   const answered = useRef(new Set<string>());
@@ -96,7 +98,7 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
 
   if (!valid || !unlocked || !run.session) {
     const info = DRILL_CATEGORIES.find((entry) => entry.id === kind);
-    const section = curriculum.find((entry) => entry.id === info?.requiresSection);
+    const lesson = info ? getLesson(info.requiresLesson) : undefined;
     return (
       <View style={[styles.blocked, { paddingTop: insets.top + spacing.huge }]} testID="practice-unavailable">
         <Icon name={kind === 'mistakes' ? 'check-decagram' : 'lock'} size={48} color={colors.textMuted} />
@@ -112,7 +114,7 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
             ? 'It may have moved in an update.'
             : kind === 'mistakes'
               ? 'Play a game: your coach saves the positions you got wrong here, so you can fix them.'
-              : `Finish “${section?.title ?? 'the previous section'}” on your path to unlock it.`}
+              : `Finish the lesson “${lesson?.title ?? 'before it'}” on your path to unlock it.`}
         </AppText>
         <Button label="Back to practice" onPress={() => router.replace('/practice')} />
       </View>
@@ -155,6 +157,10 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
         const outcome = summarizeSteps(session.steps, 0, state);
         const xp = session.steps.reduce((sum, step) => sum + practiceXp(state.outcomes[step.id] ?? EMPTY), 0);
         const progress = useProgressStore.getState();
+        // Every answer counts toward its skill, the same as in lessons.
+        progress.recordSkillResults(
+          skillResultsFor(session.steps, state.outcomes, { skill: kind === 'mistakes' ? 'points' : skillOfDrill(kind as DrillCategory) }),
+        );
         // Count the session first so practice achievements see it.
         progress.recordPracticeSession();
         // A finished session keeps the streak going, even if every answer was shown.

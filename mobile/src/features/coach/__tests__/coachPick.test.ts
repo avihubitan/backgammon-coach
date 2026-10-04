@@ -1,15 +1,17 @@
 import { emptyLessonRecord } from '@/features/learning/progression';
+import { emptySkillStats } from '@/features/learning/progressModel';
 import type { UserMistake } from '@/features/practice/mistakes';
 
 import { coachPick, coachPicks, coachPlan, RECENT_DAYS, type CoachInput } from '../coachPick';
 
 const mistake = (category: UserMistake['category'], solved = 0) =>
   ({ id: `${category}-${Math.random()}`, category, solved, attempts: solved, severity: 0.1 }) as unknown as UserMistake;
+const stats = (attempted: number, firstTry: number) => ({ ...emptySkillStats(), attempted, firstTry });
 const done = (...ids: string[]) => Object.fromEntries(ids.map((id) => [id, { ...emptyLessonRecord(), completed: true }]));
 
 const input = (patch: Partial<CoachInput> = {}): CoachInput => ({
   mistakes: [],
-  byCategory: {},
+  bySkill: {},
   lessons: {},
   unlockedDrills: [],
   canPracticeMistakes: false,
@@ -22,7 +24,7 @@ describe("coach's pick", () => {
     expect(coachPick(input())).toBeNull();
     // Two hitting mistakes are not yet a pattern; a strong lesson record needs no help.
     expect(
-      coachPick(input({ mistakes: [mistake('hitting'), mistake('hitting')], byCategory: { board: { attempted: 10, firstTry: 10 } } })),
+      coachPick(input({ mistakes: [mistake('hitting'), mistake('hitting')], bySkill: { board: stats(10, 10) } })),
     ).toBeNull();
   });
 
@@ -71,7 +73,7 @@ describe("coach's pick", () => {
   it('otherwise picks your weakest lesson skill', () => {
     const pick = coachPick(
       input({
-        byCategory: { board: { attempted: 20, firstTry: 19 }, hitting: { attempted: 10, firstTry: 5 } },
+        bySkill: { board: stats(20, 19), hitting: stats(10, 5) },
         unlockedDrills: ['hitting'],
       }),
     );
@@ -105,7 +107,7 @@ describe("coach's pick over time", () => {
     const picks = coachPicks(
       input({
         mistakes: [mistake('hitting'), mistake('hitting'), mistake('hitting')],
-        byCategory: { hitting: { attempted: 10, firstTry: 4 }, opening: { attempted: 10, firstTry: 6 } },
+        bySkill: { hitting: stats(10, 4), openings: stats(10, 6) },
         unlockedDrills: ['hitting', 'opening'],
       }),
     );
@@ -115,7 +117,7 @@ describe("coach's pick over time", () => {
   it('marks today’s pick done once practised, and offers the next one', () => {
     const base = input({
       mistakes: [mistake('hitting'), mistake('hitting'), mistake('hitting')],
-      byCategory: { opening: { attempted: 10, firstTry: 5 } },
+      bySkill: { openings: stats(10, 5) },
       unlockedDrills: ['hitting', 'opening'],
       today,
     });

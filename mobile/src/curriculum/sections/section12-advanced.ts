@@ -41,7 +41,15 @@ export const advancedSection: Section = {
       description: 'Their home board decides how much risk to take.',
       icon: 'scale',
       difficulty: 4,
-      category: 'strategy',
+      skill: 'shots',
+      alsoTrains: ['plans', 'safety'],
+      purpose: {
+        outcome: 'Weigh a shot against the strength of your opponent’s board.',
+        requires: ['shots', 'safety'],
+        shows: 'risk',
+        decision: 'bold',
+        inGame: 'Before leaving a blot, count the shots and look at their board: a weak board makes a hit cheap.',
+      },
       passingScore: 0.6,
       xp: 35,
       objectives: [
@@ -50,12 +58,6 @@ export const advancedSection: Section = {
         { id: 'choose', text: 'Choose between a bold and a safe play' },
       ],
       steps: [
-        {
-          id: 'distance',
-          kind: 'explain',
-          title: 'Distance matters',
-          text: 'A blot **6 pips or closer** to their checker is hit about **1 time in 3**. From 7 pips or more, it’s usually **1 in 6** or less.',
-        },
         {
           id: 'which-blot',
           kind: 'choice',
@@ -84,6 +86,7 @@ export const advancedSection: Section = {
         {
           id: 'bold',
           kind: 'move',
+          skill: 'plans',
           prompt: 'Their board is **weak**: just one point. You rolled **3-2**. Find the bold play.',
           board: { position: WEAK_BOARD, dice: [3, 2], highlights: [quadrant('player2-home', 'success', 'Weak')] },
           goal: { type: 'plays', plays: ['24/22 8/5*', '13/11 8/5*'] },
@@ -101,6 +104,7 @@ export const advancedSection: Section = {
         {
           id: 'safe',
           kind: 'move',
+          skill: 'safety',
           prompt: 'Now their board is **strong**: four points. Same roll, **3-2**. Leave no blots.',
           board: { position: STRONG_BOARD, dice: [3, 2], highlights: [quadrant('player2-home', 'danger', 'Strong')] },
           goal: { type: 'safe' },
@@ -117,6 +121,7 @@ export const advancedSection: Section = {
         {
           id: 'rule',
           kind: 'choice',
+          skill: 'plans',
           prompt: 'When can you best afford to leave a blot?',
           options: [
             {
@@ -146,7 +151,15 @@ export const advancedSection: Section = {
       description: 'Don’t let a won race slip away.',
       icon: 'shield-alert',
       difficulty: 4,
-      category: 'bearing-off',
+      skill: 'bear-off',
+      alsoTrains: ['safety'],
+      purpose: {
+        outcome: 'Bear off against an anchor without leaving shots.',
+        requires: ['bear-off', 'safety'],
+        shows: 'danger',
+        decision: 'six-three',
+        inGame: 'If they still hold a point in your board, bear off safely first and fast second.',
+      },
       passingScore: 0.6,
       xp: 35,
       objectives: [
@@ -220,6 +233,7 @@ export const advancedSection: Section = {
         {
           id: 'why',
           kind: 'choice',
+          skill: 'safety',
           prompt: 'You’re far ahead in the race. Why play safe instead of bearing off as fast as you can?',
           options: [
             {
@@ -241,7 +255,14 @@ export const advancedSection: Section = {
       description: 'When a gammon is worth more than a double.',
       icon: 'cards-playing-outline',
       difficulty: 5,
-      category: 'cube',
+      skill: 'cube',
+      purpose: {
+        outcome: 'Play on for the gammon when you are too good to double.',
+        requires: ['cube', 'rules'],
+        shows: 'too-good',
+        decision: 'closed-out',
+        inGame: 'Winning a gammon most of the time? Don’t double: play on for two points.',
+      },
       passingScore: 0.6,
       xp: 40,
       objectives: [
