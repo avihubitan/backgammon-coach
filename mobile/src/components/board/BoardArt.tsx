@@ -17,6 +17,8 @@ function BoardArtImpl({ metrics: m }: BoardArtProps) {
   const ref = (name: string) => `url(#${uid}-${name})`;
   const innerHeight = m.innerBottom - m.innerTop;
   const halfWidth = 6 * m.col;
+  // How far the frame's shade reaches onto the felt.
+  const shade = m.checker * 0.42;
   const tipLength = m.pointLength * 0.94;
 
   const triangles = [];
@@ -69,6 +71,29 @@ function BoardArtImpl({ metrics: m }: BoardArtProps) {
           <Stop offset="0" stopColor={boardColors.pointDarkBase} />
           <Stop offset="1" stopColor={boardColors.pointDarkTip} />
         </LinearGradient>
+        {/* The playing surface sits below the frame: its lip shades the felt's edges, most where the light can't reach. */}
+        <LinearGradient id={`${uid}-shadeDown`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000" stopOpacity={0.34} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0} />
+        </LinearGradient>
+        <LinearGradient id={`${uid}-shadeUp`} x1="0" y1="1" x2="0" y2="0">
+          <Stop offset="0" stopColor="#000" stopOpacity={0.16} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0} />
+        </LinearGradient>
+        <LinearGradient id={`${uid}-shadeRight`} x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor="#000" stopOpacity={0.24} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0} />
+        </LinearGradient>
+        <LinearGradient id={`${uid}-shadeLeft`} x1="1" y1="0" x2="0" y2="0">
+          <Stop offset="0" stopColor="#000" stopOpacity={0.14} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0} />
+        </LinearGradient>
+        {/* The tray is a channel cut into the wood: dark under its top edge, a little warmer toward the bottom. */}
+        <LinearGradient id={`${uid}-tray`} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000" stopOpacity={0.4} />
+          <Stop offset="0.25" stopColor="#000" stopOpacity={0.08} />
+          <Stop offset="1" stopColor="#FFF" stopOpacity={0.04} />
+        </LinearGradient>
       </Defs>
 
       <Rect x={0} y={0} width={m.width} height={m.height} rx={12} fill={ref('frame')} />
@@ -89,6 +114,18 @@ function BoardArtImpl({ metrics: m }: BoardArtProps) {
 
       <G>{triangles}</G>
 
+      {[m.leftX, m.rightX].map((x) => (
+        <G key={`recess-${x}`}>
+          <Rect x={x} y={m.innerTop} width={halfWidth} height={shade} fill={ref('shadeDown')} />
+          <Rect x={x} y={m.innerBottom - shade * 0.7} width={halfWidth} height={shade * 0.7} fill={ref('shadeUp')} />
+          <Rect x={x} y={m.innerTop} width={shade * 0.8} height={innerHeight} fill={ref('shadeRight')} />
+          <Rect x={x + halfWidth - shade * 0.6} y={m.innerTop} width={shade * 0.6} height={innerHeight} fill={ref('shadeLeft')} />
+          {/* A crisp edge where the felt meets the wood, with the lip's highlight just outside it. */}
+          <Rect x={x - 0.5} y={m.innerTop - 0.5} width={halfWidth + 1} height={innerHeight + 1} rx={2.5} fill="none" stroke="#FFF" strokeOpacity={0.09} strokeWidth={1} />
+          <Rect x={x} y={m.innerTop} width={halfWidth} height={innerHeight} rx={2} fill="none" stroke="#000" strokeOpacity={0.5} strokeWidth={1} />
+        </G>
+      ))}
+
       <Rect x={m.barX} y={0} width={m.barWidth} height={m.height} fill={ref('bar')} />
       <Line
         x1={m.barX + m.barWidth / 2}
@@ -108,6 +145,18 @@ function BoardArtImpl({ metrics: m }: BoardArtProps) {
         rx={4}
         fill={boardColors.trayFill}
         stroke={boardColors.trayEdge}
+        strokeWidth={1}
+      />
+      <Rect x={m.trayX + 0.5} y={m.innerTop + 0.5} width={m.trayWidth - 1} height={innerHeight - 1} rx={3.5} fill={ref('tray')} />
+      <Rect
+        x={m.trayX - 0.5}
+        y={m.innerTop - 0.5}
+        width={m.trayWidth + 1}
+        height={innerHeight + 1}
+        rx={4.5}
+        fill="none"
+        stroke="#FFF"
+        strokeOpacity={0.08}
         strokeWidth={1}
       />
       <Line

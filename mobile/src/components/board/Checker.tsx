@@ -25,6 +25,11 @@ export function CheckerFace({ player, size }: CheckerFaceProps) {
           height: size,
           borderRadius: size / 2,
           backgroundColor: rim,
+          // A turned edge: lit along the top, a touch darker underneath.
+          borderTopWidth: Math.max(1, size * 0.035),
+          borderTopColor: light ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.16)',
+          borderBottomWidth: Math.max(1, size * 0.035),
+          borderBottomColor: light ? 'rgba(80, 60, 30, 0.22)' : 'rgba(0, 0, 0, 0.45)',
         },
       ]}
     >
@@ -86,6 +91,6 @@ const styles = StyleSheet.create({
   disc: {
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0px 1.5px 2.5px rgba(0, 0, 0, 0.5)',
+    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.5)',
   },
 });
