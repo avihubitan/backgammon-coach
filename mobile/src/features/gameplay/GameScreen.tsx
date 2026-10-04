@@ -1,16 +1,16 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackgammonBoard } from '@/components/board/BackgammonBoard';
-import { computeMetrics } from '@/components/board/geometry';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { useBackPress } from '@/components/system/useBackPress';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
-import { allCheckersHome, canDouble, canEndTurn, pipCount } from '@/game';
+import { canDouble, canEndTurn, pipCount } from '@/game';
 import { useGameStore } from '@/state/gameStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
@@ -19,15 +19,18 @@ import type { BoardArrow } from '@/types/board';
 import { CoachHintBubble } from './components/CoachHintBubble';
 import { CoachWatchPanel } from './components/CoachWatchPanel';
 import { GameResultSheet } from './components/GameResultSheet';
-import { PlayerRow } from './components/PlayerRow';
+import { Seat } from './components/Seat';
+import { gameLayout } from './gameLayout';
+import { gameStatus, HOW_TO_GAMES } from './gameStatus';
 import { usedDice } from './moveInput';
 import { useGameController } from './useGameController';
 
-const LEVEL_LABEL = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' } as const;
+const STATUS_COLOR = { neutral: 'textSecondary', info: 'text', warning: 'streak' } as const;
 
-/** Everything on the game screen but the board: top bar, two player rows, room for the coach, buttons. */
-const GAME_CHROME_HEIGHT = 56 + 2 * 46 + 136 + 84;
-const MIN_BOARD_WIDTH = 300;
+const FADE_IN = {
+  animationName: { from: { opacity: 0, transform: [{ translateY: 4 }] }, to: { opacity: 1, transform: [{ translateY: 0 }] } },
+  animationDuration: 200,
+} as const;
 
 export function GameScreen() {
   const insets = useSafeAreaInsets();
@@ -37,6 +40,7 @@ export function GameScreen() {
   const startGame = useGameStore((store) => store.startGame);
   const continueMatch = useGameStore((store) => store.continueMatch);
   const abandonGame = useGameStore((store) => store.abandonGame);
+  const gamesPlayed = useGameStore((store) => store.stats.gamesPlayed);
   const [confirm, setConfirm] = useState<'leave' | 'resign' | null>(null);
   // Android back asks first, like the close button. Open dialogs and the result sheet handle back themselves.
   useBackPress(!!game.active && !!game.state && confirm === null && !game.outcome, () => setConfirm('leave'));
@@ -51,16 +55,16 @@ export function GameScreen() {
     );
   }
 
-  // Short screens (iPhone SE): the board gives up a little width so the coach's messages fit below it.
-  const fullWidth = Math.min(width, MAX_CONTENT_WIDTH);
-  const roomForBoard = height - insets.top - Math.max(insets.bottom, spacing.lg) - GAME_CHROME_HEIGHT;
-  const boardWidth = Math.round(
-    Math.max(MIN_BOARD_WIDTH, Math.min(fullWidth, roomForBoard / (computeMetrics(fullWidth).height / fullWidth))),
-  );
+  const layout = gameLayout(width, height, insets);
+  const opponent = game.opponent;
   const isMatch = active.settings.matchLength > 1;
   const humanTurn = state.currentPlayer === 'player1';
+  const playing = state.phase !== 'finished' && state.phase !== 'opening';
   const aiThinking =
-    (state.phase === 'moving' || state.phase === 'rolling') && state.currentPlayer === 'player2';
+    playing &&
+    ((state.currentPlayer === 'player2' && state.phase !== 'doubling') ||
+      (state.phase === 'doubling' && state.doubleOfferedBy === 'player1'));
+  const yourMove = playing && !aiThinking;
   const turn = state.turn;
   const arrows: BoardArrow[] =
     game.lastAiPlay && state.phase === 'rolling' && humanTurn
@@ -71,25 +75,18 @@ export function GameScreen() {
     if (game.requestHint() === 'locked') router.push({ pathname: '/paywall', params: { source: 'game_hint' } });
   };
 
-  const status = (() => {
-    if (state.phase === 'finished') return 'Game over';
-    if (game.message) return game.message;
-    if (state.phase === 'opening') return 'Each side rolls one die. Higher number goes first.';
-    if (state.phase === 'doubling') {
-      return state.doubleOfferedBy === 'player2'
-        ? `The computer doubles to ${state.cube.value * 2}. Take or drop?`
-        : 'Waiting for the computer’s answer…';
-    }
-    if (aiThinking) return state.phase === 'rolling' ? 'Computer’s turn' : 'The computer is moving…';
-    if (state.phase === 'rolling') return game.lastAiPlay ? `${game.lastAiPlay.text}. Your roll!` : 'Your turn. Roll the dice!';
-    if (turn && canEndTurn(state)) return 'Done? Confirm your move, or undo to try again.';
-    if (state.board.bar.player1 > 0) return 'You’re on the bar: enter in the computer’s home board first.';
-    // The first bear-off turn of the game: say how it works.
-    if (turn && turn.moves.length === 0 && state.board.off.player1 === 0 && allCheckersHome(state.board, 'player1')) {
-      return 'All your checkers are home: bear them off! Tap a checker, then the tray on the right.';
-    }
-    return 'Drag a checker where it should go, or tap it and then its spot.';
-  })();
+  const status = gameStatus({
+    state,
+    message: game.message,
+    messageTone: game.messageTone,
+    lastAiPlay: game.lastAiPlay,
+    opponentName: opponent.name,
+    showHowTo: gamesPlayed < HOW_TO_GAMES,
+  });
+  const off = state.board.off;
+  const panelWidth = Math.min(width, MAX_CONTENT_WIDTH) - 2 * SCREEN_GUTTER;
+  // Narrow phones (under 360 pt): rows of buttons drop their icons and tighten so labels fit.
+  const narrow = width < 360;
 
   const newGame = () => {
     game.clearOutcome();
@@ -98,13 +95,11 @@ export function GameScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { height: layout.topBar }]}>
         <IconButton icon="close" accessibilityLabel="Leave game" onPress={() => setConfirm('leave')} testID="game-close" />
         <View style={styles.title}>
-          <AppText variant="subheading">vs Computer</AppText>
-          <AppText variant="caption" color="textSecondary">
-            {LEVEL_LABEL[active.settings.level]}
-            {isMatch ? ` · Game ${active.gameNumber} · Match to ${active.settings.matchLength}` : ''}
+          <AppText variant="label" color="textMuted" numberOfLines={1}>
+            {isMatch ? `Match to ${active.settings.matchLength} · Game ${active.gameNumber}` : 'Single game'}
           </AppText>
         </View>
         <IconButton
@@ -116,22 +111,25 @@ export function GameScreen() {
         />
       </View>
 
-      <View style={styles.boardArea}>
-        <PlayerRow
-          name="Computer"
-          light={false}
-          pips={pipCount(state.board, 'player2')}
-          borneOff={state.board.off.player2}
-          score={isMatch ? active.match.player2 : null}
-          active={!humanTurn && state.phase !== 'finished'}
-          thinking={aiThinking}
-          ownsCube={active.settings.cubeEnabled && state.cube.owner === 'player2' ? state.cube.value : null}
-        />
-        <View style={styles.board}>
+      <View style={styles.middle}>
+        <View style={styles.spacer} />
+        <View style={[styles.table, { width: layout.boardWidth }]}>
+          <Seat
+            testID="seat-opponent"
+            name={opponent.name}
+            detail={`${opponent.title} · ${pipCount(state.board, 'player2')} pips${off.player2 > 0 ? ` · ${off.player2} off` : ''}`}
+            avatar={{ icon: opponent.icon, color: opponent.color }}
+            active={aiThinking}
+            activity={aiThinking ? 'thinking' : null}
+            cube={active.settings.cubeEnabled && state.cube.owner === 'player2' ? state.cube.value : null}
+            score={isMatch ? active.match.player2 : null}
+            height={layout.seat}
+            compact={layout.compact}
+          />
           <BackgammonBoard
             testID="game-board"
             board={state.board}
-            width={boardWidth}
+            width={layout.boardWidth}
             layoutKey={`${active.id}-${active.gameNumber}`}
             showPointNumbers={settings.showPointNumbers}
             dice={
@@ -154,51 +152,74 @@ export function GameScreen() {
             onPressBar={() => game.tap('bar')}
             onPressOff={(how) => game.tap('off', how)}
           />
+          <Seat
+            testID="seat-you"
+            name="You"
+            detail={`${pipCount(state.board, 'player1')} pips${off.player1 > 0 ? ` · ${off.player1} off` : ''}`}
+            avatar={{ checker: 'player1' }}
+            active={yourMove}
+            activity={yourMove ? 'your-turn' : null}
+            cube={active.settings.cubeEnabled && state.cube.owner === 'player1' ? state.cube.value : null}
+            score={isMatch ? active.match.player1 : null}
+            height={layout.seat}
+            compact={layout.compact}
+          />
         </View>
-        <PlayerRow
-          name="You"
-          light
-          pips={pipCount(state.board, 'player1')}
-          borneOff={state.board.off.player1}
-          score={isMatch ? active.match.player1 : null}
-          active={humanTurn && state.phase !== 'finished'}
-          ownsCube={active.settings.cubeEnabled && state.cube.owner === 'player1' ? state.cube.value : null}
-        />
+        <View style={[styles.panel, { height: layout.panel, width: panelWidth }]}>
+          <ScrollView contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
+            {game.watch ? (
+              <CoachWatchPanel
+                verdict={game.watch}
+                lastFree={game.watchLeft === 0}
+                onPlayAnyway={() => game.answerWatch('play')}
+                compact={layout.compact}
+              />
+            ) : game.hint ? (
+              <CoachHintBubble hint={game.hint} following={game.hintMoves !== null} compact={layout.compact} />
+            ) : status ? (
+              <Animated.View key={status.text} style={FADE_IN}>
+                <AppText
+                  variant={layout.compact ? 'smallStrong' : 'bodyStrong'}
+                  align="center"
+                  testID="game-status"
+                  color={STATUS_COLOR[status.tone]}
+                >
+                  {status.text}
+                </AppText>
+              </Animated.View>
+            ) : null}
+          </ScrollView>
+        </View>
+        <View style={styles.spacer} />
       </View>
 
-      <View style={styles.statusWrap}>
-        {game.watch ? (
-          <CoachWatchPanel verdict={game.watch} lastFree={game.watchLeft === 0} onPlayAnyway={() => game.answerWatch('play')} />
-        ) : game.hint ? (
-          <CoachHintBubble hint={game.hint} following={game.hintMoves !== null} />
-        ) : (
-          <AppText variant="bodyStrong" align="center" testID="game-status" color={game.message && !game.dancing ? 'text' : 'textSecondary'}>
-            {status}
-          </AppText>
-        )}
-      </View>
-
-      <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+      <View style={[styles.actions, { height: layout.actions + layout.bottomInset, paddingBottom: layout.bottomInset }]}>
         {state.phase === 'opening' ? (
           <Button testID="roll-opening" label="Roll to start" icon="dice-multiple" onPress={game.rollOpening} />
         ) : state.phase === 'rolling' && humanTurn ? (
           <View style={styles.row}>
             {canDouble(state) ? (
               <View style={styles.flex}>
-                <Button testID="double" label={`Double to ${state.cube.value * 2}`} variant="secondary" onPress={game.double} />
+                <Button testID="double" label={`Double to ${state.cube.value * 2}`} variant="secondary" dense={narrow} onPress={game.double} />
               </View>
             ) : null}
             <View style={styles.flex}>
-              <Button testID="roll" label="Roll" icon="dice-multiple" onPress={game.roll} />
+              <Button testID="roll" label="Roll" icon="dice-multiple" dense={narrow} onPress={game.roll} />
             </View>
           </View>
         ) : game.watch ? (
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Button testID="coach-watch-retry" label="Try again" variant="secondary" onPress={() => game.answerWatch('retry')} />
+              <Button testID="coach-watch-retry" label="Try again" variant="secondary" dense={narrow} onPress={() => game.answerWatch('retry')} />
             </View>
             <View style={styles.flex}>
-              <Button testID="coach-watch-show" label="Show me" icon="lightbulb-on-outline" onPress={() => game.answerWatch('show')} />
+              <Button
+                testID="coach-watch-show"
+                label="Show me"
+                icon={narrow ? undefined : 'lightbulb-on-outline'}
+                dense={narrow}
+                onPress={() => game.answerWatch('show')}
+              />
             </View>
           </View>
         ) : state.phase === 'moving' && humanTurn && !game.dancing ? (
@@ -219,27 +240,36 @@ export function GameScreen() {
               <Button
                 testID="undo"
                 label="Undo"
-                icon="undo-variant"
+                icon={narrow ? undefined : 'undo-variant'}
+                dense={narrow}
                 variant="secondary"
                 disabled={!turn || turn.moves.length === 0 || game.busy}
                 onPress={game.undo}
               />
             </View>
             <View style={styles.flex}>
-              <Button testID="done" label="Done" icon="check-bold" disabled={!canEndTurn(state) || game.busy} onPress={game.endTurn} />
+              <Button
+                testID="done"
+                label="Done"
+                icon={narrow ? undefined : 'check-bold'}
+                dense={narrow}
+                disabled={!canEndTurn(state) || game.busy}
+                onPress={game.endTurn}
+              />
             </View>
           </View>
         ) : state.phase === 'doubling' && state.doubleOfferedBy === 'player2' ? (
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Button testID="drop" label="Drop" variant="secondary" onPress={() => game.respondToDouble(false)} />
+              <Button testID="drop" label="Drop" variant="secondary" dense={narrow} onPress={() => game.respondToDouble(false)} />
             </View>
             <View style={styles.flex}>
-              <Button testID="take" label="Take" onPress={() => game.respondToDouble(true)} />
+              <Button testID="take" label="Take" dense={narrow} onPress={() => game.respondToDouble(true)} />
             </View>
           </View>
-        ) : (
-          <View style={styles.placeholder} />
+        ) : state.phase === 'finished' ? null : (
+          // The opponent is playing (or the turn is passing): the next move is yours.
+          <Button testID="roll-waiting" label="Roll" icon="dice-multiple" variant="secondary" disabled />
         )}
       </View>
 
@@ -312,20 +342,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
-    height: 56,
     width: '100%',
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: 'center',
   },
   title: { flex: 1, alignItems: 'center' },
-  boardArea: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
-  board: { alignItems: 'center' },
-  statusWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: SCREEN_GUTTER,
-    minHeight: 56,
-  },
+  middle: { flex: 1, alignItems: 'center' },
+  spacer: { flex: 1 },
+  table: { alignItems: 'stretch' },
+  panel: { justifyContent: 'center' },
+  panelContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: spacing.xs },
   actions: {
     paddingHorizontal: SCREEN_GUTTER,
     paddingTop: spacing.sm,
@@ -335,5 +361,4 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  placeholder: { height: 60 },
 });

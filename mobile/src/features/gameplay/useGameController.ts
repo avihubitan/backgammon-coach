@@ -34,6 +34,7 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
 import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllows } from './coachWatch';
 import { gameXp } from './gameModel';
+import { opponentFor } from './opponents';
 import { aiStepDelay, PLAYER_PASS_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
@@ -67,6 +68,9 @@ export function useGameController() {
   const updateState = useGameStore((store) => store.updateState);
   const [selected, setSelected] = useState<MoveSource | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<'info' | 'warning'>('info');
+  // Changes on every refused tap, so the board can give a small "no".
+  const [refusals, setRefusals] = useState(0);
   const [busy, setBusy] = useState(false);
   const [rollId, setRollId] = useState(0);
   const [lastAiPlay, setLastAiPlay] = useState<{ moves: CheckerMove[]; text: string } | null>(null);
@@ -85,6 +89,12 @@ export function useGameController() {
 
   const state = active?.state ?? null;
   const level = active?.settings.level ?? 'beginner';
+  const opponent = opponentFor(level);
+
+  const say = (text: string, tone: 'info' | 'warning' = 'info') => {
+    setMessage(text);
+    setMessageTone(tone);
+  };
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -161,7 +171,7 @@ export function useGameController() {
       if (!current) return;
       if (current.phase === 'doubling') {
         const take = aiShouldTake(current.board, 'player1', level);
-        setMessage(take ? 'The computer takes your double.' : 'The computer drops. You win the game!');
+        say(take ? `${opponent.name} takes your double.` : `${opponent.name} drops. You win the game!`);
         dispatch({ type: take ? 'take' : 'drop' });
         return;
       }
@@ -183,8 +193,8 @@ export function useGameController() {
           const moves = current.turn.moves;
           setLastAiPlay(
             moves.length > 0
-              ? { moves, text: `Computer played ${formatPlay('player2', moves)}` }
-              : { moves, text: 'The computer couldn’t move.' },
+              ? { moves, text: `${opponent.name} played ${formatPlay('player2', moves)}.` }
+              : { moves, text: `${opponent.name} couldn’t move.` },
           );
           aiPlan.current = null;
           dispatch({ type: 'end-turn' });
@@ -237,9 +247,9 @@ export function useGameController() {
     const dice: [ReturnType<typeof rollDie>, ReturnType<typeof rollDie>] = [rollDie(), rollDie()];
     const next = dispatch({ type: 'opening-roll', dice }, { openingRoll: { player1: dice[0], player2: dice[1] } });
     setRollId((id) => id + 1);
-    if (dice[0] === dice[1]) setMessage(`You both rolled ${dice[0]}. Roll again!`);
-    else if (dice[0] > dice[1]) setMessage(`You rolled ${dice[0]}, the computer rolled ${dice[1]}. You start!`);
-    else setMessage(`The computer rolled ${dice[1]}, you rolled ${dice[0]}. The computer starts.`);
+    if (dice[0] === dice[1]) say(`You both rolled ${dice[0]}. Roll again!`);
+    else if (dice[0] > dice[1]) say(`You rolled ${dice[0]}, ${opponent.name} rolled ${dice[1]}. You start!`);
+    else say(`${opponent.name} rolled ${dice[1]}, you rolled ${dice[0]}. ${opponent.name} starts.`);
     autoSelect(next);
   };
 
@@ -257,14 +267,15 @@ export function useGameController() {
     const current = latestState();
     if (!current || !canDouble(current) || current.currentPlayer !== 'player1') return;
     haptics.medium();
-    setMessage('You offered a double…');
+    say('You offered a double…');
     dispatch({ type: 'double' });
   };
 
   const respondToDouble = (take: boolean) => {
     const current = latestState();
     if (!current || current.phase !== 'doubling' || current.doubleOfferedBy !== 'player2') return;
-    setMessage(take ? 'You took. The stakes are doubled and you own the cube.' : null);
+    if (take) say('You took. The stakes are doubled and you own the cube.');
+    else setMessage(null);
     dispatch({ type: take ? 'take' : 'drop' });
   };
 
@@ -312,7 +323,8 @@ export function useGameController() {
       case 'invalid':
         haptics.warning();
         setSelected(null);
-        setMessage(result.reason);
+        say(result.reason, 'warning');
+        setRefusals((count) => count + 1);
         break;
       case 'ignore':
         break;
@@ -379,7 +391,7 @@ export function useGameController() {
     autoSelect(next);
     if (!pending) return;
     if (choice === 'show') setHint({ turn: pending.turn, hint: pending.verdict.hint });
-    else setMessage(`Have another look. ${pending.verdict.clue}`);
+    else say(`Have another look. ${pending.verdict.clue}`);
   };
 
   const resign = () => {
@@ -439,6 +451,10 @@ export function useGameController() {
     targets,
     legal,
     message: dancing ? 'No legal moves. Your turn passes.' : message,
+    messageTone: dancing ? ('info' as const) : messageTone,
+    /** Changes whenever a tap is refused (the board shakes its head). */
+    refusals,
+    opponent,
     dancing,
     busy,
     rollId,

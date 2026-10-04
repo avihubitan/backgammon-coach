@@ -8,7 +8,7 @@ import { colors, radii, spacing } from '@/theme';
 import type { CoachHint } from '../coachHint';
 
 /** The coach's suggestion, shown where the turn status usually is. */
-export function CoachHintBubble({ hint, following }: { hint: CoachHint; following: boolean }) {
+export function CoachHintBubble({ hint, following, compact = false }: { hint: CoachHint; following: boolean; compact?: boolean }) {
   return (
     <Animated.View
       testID="coach-hint"
@@ -29,7 +29,7 @@ export function CoachHintBubble({ hint, following }: { hint: CoachHint; followin
           </AppText>
         </AppText>
       </View>
-      <AppText variant="small" color="textSecondary">
+      <AppText variant={compact ? 'caption' : 'small'} color="textSecondary">
         {following ? hint.reason : 'You played something else. Tap Hint again to take it back and follow the arrows.'}
       </AppText>
     </Animated.View>
@@ -38,8 +38,9 @@ export function CoachHintBubble({ hint, following }: { hint: CoachHint; followin
 
 const styles = StyleSheet.create({
   bubble: {
-    gap: 4,
-    padding: spacing.md,
+    gap: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radii.lg,
     backgroundColor: colors.primarySoft,
     borderWidth: 1,

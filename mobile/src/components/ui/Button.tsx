@@ -29,6 +29,8 @@ interface ButtonProps {
   iconOnly?: boolean;
   /** A small count in the corner (e.g. uses left). */
   badge?: string | number | null;
+  /** Tighter side padding and smaller type, for rows of buttons on narrow phones. */
+  dense?: boolean;
 }
 
 const VARIANTS: Record<ButtonVariant, { face: string; edge: string; text: string; border?: string }> = {
@@ -64,6 +66,7 @@ export function Button({
   testID,
   iconOnly,
   badge,
+  dense,
 }: ButtonProps) {
   const palette = disabled
     ? { face: colors.locked, edge: '#1C2027', text: colors.lockedText, border: undefined }
@@ -108,7 +111,7 @@ export function Button({
                 styles.face,
                 {
                   height: metrics.height,
-                  paddingHorizontal: iconOnly ? 0 : metrics.paddingHorizontal,
+                  paddingHorizontal: iconOnly ? 0 : dense ? 10 : metrics.paddingHorizontal,
                   width: iconOnly ? metrics.height : undefined,
                   backgroundColor: palette.face,
                   borderRadius: radii.lg,
@@ -127,7 +130,7 @@ export function Button({
                     <AppText
                       variant="button"
                       color={palette.text}
-                      style={size === 'small' ? styles.smallLabel : undefined}
+                      style={size === 'small' || dense ? styles.smallLabel : undefined}
                       numberOfLines={1}
                     >
                       {label.toUpperCase()}
