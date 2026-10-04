@@ -92,7 +92,13 @@ export function useGameController() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const recordedFor = useRef<string | null>(null);
   // A hint belongs to one turn: it stops showing as soon as the turn changes.
-  const [hint, setHint] = useState<{ turn: string; hint: CoachHint } | null>(null);
+  const [hint, setHintState] = useState<{ turn: string; hint: CoachHint } | null>(null);
+  // Mirrors `hint` for handlers: two quick presses must not pay for the same hint twice.
+  const hintNow = useRef<{ turn: string; hint: CoachHint } | null>(null);
+  const setHint = (next: { turn: string; hint: CoachHint } | null) => {
+    hintNow.current = next;
+    setHintState(next);
+  };
   const access = useFeatureAccess();
   const hintLimit = access.hintsPerGame();
   const watchLimit = access.coachWatchPerGame();
@@ -421,7 +427,7 @@ export function useGameController() {
     const applies = coachWatchApplies({
       enabled: useSettingsStore.getState().coachWatch,
       alreadyChecked: checkedTurn.current === key,
-      askedForHint: hint?.turn === key,
+      askedForHint: hintNow.current?.turn === key,
       used: game.watchUsed ?? 0,
       limit,
     });
@@ -483,7 +489,7 @@ export function useGameController() {
     if (busy || !current || !game || current.phase !== 'moving' || current.currentPlayer !== 'player1') return 'unavailable';
     if (!current.turn || current.turn.requiredMoves === 0) return 'unavailable';
     const key = turnKey(game.id, game.gameNumber, current.history.length);
-    let shown = hint?.turn === key ? hint.hint : null;
+    let shown = hintNow.current?.turn === key ? hintNow.current.hint : null;
     if (!shown) {
       const limit = currentFeatureAccess().hintsPerGame();
       const used = game.hintsUsed ?? 0;

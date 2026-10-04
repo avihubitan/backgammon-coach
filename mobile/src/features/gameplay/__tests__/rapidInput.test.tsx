@@ -100,6 +100,15 @@ describe('fast hands', () => {
     expect(crashReporter.captureException).not.toHaveBeenCalled();
   });
 
+  it('counts one hint for a double tap on Hint', () => {
+    open([3, 1]);
+    act(() => {
+      game().requestHint();
+      game().requestHint();
+    });
+    expect(useGameStore.getState().active!.hintsUsed).toBe(1);
+  });
+
   it('ends the turn once for a double tap on Done', () => {
     open([3, 1]);
     act(() => game().tap(8));
