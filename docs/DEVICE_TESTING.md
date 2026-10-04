@@ -123,6 +123,11 @@ Run every flow on every phone with a preview build. Note pass/fail and anything 
   the computer replays its turn and the game goes on (this used to freeze, or crash a release
   build).
 - The result sheet fits on the small iPhone, with "How was this game?".
+- Game feel (judge on the phone, not the simulator): the opening dice land on both halves and slide
+  together; doubles pop in with a sparkle and a haptic; checkers lift, fly and land without
+  stutter on the low-end Android; the "Your turn" / "Thinking" badges are clear at a glance; the
+  opponent's lines are occasional, not chatty; a win ends with the board's "You win!" before the
+  sheet, a loss with "Good game".
 
 **Flow 4: coach.** Game → mistake → Coach Watch → review → practise the position → practice.
 - The review shows your move, the coach's move, why, and what could have happened.

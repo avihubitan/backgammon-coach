@@ -9,6 +9,29 @@ The next step is the first preview build on a physical phone, and it waits on an
 Nothing has been checked on a physical phone yet. After that comes the closed beta (20–50 testers):
 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) has the status table.
 
+### Gameplay polish (done)
+The game itself was reworked to feel like a real match rather than an exercise, after a recorded
+audit of seeded games at 320, 375, 390 and 430 pt. Engine and AI strength untouched; every change
+is presentation, timing or wording, with tests for the pure parts.
+- **Table:** the board sits in the middle of the screen between two seats (the opponent's face and
+  name, you with your own checker); the active seat lights up with "Your turn" or "Thinking".
+  `gameLayout` shares the height (full-width board whenever it fits; tested on seven phone shapes)
+  and the coach's panel sits under the board without moving it. Fixed at 320x568: Coach Watch
+  overlapped the buttons and labels were cut.
+- **Opponents:** Niko (Beginner, friendly), Leyla (Intermediate, confident), Viktor (Advanced,
+  calm), presentation only. A greeting, a few rate-limited lines on hits and doubles, a goodbye;
+  never mocking after a loss (tested).
+- **Start:** the table and checkers settle in; the opening roll throws one die on each half (ties
+  shown), lights the winner and slides both dice together as the first roll.
+- **Dice and board:** dice with depth and readable dark dice; doubles pop in as a pair with a
+  sparkle, a haptic and "Doubles! You play four 5s."; brass and ivory move markers instead of neon
+  mint; a coral "no" where a tap is refused; hits spelled out; a glint for each checker borne off.
+- **Pace:** the computer's turn went from a median of 2.63 s to 1.96 s (max 3.71 s to 3.11 s) on
+  the same seeded game, with the same long tasks and dropped frames (`turnPacing`, tested).
+- **End:** the last checker lands, the board says "You win!" (confetti) or "Good game", the
+  opponent says goodbye, then the sheet rises; after a loss it leads with "Review with coach".
+- **Play tab:** "Play Niko" right under the opponents; options below.
+
 ### Device-readiness pass (before the first build)
 Risks that only show on phones, found by review and reproduced in the browser, each fixed with a
 regression test:
