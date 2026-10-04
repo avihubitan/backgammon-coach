@@ -1,5 +1,6 @@
 import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json';
 
+import { generatorFor } from '@/features/practice/generators';
 import { buildDrillSession, drillToStep, raceQuestion } from '@/features/practice/practiceModel';
 import { boardFromSetup, goalMet, solutionMoves } from '@/features/lessons/engine/evaluate';
 import { applyMove, createBoard, createRng, getLegalPlays, validateBoard } from '@/game';
@@ -15,10 +16,19 @@ describe('drill catalogue', () => {
     }
   });
 
-  it('offers enough drills for a session in every move category', () => {
+  it('has hand-picked positions for every level that isn’t generated', () => {
     for (const category of DRILL_CATEGORIES) {
-      if (category.id === 'race') continue;
-      expect(drillsFor(category.id).length).toBeGreaterThanOrEqual(5);
+      for (const level of category.levels) {
+        if (generatorFor(category.id, level.id)) continue;
+        expect(drillsFor(category.id).filter((drill) => (drill.level ?? 'classics') === level.id).length).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('files every hand-picked drill under one of its category’s levels', () => {
+    for (const drill of ALL_MOVE_DRILLS) {
+      const category = DRILL_CATEGORIES.find((info) => info.id === drill.category)!;
+      expect(category.levels.map((level) => level.id)).toContain(drill.level ?? 'classics');
     }
   });
 });

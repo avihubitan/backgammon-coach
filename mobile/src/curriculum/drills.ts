@@ -11,7 +11,19 @@ import type { MoveGoal } from './types';
  * hit, play safe, make a point…) that is checked by the rules engine, so the
  * answer is never a matter of opinion.
  */
-export type DrillCategory = 'hitting' | 'safety' | 'points' | 'bear-off' | 'race' | 'opening';
+export type DrillCategory =
+  | 'board'
+  | 'read'
+  | 'hitting'
+  | 'shots'
+  | 'safety'
+  | 'points'
+  | 'primes'
+  | 'anchors'
+  | 'escape'
+  | 'race'
+  | 'bear-off'
+  | 'opening';
 
 export interface TacticalDrill {
   id: string;
@@ -28,6 +40,24 @@ export interface TacticalDrill {
   skill?: SkillId;
   /** A lesson this drill needs beyond its category's, when it uses a later idea. */
   requiresLesson?: string;
+  /** The level it belongs to (default: the category's hand-picked 'classics'). */
+  level?: string;
+}
+
+/**
+ * A step up within a drill: first contact with the idea, then harder
+ * versions. Levels unlock with lessons and open one by one as the learner
+ * gets them right.
+ */
+export interface DrillLevel {
+  id: string;
+  title: string;
+  /** A lesson this level needs beyond the category's own. */
+  requiresLesson?: string;
+  /** The skill this level trains, when it isn't its category's. */
+  skill?: SkillId;
+  /** A speed level: answer within this many seconds. */
+  targetSeconds?: number;
 }
 
 export interface DrillCategoryInfo {
@@ -42,9 +72,51 @@ export interface DrillCategoryInfo {
   alsoTrains?: SkillId[];
   /** The lesson that teaches it: the drills unlock once it's completed. */
   requiresLesson: string;
+  /** Easiest first. Generated levels make fresh positions every time; 'classics' are hand-picked. */
+  levels: DrillLevel[];
+  /** Every session mixes all open levels (a routine to rehearse, rather than steps to climb). */
+  mixLevels?: boolean;
 }
 
+/** In learning-path order. */
 export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
+  {
+    id: 'board',
+    title: 'Find the point',
+    description: 'Spot any point at a glance.',
+    icon: 'map-marker-radius',
+    color: '#38BDF8',
+    skill: 'board',
+    requiresLesson: 'board-2',
+    levels: [
+      { id: 'numbers', title: 'Numbers on' },
+      { id: 'hidden', title: 'Numbers off' },
+      { id: 'landing', title: 'Where does it land?', requiresLesson: 'board-5', skill: 'rules' },
+      { id: 'names', title: 'Points by name', requiresLesson: 'points-1' },
+    ],
+  },
+  {
+    id: 'read',
+    title: 'Position check',
+    description: 'Ask the right questions before you move.',
+    icon: 'magnify',
+    color: '#FBBF24',
+    skill: 'board',
+    requiresLesson: 'hitting-1',
+    mixLevels: true,
+    levels: [
+      { id: 'blots', title: 'Where are your blots?', skill: 'hitting' },
+      { id: 'can-hit', title: 'Can you hit?', requiresLesson: 'hitting-2', skill: 'hitting' },
+      { id: 'shots', title: 'How many shots?', requiresLesson: 'hitting-4', skill: 'shots' },
+      { id: 'make-point', title: 'Can you make a point?', requiresLesson: 'points-1', skill: 'points' },
+      { id: 'wall', title: 'How long is your wall?', requiresLesson: 'points-3', skill: 'primes' },
+      { id: 'anchor', title: 'Do you have an anchor?', requiresLesson: 'position-1', skill: 'anchors' },
+      { id: 'trapped', title: 'Are you getting trapped?', requiresLesson: 'position-2', skill: 'escaping' },
+      { id: 'bear-off', title: 'Can you bear off?', requiresLesson: 'bearoff-1', skill: 'bear-off' },
+      { id: 'race', title: 'Race or fight?', requiresLesson: 'bearoff-4', skill: 'racing' },
+      { id: 'leader', title: 'Who leads the race?', requiresLesson: 'bearoff-4', skill: 'pips' },
+    ],
+  },
   {
     id: 'hitting',
     title: 'Find the hit',
@@ -53,6 +125,28 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     color: '#FF8A3D',
     skill: 'hitting',
     requiresLesson: 'hitting-3',
+    levels: [
+      { id: 'one-number', title: 'One number hits' },
+      { id: 'both-dice', title: 'Both dice together' },
+      { id: 'from-bar', title: 'Enter and hit' },
+      { id: 'hunt', title: 'Hunt them down' },
+      { id: 'classics', title: 'Hand-picked hits' },
+    ],
+  },
+  {
+    id: 'shots',
+    title: 'Count the shots',
+    description: 'How risky is that blot?',
+    icon: 'crosshairs-question',
+    color: '#FF6B8A',
+    skill: 'shots',
+    requiresLesson: 'hitting-4',
+    levels: [
+      { id: 'can-hit', title: 'Can they hit it?' },
+      { id: 'direct', title: 'Direct or indirect?' },
+      { id: 'count', title: 'Count the rolls' },
+      { id: 'fewer', title: 'Which leaves fewer shots?', requiresLesson: 'points-2' },
+    ],
   },
   {
     id: 'safety',
@@ -62,15 +156,85 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     color: '#62B6FF',
     skill: 'safety',
     requiresLesson: 'points-2',
+    levels: [
+      { id: 'classics', title: 'Hand-picked' },
+      { id: 'no-blots', title: 'Leave no blots' },
+    ],
   },
   {
     id: 'points',
     title: 'Make points',
-    description: 'Build your board and anchors.',
+    description: 'Make the points that matter.',
     icon: 'wall',
     color: '#B98CFF',
     skill: 'points',
     requiresLesson: 'points-1',
+    levels: [
+      { id: 'classics', title: 'Hand-picked' },
+      { id: 'make', title: 'Make the point' },
+    ],
+  },
+  {
+    id: 'primes',
+    title: 'Walls & primes',
+    description: 'Spot the wall, then finish it.',
+    icon: 'fence',
+    color: '#A78BFA',
+    skill: 'primes',
+    requiresLesson: 'points-3',
+    levels: [
+      { id: 'length', title: 'How long is the wall?' },
+      { id: 'gap', title: 'Find the gap' },
+      { id: 'build', title: 'Complete the prime' },
+      { id: 'wall-race', title: 'Build it in time' },
+    ],
+  },
+  {
+    id: 'anchors',
+    title: 'Anchors',
+    description: 'Find and make a safe base.',
+    icon: 'anchor',
+    color: '#22D3EE',
+    skill: 'anchors',
+    requiresLesson: 'position-1',
+    levels: [
+      { id: 'spot', title: 'Spot the anchor' },
+      { id: 'make', title: 'Make an anchor' },
+      { id: 'classics', title: 'Hand-picked' },
+    ],
+  },
+  {
+    id: 'escape',
+    title: 'Run for it',
+    description: 'Get your back checkers out in time.',
+    icon: 'run-fast',
+    color: '#F472B6',
+    skill: 'escaping',
+    requiresLesson: 'position-2',
+    levels: [
+      { id: 'classics', title: 'Hand-picked' },
+      { id: 'run', title: 'Escape in time' },
+    ],
+  },
+  {
+    id: 'race',
+    title: 'Who’s ahead?',
+    description: 'Count the race and read it.',
+    icon: 'counter',
+    color: '#3DD68C',
+    skill: 'pips',
+    alsoTrains: ['racing'],
+    requiresLesson: 'bearoff-4',
+    levels: [
+      { id: 'closer', title: 'Who’s closer?' },
+      { id: 'small', title: 'Count a few checkers' },
+      { id: 'contact', title: 'Race or not?', skill: 'racing' },
+      { id: 'home', title: 'Race home', skill: 'racing' },
+      { id: 'compare', title: 'Compare two sides' },
+      { id: 'full', title: 'Count a full board' },
+      { id: 'quick', title: 'Quick count', targetSeconds: 20 },
+      { id: 'favourite', title: 'Who’s the favourite?', requiresLesson: 'racing-1', skill: 'racing' },
+    ],
   },
   {
     id: 'bear-off',
@@ -80,16 +244,11 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     color: '#F3B847',
     skill: 'bear-off',
     requiresLesson: 'bearoff-3',
-  },
-  {
-    id: 'race',
-    title: 'Who’s ahead?',
-    description: 'Count pips in a race.',
-    icon: 'counter',
-    color: '#3DD68C',
-    skill: 'pips',
-    alsoTrains: ['racing'],
-    requiresLesson: 'bearoff-4',
+    levels: [
+      { id: 'classics', title: 'Hand-picked' },
+      { id: 'most', title: 'Most checkers off' },
+      { id: 'clear', title: 'Clear the board' },
+    ],
   },
   {
     id: 'opening',
@@ -99,8 +258,14 @@ export const DRILL_CATEGORIES: DrillCategoryInfo[] = [
     color: '#5FD3E8',
     skill: 'openings',
     requiresLesson: 'openings-2',
+    levels: [
+      { id: 'point-makers', title: 'Point-making rolls' },
+      { id: 'every-roll', title: 'Every roll' },
+    ],
   },
 ];
+
+export const getDrillCategory = (id: string): DrillCategoryInfo | undefined => DRILL_CATEGORIES.find((info) => info.id === id);
 
 const BASE_P2: BoardSpec['player2'] = { 1: 2, 12: 4, 17: 3, 19: 5 };
 
@@ -225,7 +390,7 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
   },
   {
     id: 'safe-5',
-    category: 'safety',
+    category: 'escape',
     difficulty: 2,
     prompt: 'You rolled **6-5**. Get your last back checker to safety.',
     position: { player1: { 24: 1, 13: 5, 8: 3, 6: 5 }, player2: BASE_P2 },
@@ -233,8 +398,28 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
     goal: { type: 'safe' },
     solution: '24/13',
     explanation: 'The lover’s leap: 24/18/13 brings the straggler all the way to your mid-point.',
-    skill: 'escaping',
-    requiresLesson: 'position-2',
+  },
+  {
+    id: 'escape-2',
+    category: 'escape',
+    difficulty: 2,
+    prompt: 'You rolled **6-5**. Their wall is growing: get your last back checker out to safety.',
+    position: { player1: { 21: 1, 13: 4, 10: 2, 8: 3, 6: 5 }, player2: { 22: 2, 20: 2, 19: 3, 17: 2, 16: 2, 12: 4 } },
+    dice: [6, 5],
+    goal: { type: 'safe' },
+    solution: '21/10',
+    explanation: '21/15/10 jumps their points and lands on your own: out, and safe.',
+  },
+  {
+    id: 'escape-3',
+    category: 'escape',
+    difficulty: 2,
+    prompt: 'You rolled **5-4**. Run your back checker all the way to safety.',
+    position: { player1: { 22: 1, 13: 5, 8: 3, 6: 4, 4: 2 }, player2: { 23: 2, 20: 2, 19: 3, 16: 2, 12: 4, 1: 2 } },
+    dice: [5, 4],
+    goal: { type: 'safe' },
+    solution: '22/13',
+    explanation: '22/17/13 slips past their points and joins your mid-point.',
   },
 
   // Making points --------------------------------------------------------------
@@ -262,7 +447,7 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
   },
   {
     id: 'points-3',
-    category: 'points',
+    category: 'anchors',
     difficulty: 2,
     prompt: 'You rolled **3-2**. Make an **anchor** in your opponent’s home board.',
     position: { player1: { 24: 1, 21: 1, 13: 5, 8: 3, 6: 5 }, player2: BASE_P2 },
@@ -270,8 +455,28 @@ export const TACTICAL_DRILLS: TacticalDrill[] = [
     goal: { type: 'make-point', point: 21 },
     solution: '24/21 13/11',
     explanation: 'Your back checkers team up on the 21-point: an anchor they can always land on.',
-    skill: 'anchors',
-    requiresLesson: 'position-1',
+  },
+  {
+    id: 'anchor-2',
+    category: 'anchors',
+    difficulty: 2,
+    prompt: 'You rolled **4-4**. Make an anchor on their **5-point** (your 20-point).',
+    position: { player1: { 24: 2, 13: 5, 8: 3, 6: 5 }, player2: BASE_P2 },
+    dice: [4, 4],
+    goal: { type: 'make-point', point: 20 },
+    solution: '24/20(2) 13/9(2)',
+    explanation: 'Both back checkers step up together: their best point becomes your safe base.',
+  },
+  {
+    id: 'anchor-3',
+    category: 'anchors',
+    difficulty: 3,
+    prompt: 'You’re on the bar with **5-3**. Enter and make an anchor.',
+    position: { player1: { 22: 1, 13: 5, 8: 3, 6: 5 }, player2: { 1: 2, 12: 4, 17: 3, 19: 4, 21: 1 }, bar: { player1: 1 } },
+    dice: [5, 3],
+    goal: { type: 'make-point', point: 22 },
+    solution: 'bar/22 13/8',
+    explanation: 'The 3 enters on the 22-point, right beside your other back checker: an anchor in one move.',
   },
   {
     id: 'points-4',
@@ -387,6 +592,7 @@ export const OPENING_DRILLS: TacticalDrill[] = Object.entries(OPENING_PLAYS)
       goal: { type: 'plays', plays: [play] },
       solution: play,
       explanation: `${play}. ${OPENING_REASONS[key]}`,
+      level: ['3-1', '4-2', '6-1', '5-3'].includes(key) ? 'point-makers' : 'every-roll',
     };
   });
 

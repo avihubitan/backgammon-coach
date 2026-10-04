@@ -7,7 +7,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { getLesson } from '@/curriculum';
-import { DRILL_CATEGORIES, type DrillCategory } from '@/curriculum/drills';
+import { DRILL_CATEGORIES, getDrillCategory, type DrillCategory } from '@/curriculum/drills';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
 import { exerciseXp } from '@/features/learning/progression';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
@@ -21,6 +21,7 @@ import { useProgressStore } from '@/state/progressStore';
 import { skillOfDrill } from '@/features/skills/extract';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
+import { levelProgress, type LevelProgress } from './drillLevels';
 import { isMastered, pickForPractice, withFocus } from './mistakes';
 import { PracticeComplete } from './PracticeComplete';
 import {
@@ -43,7 +44,16 @@ function buildSession(kind: PracticeKind, seed: number, focus?: string): Practic
     return picks.length > 0 ? buildMistakeSession(picks) : null;
   }
   const lessons = useProgressStore.getState().lessons;
-  return buildDrillSession(kind, seed, SESSION_LENGTH, (lessonId) => !!lessons[lessonId]?.completed);
+  const levels = usePracticeStore.getState().records[kind]?.levels ?? {};
+  return buildDrillSession(kind, seed, SESSION_LENGTH, (lessonId) => !!lessons[lessonId]?.completed, levels);
+}
+
+/** The drill's level right now: compared before and after a session to celebrate a level-up. */
+function currentDrillLevel(kind: PracticeKind): LevelProgress | null {
+  const info = getDrillCategory(kind);
+  if (!info) return null;
+  const lessons = useProgressStore.getState().lessons;
+  return levelProgress(info, (lessonId) => !!lessons[lessonId]?.completed, usePracticeStore.getState().records[kind]?.levels ?? {});
 }
 
 export interface PracticeResult {
@@ -51,6 +61,9 @@ export interface PracticeResult {
   reward: Reward;
   xp: number;
   mastered: number;
+  /** The drill's level after the session, and whether this session moved it up. */
+  level: LevelProgress | null;
+  levelUp: boolean;
 }
 
 /** A short practice run: five drills from one skill, or positions from your own games. */
@@ -165,7 +178,16 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
         progress.recordPracticeSession();
         // A finished session keeps the streak going, even if every answer was shown.
         const reward = progress.awardXp(xp, {}, true);
-        usePracticeStore.getState().recordSession(kind as PracticeKind, outcome.firstTryCorrect);
+        const before = currentDrillLevel(kind as PracticeKind);
+        const levelResults = session.steps
+          .filter((step) => session.levelOf[step.id])
+          .map((step) => {
+            const answer = state.outcomes[step.id];
+            return { level: session.levelOf[step.id], firstTry: !!answer?.solved && !answer.revealed && answer.mistakes === 0 };
+          });
+        usePracticeStore.getState().recordSession(kind as PracticeKind, outcome.firstTryCorrect, undefined, levelResults);
+        const after = currentDrillLevel(kind as PracticeKind);
+        const levelUp = !getDrillCategory(kind)?.mixLevels && !!before && !!after && after.number > before.number;
         reportChallengeEvent({ type: 'practice-session', category: kind as PracticeKind });
         analytics.track('practice_session_completed', {
           kind,
@@ -182,7 +204,7 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
           kind === 'mistakes'
             ? session.steps.filter((step) => saved.some((mistake) => mistake.id === step.id && isMastered(mistake))).length
             : 0;
-        setResult({ outcome, reward, xp, mastered });
+        setResult({ outcome, reward, xp, mastered, level: getDrillCategory(kind)?.mixLevels ? null : after, levelUp });
       }}
     />
   );

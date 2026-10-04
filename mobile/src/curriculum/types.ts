@@ -112,7 +112,7 @@ export interface ChoiceOption {
   correct?: boolean;
   /** Why this option is right or wrong. */
   explanation: string;
-  /** Optional notation shown as arrows when this option is focused. */
+  /** A play in notation: the learner sees it as arrows when they pick the option, then confirms. */
   play?: string;
 }
 
@@ -122,6 +122,8 @@ export interface ChoiceStep extends StepBase {
   prompt: string;
   board?: BoardSetup;
   options: ChoiceOption[];
+  /** A speed goal: a timer runs down while the learner thinks. It never changes the score. */
+  targetSeconds?: number;
 }
 
 export type CubeAnswer = 'double' | 'no-double' | 'take' | 'drop';
@@ -137,13 +139,26 @@ export interface CubeStep extends StepBase {
   explanations: Partial<Record<CubeAnswer, string>>;
 }
 
+/** What a mini-game asks for by its last roll. */
+export type ChallengeGoal =
+  /** Every checker borne off. */
+  | { type: 'bear-off-all' }
+  /** Every checker in the home board. */
+  | { type: 'all-home' }
+  /** Every checker past all of theirs: nothing left to hit or be hit. */
+  | { type: 'escape' }
+  /** A wall of at least `length` made points in a row. */
+  | { type: 'prime'; length: number }
+  /** At least `count` of their checkers sent to the bar. */
+  | { type: 'hit'; count: number };
+
 /** A short solo mini-game played over several fixed rolls (e.g. bear everything off). */
 export interface ChallengeStep extends StepBase {
   kind: 'challenge';
   prompt: string;
   board: BoardSetup;
   rolls: [DieValue, DieValue][];
-  goal: { type: 'bear-off-all' } | { type: 'all-home' };
+  goal: ChallengeGoal;
   success: string;
   failure: string;
 }

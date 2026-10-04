@@ -1,37 +1,24 @@
+import type { LessonStep, MoveStep } from '@/curriculum';
 import {
   DRILL_CATEGORIES,
   drillsFor,
+  getDrillCategory,
   type DrillCategory,
   type DrillCategoryInfo,
+  type DrillLevel,
   type TacticalDrill,
 } from '@/curriculum/drills';
-import type { ChoiceStep, LessonStep, MoveStep } from '@/curriculum';
-import { skillOfMistake } from '@/features/skills/extract';
-import {
-  checkersAt,
-  createRng,
-  formatPlay,
-  pipCount,
-  type BoardSpec,
-  type BoardState,
-  type Rng,
-} from '@/game';
 import type { LessonRecords } from '@/features/learning/progression';
+import { skillOfMistake } from '@/features/skills/extract';
+import { createRng, formatPlay, type Rng } from '@/game';
 
+import { openLevels, planLevels, type LessonDone, type LevelStats } from './drillLevels';
+import { generatorFor } from './generators';
+import { specFromBoard } from './generators/pips';
 import type { UserMistake } from './mistakes';
 
-/** Converts a board back into the readable spec format lessons use. */
-export function specFromBoard(board: BoardState): BoardSpec {
-  const player1: Record<number, number> = {};
-  const player2: Record<number, number> = {};
-  for (let point = 1; point <= 24; point++) {
-    const mine = checkersAt(board, point, 'player1');
-    const theirs = checkersAt(board, point, 'player2');
-    if (mine > 0) player1[point] = mine;
-    if (theirs > 0) player2[point] = theirs;
-  }
-  return { player1, player2, bar: { ...board.bar }, off: { ...board.off } };
-}
+export { randomRace, raceQuestion, specFromBoard } from './generators/pips';
+export type { LessonDone } from './drillLevels';
 
 export function drillToStep(drill: TacticalDrill): MoveStep {
   return {
@@ -64,78 +51,6 @@ export function mistakeToStep(mistake: UserMistake): MoveStep {
   };
 }
 
-/** A random pure-race position: player1 in 1..12, player2 in 13..24, no contact. */
-export function randomRace(rng: Rng): BoardState {
-  const place = (player: 'player1' | 'player2'): Record<number, number> => {
-    const spots: Record<number, number> = {};
-    for (let i = 0; i < 15; i++) {
-      // Weighted toward the home board, like a real race.
-      const distance = Math.min(12, 1 + Math.floor(Math.pow(rng(), 1.6) * 12));
-      const point = player === 'player1' ? distance : 25 - distance;
-      spots[point] = (spots[point] ?? 0) + 1;
-    }
-    return spots;
-  };
-  const player1 = place('player1');
-  const player2 = place('player2');
-  const board: BoardState = { points: new Array(25).fill(0), bar: { player1: 0, player2: 0 }, off: { player1: 0, player2: 0 } };
-  for (const [point, count] of Object.entries(player1)) board.points[Number(point)] = count;
-  for (const [point, count] of Object.entries(player2)) board.points[Number(point)] = -count;
-  return board;
-}
-
-export function raceQuestion(rng: Rng, index: number): ChoiceStep {
-  let board = randomRace(rng);
-  for (let tries = 0; tries < 20 && pipCount(board, 'player1') === pipCount(board, 'player2'); tries++) board = randomRace(rng);
-  const mine = pipCount(board, 'player1');
-  const theirs = pipCount(board, 'player2');
-  const id = `race-${index}`;
-  if (index % 2 === 0) {
-    const ahead = mine < theirs;
-    const gap = Math.abs(mine - theirs);
-    return {
-      id,
-      kind: 'choice',
-      prompt: 'Pure race. Count the pips: who is ahead?',
-      board: { position: specFromBoard(board) },
-      options: [
-        {
-          id: 'me',
-          text: 'You are',
-          correct: ahead,
-          explanation: `You need ${mine} pips and your opponent needs ${theirs}. ${ahead ? `You lead by ${gap}.` : `They lead by ${gap}.`}`,
-        },
-        {
-          id: 'them',
-          text: 'Your opponent is',
-          correct: !ahead,
-          explanation: `Your count is ${mine}, theirs is ${theirs}. ${!ahead ? `They lead by ${gap}.` : `Actually you lead by ${gap}.`}`,
-        },
-      ],
-    };
-  }
-  const offsets = [0, mine % 2 === 0 ? 6 : -6, mine % 3 === 0 ? -11 : 9];
-  const options = offsets
-    .map((offset) => mine + offset)
-    .sort(() => rng() - 0.5)
-    .map((value) => ({
-      id: String(value),
-      text: `${value} pips`,
-      correct: value === mine,
-      explanation:
-        value === mine
-          ? `Exactly ${mine}. Count each checker’s distance from home and add them up.`
-          : `Not quite: your pip count is ${mine}. Multiply each point by the checkers on it and add them up.`,
-    }));
-  return {
-    id,
-    kind: 'choice',
-    prompt: 'What is **your** pip count (the light checkers)?',
-    board: { position: specFromBoard(board) },
-    options,
-  };
-}
-
 function shuffle<T>(items: T[], rng: Rng): T[] {
   const copy = items.slice();
   for (let i = copy.length - 1; i > 0; i--) {
@@ -150,32 +65,70 @@ export interface PracticeSession {
   title: string;
   category: DrillCategory | 'mistakes';
   steps: LessonStep[];
+  /** The level each step comes from, for drills (step id → level id). */
+  levelOf: Record<string, string>;
 }
 
 export const SESSION_LENGTH = 5;
 
-/** Whether the learner has finished a lesson (drills that use a later idea wait for its lesson). */
-export type LessonDone = (lessonId: string) => boolean;
 const ALL_DONE: LessonDone = () => true;
 
+/** A level's step, tagged with the skill it trains (and a time to beat on speed levels). */
+function decorate(step: LessonStep, info: DrillCategoryInfo, level: DrillLevel): LessonStep {
+  const skill = step.skill ?? level.skill ?? info.skill;
+  if (step.kind === 'choice' && level.targetSeconds) return { ...step, skill, targetSeconds: level.targetSeconds };
+  return { ...step, skill };
+}
+
+/**
+ * A drill session: questions from the learner's current level (one from a
+ * level they've cleared), generated fresh for each seed or hand-picked.
+ * A level that runs out of hand-picked positions hands over to another open level.
+ */
 export function buildDrillSession(
   category: DrillCategory,
   seed: number,
   length = SESSION_LENGTH,
   done: LessonDone = ALL_DONE,
+  levelStats: Partial<Record<string, LevelStats>> = {},
 ): PracticeSession {
   const rng = createRng(seed);
-  const info = DRILL_CATEGORIES.find((entry) => entry.id === category)!;
-  const available = drillsFor(category).filter((drill) => !drill.requiresLesson || done(drill.requiresLesson));
-  const steps: LessonStep[] =
-    category === 'race'
-      ? Array.from({ length }, (_, index) => ({ ...raceQuestion(rng, index), skill: info.skill }))
-      : shuffle(available, rng).slice(0, length).map(drillToStep);
-  return { id: `drill-${category}-${seed}`, title: info.title, category, steps };
+  const info = getDrillCategory(category)!;
+  const pool = shuffle(
+    drillsFor(category).filter((drill) => !drill.requiresLesson || done(drill.requiresLesson)),
+    rng,
+  );
+  const used = new Set<string>();
+  const stepFor = (level: DrillLevel, index: number): LessonStep | null => {
+    const generate = generatorFor(category, level.id);
+    if (generate) {
+      const step = generate(rng, index);
+      return step ? decorate(step, info, level) : null;
+    }
+    const drill = pool.find((candidate) => !used.has(candidate.id) && (candidate.level ?? 'classics') === level.id);
+    if (!drill) return null;
+    used.add(drill.id);
+    return decorate(drillToStep(drill), info, level);
+  };
+  const open = openLevels(info, done);
+  const steps: LessonStep[] = [];
+  const levelOf: Record<string, string> = {};
+  planLevels(info, done, levelStats, length, rng).forEach((planned, index) => {
+    for (const level of [planned, ...open.filter((other) => other.id !== planned.id)]) {
+      const made = stepFor(level, index);
+      if (!made) continue;
+      // Step ids identify answers within the session, so they must not repeat.
+      const step = levelOf[made.id] ? { ...made, id: `${made.id}-${index}` } : made;
+      steps.push(step);
+      levelOf[step.id] = level.id;
+      return;
+    }
+  });
+  return { id: `drill-${category}-${seed}`, title: info.title, category, steps, levelOf };
 }
 
 export function buildMistakeSession(mistakes: UserMistake[]): PracticeSession {
-  return { id: 'mistakes', title: 'My mistakes', category: 'mistakes', steps: mistakes.map(mistakeToStep) };
+  return { id: 'mistakes', title: 'My mistakes', category: 'mistakes', steps: mistakes.map(mistakeToStep), levelOf: {} };
 }
 
 /** Drill categories the learner has unlocked: the lesson that teaches each one is done. */

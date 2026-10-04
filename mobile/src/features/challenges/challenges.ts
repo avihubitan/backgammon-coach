@@ -1,5 +1,5 @@
 import type { IconName } from '@/components/ui/Icon';
-import type { DrillCategory } from '@/curriculum/drills';
+import { DRILL_CATEGORIES, type DrillCategory, type DrillCategoryInfo } from '@/curriculum/drills';
 
 /**
  * Daily challenges: one small, optional goal per day. Progress comes from
@@ -44,19 +44,10 @@ export interface ChallengeDefinition {
   available: (context: ChallengeContext) => boolean;
 }
 
-const DRILL_TITLES: Record<DrillCategory, string> = {
-  hitting: 'Find the hit',
-  safety: 'Play it safe',
-  points: 'Make points',
-  'bear-off': 'Bear-off speed',
-  race: 'Who’s ahead?',
-  opening: 'Opening moves',
-};
-
-function drillChallenge(category: DrillCategory): ChallengeDefinition {
+function drillChallenge({ id: category, title }: DrillCategoryInfo): ChallengeDefinition {
   return {
     id: `drill-${category}`,
-    title: `Finish a “${DRILL_TITLES[category]}” drill`,
+    title: `Finish a “${title}” drill`,
     description: 'Five quick positions in the Practice tab.',
     icon: 'target',
     target: 1,
@@ -134,7 +125,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     progressFor: (event) => (event.type === 'mistake-fixed' ? 1 : 0),
     available: (context) => context.canPracticeMistakes && context.openMistakes >= 3,
   },
-  ...(['hitting', 'safety', 'points', 'bear-off', 'race', 'opening'] as const).map(drillChallenge),
+  ...DRILL_CATEGORIES.map(drillChallenge),
 ];
 
 export function getChallenge(id: string): ChallengeDefinition | undefined {

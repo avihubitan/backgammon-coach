@@ -1,5 +1,6 @@
-import type { BoardSetup, MoveGoal, MoveStep, TapStep, TapTarget } from '@/curriculum';
+import type { BoardSetup, ChallengeGoal, MoveGoal, MoveStep, TapStep, TapTarget } from '@/curriculum';
 import {
+  allCheckersHome,
   applyNotation,
   blotPoints,
   checkersAt,
@@ -7,9 +8,14 @@ import {
   createBoard,
   explainDifference,
   findPlayForDice,
+  getLegalPlays,
+  hasBorneOffAll,
+  hasContact,
+  isMadePoint,
   positionKey,
   type BoardState,
   type CheckerMove,
+  type DiceRoll,
   type Player,
 } from '@/game';
 
@@ -123,4 +129,66 @@ export function expandDice(dice: readonly number[]): CheckerMove['die'][] {
   const values = dice as CheckerMove['die'][];
   if (values.length === 2 && values[0] === values[1]) return [values[0], values[0], values[0], values[0]];
   return values.slice();
+}
+
+/** The longest run of the learner's made points in a row. */
+export function longestWall(board: BoardState): number {
+  let best = 0;
+  let run = 0;
+  for (let point = 1; point <= 24; point++) {
+    run = isMadePoint(board, point, LEARNER) ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return best;
+}
+
+/** Whether a mini-game's goal is reached on `board`. */
+export function challengeGoalReached(goal: ChallengeGoal, board: BoardState): boolean {
+  switch (goal.type) {
+    case 'bear-off-all':
+      return hasBorneOffAll(board, LEARNER);
+    case 'all-home':
+      return allCheckersHome(board, LEARNER);
+    case 'escape':
+      return !hasContact(board);
+    case 'prime':
+      return longestWall(board) >= goal.length;
+    case 'hit':
+      return board.bar.player2 >= goal.count;
+  }
+}
+
+/**
+ * Whether some sequence of legal plays over `rolls` reaches the goal, and
+ * whether some sequence misses it: a mini-game worth playing has both.
+ */
+export function challengeOutcomes(
+  start: BoardState,
+  rolls: readonly DiceRoll[],
+  goal: ChallengeGoal,
+  /** Positions to look at before giving up (reported as unsolvable): keeps generated games fast. */
+  budget = Infinity,
+): { solvable: boolean; failable: boolean } {
+  const memo = new Map<string, { solvable: boolean; failable: boolean }>();
+  let explored = 0;
+  const search = (board: BoardState, roll: number): { solvable: boolean; failable: boolean } => {
+    if (challengeGoalReached(goal, board)) return { solvable: true, failable: false };
+    if (roll >= rolls.length || ++explored > budget) return { solvable: false, failable: true };
+    const key = `${roll}|${positionKey(board)}`;
+    const known = memo.get(key);
+    if (known) return known;
+    const plays = getLegalPlays(board, LEARNER, rolls[roll]);
+    let result = { solvable: false, failable: false };
+    // No legal move: the roll passes.
+    if (plays.length === 0) result = search(board, roll + 1);
+    for (const play of plays) {
+      const next = search(play.board, roll + 1);
+      result = { solvable: result.solvable || next.solvable, failable: result.failable || next.failable };
+      if (result.solvable && result.failable) break;
+    }
+    memo.set(key, result);
+    return result;
+  };
+  const result = search(start, 0);
+  return explored > budget ? { solvable: false, failable: true } : result;
 }

@@ -2,6 +2,7 @@ import type { GameStats } from '@/features/gameplay/gameModel';
 import type { LessonRecord } from '@/features/learning/progression';
 import { upgradeProgress, type ProgressData, type SkillStats } from '@/features/learning/progressModel';
 import { MAX_MISTAKES, isMastered, type UserMistake } from '@/features/practice/mistakes';
+import type { LevelStats } from '@/features/practice/drillLevels';
 import type { PracticeKind, PracticeRecord } from '@/state/practiceStore';
 
 /**
@@ -106,6 +107,16 @@ function mergePractice(
               sessions: Math.max(x.sessions, y.sessions),
               bestFirstTry: Math.max(x.bestFirstTry, y.bestFirstTry),
               lastPlayedAt: maxDate(x.lastPlayedAt, y.lastPlayedAt),
+              // Each level keeps the copy with more answers, so its accuracy stays whole.
+              ...(x.levels || y.levels
+                ? {
+                    levels: mergeRecord<LevelStats>(
+                      (x.levels ?? {}) as Record<string, LevelStats>,
+                      (y.levels ?? {}) as Record<string, LevelStats>,
+                      (a, b) => (!a ? b! : !b ? a : b.attempted > a.attempted ? b : a),
+                    ),
+                  }
+                : {}),
             },
   ) as SyncSnapshot['practice'];
 }

@@ -183,6 +183,13 @@ describe('practice never comes before its lesson', () => {
     expect(unlock).toBeGreaterThanOrEqual(0);
     expect(introducedAt(info.skill)).toBeLessThanOrEqual(unlock);
     for (const skill of info.alsoTrains ?? []) expect(isSkillId(skill)).toBe(true);
+    // Each level opens no earlier than the skill it trains is taught.
+    expect(new Set(info.levels.map((level) => level.id)).size).toBe(info.levels.length);
+    for (const level of info.levels) {
+      const opens = Math.max(unlock, level.requiresLesson ? lessonIndex(level.requiresLesson) : -1);
+      if (level.requiresLesson) expect(lessonIndex(level.requiresLesson)).toBeGreaterThanOrEqual(0);
+      expect(introducedAt(level.skill ?? info.skill)).toBeLessThanOrEqual(opens);
+    }
   });
 
   it.each(ALL_MOVE_DRILLS.map((drill) => [drill.id, drill] as const))('drill %s', (_id, drill) => {

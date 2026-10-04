@@ -37,7 +37,7 @@ const riseIn = (delay: number) => ({
 /** End of a practice run: stars for accuracy, XP, and what improved. */
 export function PracticeComplete({ title, kind, result, onAgain, onDone }: PracticeCompleteProps) {
   const insets = useSafeAreaInsets();
-  const { outcome, reward, xp, mastered } = result;
+  const { outcome, reward, xp, mastered, level } = result;
   const stars = outcome.scoredSteps > 0 ? starsForAccuracy(outcome.accuracy) : 0;
   const shownXp = useCountUp(xp, 700, 1100);
   const [levelUp, setLevelUp] = useState(reward.levelAfter > reward.levelBefore);
@@ -49,6 +49,13 @@ export function PracticeComplete({ title, kind, result, onAgain, onDone }: Pract
       text: `${outcome.firstTryCorrect} of ${outcome.scoredSteps} right on the first try`,
     },
   ];
+  if (result.levelUp && level) {
+    lines.push({ icon: 'arrow-up-bold-circle', color: colors.primary, text: `Level up! Next: ${level.level.title}` });
+  } else if (level?.allCleared) {
+    lines.push({ icon: 'star-circle', color: colors.xp, text: 'Every level cleared: now it’s all review' });
+  } else if (level) {
+    lines.push({ icon: 'stairs', color: colors.info, text: `Level ${level.number} of ${level.of}: ${level.level.title}` });
+  }
   if (kind === 'mistakes' && mastered > 0) {
     lines.push({ icon: 'check-decagram', color: colors.success, text: `${mastered} mistake${mastered === 1 ? '' : 's'} mastered` });
   }

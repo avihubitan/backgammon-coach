@@ -6,23 +6,39 @@ import { Button } from '@/components/ui/Button';
 import type { ChallengeStep } from '@/curriculum';
 import { usedDice } from '@/features/gameplay/moveInput';
 import { useMoveInput } from '@/features/gameplay/useMoveInput';
-import { boardFromSetup } from '@/features/lessons/engine/evaluate';
-import {
-  allCheckersHome,
-  checkersOnBoard,
-  hasBorneOffAll,
-  startTurn,
-  type BoardState,
-  type TurnState,
-} from '@/game';
+import { boardFromSetup, challengeGoalReached, longestWall } from '@/features/lessons/engine/evaluate';
+import { checkersAt, checkersOnBoard, startTurn, type BoardState, type TurnState } from '@/game';
 import { SCREEN_GUTTER, spacing } from '@/theme';
 
 import { StepBoard } from '../StepBoard';
 import { StepHeader } from '../StepHeader';
 import type { StepViewProps } from './types';
 
-function goalReached(step: ChallengeStep, board: BoardState): boolean {
-  return step.goal.type === 'bear-off-all' ? hasBorneOffAll(board, 'player1') : allCheckersHome(board, 'player1');
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+/** How far the learner is from the goal, in a few words. */
+function standing(step: ChallengeStep, board: BoardState): string {
+  const goal = step.goal;
+  switch (goal.type) {
+    case 'bear-off-all':
+      return `${plural(checkersOnBoard(board, 'player1') + board.bar.player1, 'checker')} left`;
+    case 'all-home': {
+      let outside = board.bar.player1;
+      for (let point = 7; point <= 24; point++) outside += checkersAt(board, point, 'player1');
+      return `${plural(outside, 'checker')} still outside`;
+    }
+    case 'escape': {
+      let theirLast = 25;
+      for (let point = 24; point >= 1; point--) if (checkersAt(board, point, 'player2') > 0) theirLast = point;
+      let behind = board.bar.player1;
+      for (let point = theirLast + 1; point <= 24; point++) behind += checkersAt(board, point, 'player1');
+      return `${plural(behind, 'checker')} still to escape`;
+    }
+    case 'prime':
+      return `Longest wall: ${longestWall(board)} of ${goal.length}`;
+    case 'hit':
+      return `${board.bar.player2} of ${goal.count} hit`;
+  }
 }
 
 /** A short solo game over several fixed rolls, e.g. "bear off everything in three rolls". */
@@ -33,7 +49,7 @@ export function ChallengeStepView({ step, boardWidth, status, onResult }: StepVi
   }));
 
   const finishTurn = (turn: TurnState) => {
-    if (goalReached(step, turn.board)) {
+    if (challengeGoalReached(step.goal, turn.board)) {
       setTimeout(() => onResult(true, step.success), 450);
       return;
     }
@@ -77,7 +93,6 @@ function ChallengeRound({
 }) {
   const roll = step.rolls[index];
   const input = useMoveInput(startTurn(board, 'player1', roll), { enabled, onComplete: onTurnDone });
-  const left = checkersOnBoard(input.turn.board, 'player1') + input.turn.board.bar.player1;
   const blocked = input.turn.requiredMoves === 0;
 
   return (
@@ -104,7 +119,7 @@ function ChallengeRound({
       />
       <View style={styles.row}>
         <AppText variant="smallStrong" color="textSecondary" style={styles.flex}>
-          Roll {index + 1} of {step.rolls.length} · {left} checker{left === 1 ? '' : 's'} left
+          Roll {index + 1} of {step.rolls.length} · {standing(step, input.turn.board)}
         </AppText>
         {blocked && enabled ? (
           <Button label="No moves · next roll" size="small" fullWidth={false} onPress={() => onTurnDone(input.turn)} />

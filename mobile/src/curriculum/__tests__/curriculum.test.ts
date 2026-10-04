@@ -1,20 +1,17 @@
 import glyphs from '@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json';
 
 import {
-  allCheckersHome,
   applyMove,
   checkersAt,
   createBoard,
   findPlayForDice,
-  getLegalPlays,
-  hasBorneOffAll,
   isPointOpen,
   validateBoard,
-  type BoardState,
   type DieValue,
 } from '@/game';
 import {
   boardFromSetup,
+  challengeOutcomes,
   expandDice,
   goalMet,
   sameTarget,
@@ -35,14 +32,7 @@ function boardsIn(step: LessonStep) {
 
 /** Can the challenge goal be reached with some sequence of legal plays? */
 function challengeSolvable(step: ChallengeStep): boolean {
-  const reached = (board: BoardState) =>
-    step.goal.type === 'bear-off-all' ? hasBorneOffAll(board, 'player1') : allCheckersHome(board, 'player1');
-  const search = (board: BoardState, rollIndex: number): boolean => {
-    if (reached(board)) return true;
-    if (rollIndex >= step.rolls.length) return false;
-    return getLegalPlays(board, 'player1', step.rolls[rollIndex]).some((play) => search(play.board, rollIndex + 1));
-  };
-  return search(boardFromSetup(step.board), 0);
+  return challengeOutcomes(boardFromSetup(step.board), step.rolls, step.goal).solvable;
 }
 
 describe('curriculum structure', () => {

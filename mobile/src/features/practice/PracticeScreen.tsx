@@ -7,8 +7,8 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { Screen } from '@/components/ui/Screen';
 import { Stars } from '@/components/ui/Stars';
-import { allLessons, getLesson, getSection } from '@/curriculum';
-import { DRILL_CATEGORIES } from '@/curriculum/drills';
+import { allLessons, getLesson, getSection, SKILL_GROUPS, SKILLS } from '@/curriculum';
+import { DRILL_CATEGORIES, type DrillCategoryInfo } from '@/curriculum/drills';
 import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useMistakesStore } from '@/state/mistakesStore';
@@ -16,8 +16,15 @@ import { usePracticeStore } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
 import { colors, radii, spacing } from '@/theme';
 
+import { levelProgress, openLevels } from './drillLevels';
 import { isMastered } from './mistakes';
-import { SESSION_LENGTH, unlockedDrillCategories } from './practiceModel';
+import { unlockedDrillCategories } from './practiceModel';
+
+/** Drills under the skill group they train, in path order. */
+const DRILL_GROUPS = SKILL_GROUPS.map((group) => ({
+  group,
+  drills: DRILL_CATEGORIES.filter((info) => SKILLS[info.skill].group === group.id),
+})).filter((entry) => entry.drills.length > 0);
 
 /** Daily challenge, skill drills, your own mistakes, and lesson replays. */
 export function PracticeScreen() {
@@ -45,46 +52,26 @@ export function PracticeScreen() {
     >
       <DailyChallengeCard enterDelay={0} />
 
-      <AppText variant="label" color="textSecondary">
-        Skill drills
-      </AppText>
-      <View style={styles.grid}>
-        {DRILL_CATEGORIES.map((info, index) => {
-          const open = unlocked.has(info.id);
-          const record = records[info.id];
-          const lesson = getLesson(info.requiresLesson);
-          return (
-            <View key={info.id} style={styles.cell}>
-              <Card
-                testID={`drill-${info.id}`}
-                style={[styles.drill, !open && styles.drillLocked]}
+      {DRILL_GROUPS.map(({ group, drills }) => (
+        <View key={group.id} style={styles.group}>
+          <AppText variant="label" color="textSecondary">
+            {group.title}
+          </AppText>
+          <View style={styles.grid}>
+            {drills.map((info, index) => (
+              <DrillTile
+                key={info.id}
+                info={info}
+                open={unlocked.has(info.id)}
+                tried={!!records[info.id]}
+                level={levelProgress(info, (lessonId) => !!lessons[lessonId]?.completed, records[info.id]?.levels ?? {})}
+                questions={openLevels(info, (lessonId) => !!lessons[lessonId]?.completed).length}
                 enterDelay={60 + index * 50}
-                accessibilityLabel={open ? `${info.title} drill` : `${info.title}, locked`}
-                onPress={
-                  open
-                    ? () => router.push({ pathname: '/practice/[kind]', params: { kind: info.id } })
-                    : () => router.push('/learn')
-                }
-              >
-                <View style={[styles.drillIcon, { backgroundColor: open ? info.color : colors.locked }]}>
-                  <Icon name={open ? info.icon : 'lock'} size={22} color={open ? 'textInverse' : 'textMuted'} />
-                </View>
-                <AppText variant="bodyStrong" color={open ? 'text' : 'textMuted'} numberOfLines={1}>
-                  {info.title}
-                </AppText>
-                <AppText variant="caption" color="textSecondary" numberOfLines={2} style={styles.drillText}>
-                  {open ? info.description : `Unlocks after “${lesson?.title ?? ''}”`}
-                </AppText>
-                {open ? (
-                  <AppText variant="caption" color={record ? 'success' : 'textMuted'}>
-                    {record ? `Best ${record.bestFirstTry}/${SESSION_LENGTH}` : 'Not tried yet'}
-                  </AppText>
-                ) : null}
-              </Card>
-            </View>
-          );
-        })}
-      </View>
+              />
+            ))}
+          </View>
+        </View>
+      ))}
 
       <AppText variant="label" color="textSecondary">
         Your mistakes
@@ -162,7 +149,57 @@ export function PracticeScreen() {
   );
 }
 
+function DrillTile({
+  info,
+  open,
+  tried,
+  level,
+  questions,
+  enterDelay,
+}: {
+  info: DrillCategoryInfo;
+  open: boolean;
+  tried: boolean;
+  level: ReturnType<typeof levelProgress>;
+  /** Open questions, for drills that mix every level. */
+  questions: number;
+  enterDelay: number;
+}) {
+  const lesson = getLesson(info.requiresLesson);
+  return (
+    <View style={styles.cell}>
+      <Card
+        testID={`drill-${info.id}`}
+        style={[styles.drill, !open && styles.drillLocked]}
+        enterDelay={enterDelay}
+        accessibilityLabel={open ? `${info.title} drill${level ? `, level ${level.number} of ${level.of}` : ''}` : `${info.title}, locked`}
+        onPress={open ? () => router.push({ pathname: '/practice/[kind]', params: { kind: info.id } }) : () => router.push('/learn')}
+      >
+        <View style={[styles.drillIcon, { backgroundColor: open ? info.color : colors.locked }]}>
+          <Icon name={open ? info.icon : 'lock'} size={22} color={open ? 'textInverse' : 'textMuted'} />
+        </View>
+        <AppText variant="bodyStrong" color={open ? 'text' : 'textMuted'} numberOfLines={1}>
+          {info.title}
+        </AppText>
+        <AppText variant="caption" color="textSecondary" numberOfLines={2} style={styles.drillText}>
+          {open ? info.description : `Unlocks after “${lesson?.title ?? ''}”`}
+        </AppText>
+        {open && level ? (
+          <AppText variant="caption" color={tried ? 'success' : 'textMuted'} numberOfLines={2}>
+            {info.mixLevels
+              ? `${questions} of ${info.levels.length} questions`
+              : level.allCleared
+                ? 'All levels cleared'
+                : `Level ${level.number}/${level.of} · ${level.level.title}`}
+          </AppText>
+        ) : null}
+      </Card>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  group: { gap: spacing.sm },
   header: { paddingVertical: spacing.md, gap: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs },
   cell: { width: '50%', padding: spacing.xs },
