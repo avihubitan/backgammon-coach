@@ -13,6 +13,7 @@
  * production build with a Test Store key, a secret in a public variable, an
  * http address phones would block), warnings only print.
  */
+/* global __dirname */
 const path = require('path');
 
 const PROFILES = ['development', 'preview', 'production'];

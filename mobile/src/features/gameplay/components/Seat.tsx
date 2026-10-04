@@ -7,6 +7,8 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import type { Player } from '@/game';
 import { colors, radii, spacing } from '@/theme';
 
+import { Nudge } from './Nudge';
+
 /** What the player in a seat is doing right now. */
 export type SeatActivity = 'your-turn' | 'thinking' | null;
 
@@ -79,9 +81,9 @@ export function Seat({ testID, name, detail, avatar, active, activity, cube, sco
         </View>
       ) : null}
       {activity ? (
-        <Animated.View key={nudgeKey ?? 0} style={nudgeKey ? NUDGE : null}>
+        <Nudge nudgeKey={nudgeKey} amount={1.1}>
           <TurnBadge key={activity} activity={activity} />
-        </Animated.View>
+        </Nudge>
       ) : null}
       {speech ? <SpeechBubble key={speech.key} text={speech.text} left={size + 6 + spacing.sm + spacing.xs} /> : null}
     </View>
@@ -162,17 +164,6 @@ function ThinkingDots() {
     </View>
   );
 }
-
-/** "Still my turn": one small pulse when the player taps the board too early. */
-const NUDGE = {
-  animationName: {
-    '0%': { transform: [{ scale: 1 }] },
-    '40%': { transform: [{ scale: 1.1 }] },
-    '100%': { transform: [{ scale: 1 }] },
-  },
-  animationDuration: 280,
-  animationTimingFunction: 'ease-out',
-} as const;
 
 const BREATHE = {
   animationName: { from: { opacity: 0.45, transform: [{ scale: 0.8 }] }, to: { opacity: 1, transform: [{ scale: 1 }] } },

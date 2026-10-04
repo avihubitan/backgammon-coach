@@ -21,6 +21,7 @@ import { CoachHintBubble } from './components/CoachHintBubble';
 import { CoachWatchPanel } from './components/CoachWatchPanel';
 import { EndBanner } from './components/EndBanner';
 import { GameResultSheet } from './components/GameResultSheet';
+import { Nudge } from './components/Nudge';
 import { Seat } from './components/Seat';
 import { gameLayout } from './gameLayout';
 import { gameStatus, HOW_TO_GAMES } from './gameStatus';
@@ -44,17 +45,6 @@ const INVITE = {
   animationIterationCount: 'infinite',
   animationDirection: 'alternate',
   animationTimingFunction: 'ease-in-out',
-} as const;
-
-/** A tap that came too early: the thing to do (or wait for) answers with one small pulse. */
-const NUDGE = {
-  animationName: {
-    '0%': { transform: [{ scale: 1 }] },
-    '40%': { transform: [{ scale: 1.06 }] },
-    '100%': { transform: [{ scale: 1 }] },
-  },
-  animationDuration: 260,
-  animationTimingFunction: 'ease-out',
 } as const;
 
 const FADE_IN = {
@@ -176,6 +166,7 @@ export function GameScreen() {
     if (early) setNudge((last) => ({ target: early, key: (last?.key ?? 0) + 1 }));
     else game.tap(place, how);
   };
+  const rollNudge = nudge?.target === 'roll' ? nudge.key : undefined;
 
   const newGame = () => {
     game.clearOutcome();
@@ -287,9 +278,9 @@ export function GameScreen() {
       <View style={[styles.actions, { height: layout.actions + layout.bottomInset, paddingBottom: layout.bottomInset }]}>
         {state.phase === 'opening' ? (
           <Animated.View style={fresh ? INVITE : null}>
-            <Animated.View key={nudge?.target === 'roll' ? nudge.key : 0} style={nudge?.target === 'roll' ? NUDGE : null}>
+            <Nudge nudgeKey={rollNudge}>
               <Button testID="roll-opening" label="Roll to start" icon="dice-multiple" onPress={game.rollOpening} />
-            </Animated.View>
+            </Nudge>
           </Animated.View>
         ) : state.phase === 'rolling' && humanTurn ? (
           <View style={styles.row}>
@@ -298,9 +289,9 @@ export function GameScreen() {
                 <Button testID="double" label={`Double to ${state.cube.value * 2}`} variant="secondary" dense={dense} onPress={game.double} />
               </View>
             ) : null}
-            <Animated.View key={nudge?.target === 'roll' ? nudge.key : 0} style={[styles.flex, nudge?.target === 'roll' ? NUDGE : null]}>
+            <Nudge nudgeKey={rollNudge} style={styles.flex}>
               <Button testID="roll" label="Roll" icon="dice-multiple" dense={dense} onPress={game.roll} />
-            </Animated.View>
+            </Nudge>
           </View>
         ) : game.watch ? (
           <View style={styles.row}>
