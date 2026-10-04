@@ -85,6 +85,15 @@ describe('progress persistence', () => {
     expect(useProgressStore.getState().xp).toBe(310);
   });
 
+  it('keeps the skill levels reached, dropping anything it doesn’t know', async () => {
+    const saved = { ...useProgressStore.getState(), skillLevels: { safety: 'reliable', bogus: 'mastered', points: 'legendary' } };
+    await AsyncStorage.setItem('bg-coach/progress', JSON.stringify({ state: saved, version: 2 }));
+    await useProgressStore.persist.rehydrate();
+    expect(useProgressStore.getState().skillLevels).toEqual({ safety: 'reliable' });
+    useProgressStore.getState().recordSkillLevels({ safety: 'practised', hitting: 'practised' });
+    expect(useProgressStore.getState().skillLevels).toEqual({ safety: 'reliable', hitting: 'practised' });
+  });
+
   it('carries answers saved per lesson category (version 1) over to skills', async () => {
     const version1 = {
       version: 1,

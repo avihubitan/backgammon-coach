@@ -6,42 +6,89 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SKILLS } from '@/curriculum';
+import { MASTERY_BADGE, masteryRank, type MasteryLevel, type SkillMastery } from '@/features/skills/mastery';
+import { MasteryBadge, nextLevelColor } from '@/features/skills/MasteryBadge';
 import { colors, radii, spacing } from '@/theme';
 
 import type { SkillRow } from '../profileStats';
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
-const toneFor = (accuracy: number) => (accuracy >= 0.85 ? colors.success : accuracy >= 0.65 ? colors.xp : colors.danger);
 
-/** First-try accuracy per skill, and the one skill most worth practising. */
+/** "2 Strong · 3 Practising · 4 Learning": how the learner's skills stand, top level first. */
+function summary(skills: readonly SkillMastery[]): string {
+  const levels: Exclude<MasteryLevel, 'none'>[] = ['mastered', 'reliable', 'practised', 'introduced'];
+  return levels
+    .map((level) => ({ level, count: skills.filter((skill) => skill.level === level).length }))
+    .filter(({ count }) => count > 0)
+    .map(({ level, count }) => `${count} ${MASTERY_BADGE[level].label}`)
+    .join(' · ');
+}
+
+/**
+ * Every skill a lesson has taught: its level (Learning, Practising, Strong,
+ * Mastered), how close the next one is and what it takes, and the one skill
+ * most worth practising.
+ */
 export function SkillBreakdown({
-  rows,
+  skills,
+  accuracy,
   focus,
   drillUnlocked,
 }: {
-  rows: SkillRow[];
+  skills: SkillMastery[];
+  /** First-try accuracy per skill, where there are enough answers to show it. */
+  accuracy: SkillRow[];
   focus: SkillRow | null;
   /** Whether the focus skill's drill is open yet. */
   drillUnlocked: boolean;
 }) {
   return (
     <Card style={styles.card} testID="skill-breakdown">
-      {rows.map((row) => (
-        <View key={row.id} style={styles.row} accessibilityLabel={`${row.label}: ${percent(row.accuracy)} first try`}>
-          <View style={[styles.icon, { backgroundColor: colors.surfaceRaised }]}>
-            <Icon name={row.icon} size={18} color={toneFor(row.accuracy)} />
-          </View>
-          <View style={styles.flex}>
-            <View style={styles.rowTop}>
-              <AppText variant="smallStrong">{row.label}</AppText>
-              <AppText variant="caption" color="textSecondary">
-                {percent(row.accuracy)} · {row.firstTry}/{row.attempted}
+      <AppText variant="caption" color="textSecondary" testID="skill-summary">
+        {summary(skills)}
+      </AppText>
+      {skills.map((mastery) => {
+        const skill = SKILLS[mastery.skill];
+        const row = accuracy.find((candidate) => candidate.id === mastery.skill);
+        const top = mastery.level === 'mastered';
+        return (
+          <View
+            key={mastery.skill}
+            style={styles.row}
+            testID={`skill-${mastery.skill}`}
+            accessibilityLabel={`${skill.title}: ${MASTERY_BADGE[mastery.level === 'none' ? 'introduced' : mastery.level].label}${
+              row ? `, ${percent(row.accuracy)} right on the first try` : ''
+            }${mastery.next ? `. Next: ${mastery.next}` : ''}`}
+          >
+            <View style={styles.icon}>
+              <Icon name={skill.icon} size={18} color={masteryRank(mastery.level) >= masteryRank('reliable') ? colors.star : colors.textSecondary} />
+            </View>
+            <View style={styles.flex}>
+              <View style={styles.rowTop}>
+                <AppText variant="smallStrong" style={styles.title} numberOfLines={1}>
+                  {skill.title}
+                  {row ? (
+                    <AppText variant="caption" color="textMuted">
+                      {'  '}
+                      {percent(row.accuracy)}
+                    </AppText>
+                  ) : null}
+                </AppText>
+                <MasteryBadge level={mastery.level} testID={`skill-${mastery.skill}-level`} />
+              </View>
+              <ProgressBar progress={top ? 1 : mastery.progress} color={nextLevelColor(mastery.level)} height={6} shine={false} />
+              <AppText variant="caption" color={mastery.fading ? 'streak' : 'textSecondary'}>
+                {mastery.fading
+                  ? 'Not practised for a while: a quick round keeps it.'
+                  : top
+                    ? 'Mastered. Keep playing to keep it sharp.'
+                    : `Next: ${mastery.next}`}
               </AppText>
             </View>
-            <ProgressBar progress={row.accuracy} color={toneFor(row.accuracy)} height={6} shine={false} />
           </View>
-        </View>
-      ))}
+        );
+      })}
 
       {focus ? (
         <View style={styles.focus} testID="skill-focus">
@@ -49,7 +96,7 @@ export function SkillBreakdown({
           <View style={styles.flex}>
             <AppText variant="smallStrong">Focus next: {focus.label}</AppText>
             <AppText variant="caption" color="textSecondary">
-              Your weakest skill so far. A few minutes of practice make the patterns stick.
+              Your lowest first-try score so far. A few minutes of practice make the patterns stick.
             </AppText>
           </View>
           <Button
@@ -72,10 +119,18 @@ export function SkillBreakdown({
 
 const styles = StyleSheet.create({
   card: { gap: spacing.md },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  icon: { width: 34, height: 34, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  icon: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceRaised,
+  },
   flex: { flex: 1, gap: 4 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  title: { flexShrink: 1 },
   focus: {
     flexDirection: 'row',
     alignItems: 'center',

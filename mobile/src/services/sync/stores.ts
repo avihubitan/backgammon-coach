@@ -21,6 +21,7 @@ function progressData(): ProgressData {
     dailyGoalXp: state.dailyGoalXp,
     stats: state.stats,
     achievements: state.achievements,
+    skillLevels: state.skillLevels,
   };
 }
 

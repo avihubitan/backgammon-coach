@@ -18,16 +18,18 @@ import {
   skillOfRef,
   type PositionRef,
 } from '@/features/coach/positionOfTheDay';
-import { exerciseXp } from '@/features/learning/progression';
+import { exerciseXp, MISTAKE_MASTERED_XP, repeatFactor } from '@/features/learning/progression';
 import { skillResultsFor, type Reward } from '@/features/learning/progressModel';
 import { StepSessionPlayer } from '@/features/lessons/components/StepSessionPlayer';
 import { summarizeSteps, type LessonOutcome } from '@/features/lessons/engine/session';
 import { currentFeatureAccess, useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { skillOfDrill } from '@/features/skills/extract';
+import type { MasteryUp } from '@/features/skills/mastery';
+import { currentMasteryLevels, settleMastery } from '@/features/skills/masteryService';
 import { analytics, type LaunchSource } from '@/services/analytics';
 import { useDailyPositionStore } from '@/state/dailyPositionStore';
 import { useMistakesStore } from '@/state/mistakesStore';
-import { usePracticeStore, type PracticeKind } from '@/state/practiceStore';
+import { roundsOn, usePracticeStore, type PracticeKind } from '@/state/practiceStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
@@ -44,8 +46,24 @@ import {
 
 const isDrill = (kind: string): kind is DrillCategory => DRILL_CATEGORIES.some((info) => info.id === kind);
 
-/** Practice earns XP at the replay rate: steady, but never faster than new lessons. */
-const practiceXp = (outcome: Parameters<typeof exerciseXp>[0]) => exerciseXp(outcome, true);
+/**
+ * Practice earns XP at the replay rate (steady, but never faster than new
+ * lessons), and less once the same practice has been played three times today.
+ */
+const practiceXp = (outcome: Parameters<typeof exerciseXp>[0], factor: number) => exerciseXp(outcome, true, factor);
+
+/**
+ * Where a run starts from: each skill's level and the mistakes already fixed
+ * (to see what the run changes), and how many rounds of this practice were
+ * played today.
+ */
+function runStart(kind: string) {
+  return {
+    mastery: currentMasteryLevels(),
+    fixed: new Set(useMistakesStore.getState().mistakes.filter(isMastered).map((mistake) => mistake.id)),
+    rounds: roundsOn(usePracticeStore.getState().records[kind as PracticeKind], todayKey()),
+  };
+}
 
 const DAILY_TITLE = 'Position of the Day';
 const MORE_TITLE = 'One more position';
@@ -107,8 +125,16 @@ function currentDrillLevel(kind: PracticeKind): LevelProgress | null {
 export interface PracticeResult {
   outcome: LessonOutcome;
   reward: Reward;
+  /** Everything the run earned: answers, mistakes fixed, skill levels. */
   xp: number;
+  /** Mistakes from your games fixed for good in this run, and their XP. */
   mastered: number;
+  fixedXp: number;
+  /** Skills that reached a new level, with their XP. */
+  masteryUps: MasteryUp[];
+  /** Which round of this practice today (1-based), and the share of XP it earned. */
+  round: number;
+  factor: number;
   /** The drill's level after the session, and whether this session moved it up. */
   level: LevelProgress | null;
   levelUp: boolean;
@@ -154,7 +180,9 @@ export function PracticeSessionScreen({
     session: valid && unlocked ? buildSession(kind as PracticeKind, Date.now(), { focus, position, daily }) : null,
     // "Try another" runs are extra positions, not today's.
     daily,
+    start: runStart(kind),
   }));
+  const factor = repeatFactor(run.start.rounds);
   const [result, setResult] = useState<PracticeResult | null>(null);
   const answered = useRef(new Set<string>());
   // "Try another" for a position: worked out once the session ends.
@@ -177,6 +205,7 @@ export function PracticeSessionScreen({
       id: previous.id + 1,
       session: kind === 'position' ? buildPosition(another, MORE_TITLE) : buildSession(kind as PracticeKind, Date.now(), {}),
       daily: false,
+      start: runStart(kind),
     }));
   };
 
@@ -246,7 +275,7 @@ export function PracticeSessionScreen({
       key={run.id}
       sessionId={session.id}
       steps={session.steps}
-      xpForStep={practiceXp}
+      xpForStep={(outcome) => practiceXp(outcome, factor)}
       kind="practice"
       exitTitle="Leave this practice?"
       exitMessage="This session won’t count, but nothing else is lost."
@@ -263,15 +292,13 @@ export function PracticeSessionScreen({
       }}
       onFinish={(state) => {
         const outcome = summarizeSteps(session.steps, 0, state);
-        const xp = session.steps.reduce((sum, step) => sum + practiceXp(state.outcomes[step.id] ?? EMPTY), 0);
+        const answersXp = session.steps.reduce((sum, step) => sum + practiceXp(state.outcomes[step.id] ?? EMPTY, factor), 0);
         const progress = useProgressStore.getState();
         // Every answer counts toward its skill, the same as in lessons.
         const fallback = isDrill(kind) ? skillOfDrill(kind) : 'points';
         progress.recordSkillResults(skillResultsFor(session.steps, state.outcomes, { skill: fallback }));
         // Count the session first so practice achievements see it.
         progress.recordPracticeSession();
-        // A finished session keeps the streak going, even if every answer was shown.
-        const reward = progress.awardXp(xp, {}, true);
         const before = currentDrillLevel(kind as PracticeKind);
         const levelResults = session.steps
           .filter((step) => session.levelOf[step.id])
@@ -284,6 +311,18 @@ export function PracticeSessionScreen({
           useDailyPositionStore.getState().finish(todayKey(), session.ref, firstTry(choice && state.outcomes[choice.id]), run.daily);
           setAnother(nextLike(session.ref));
         }
+        // Mistakes from your games fixed for good in this run, and skills that reached a new level: real
+        // improvement, rewarded once each.
+        const saved = useMistakesStore.getState().mistakes;
+        const practised = saved.filter(
+          (mistake) => session.steps.some((step) => step.id === mistake.id) || (session.ref?.source === 'mistake' && session.ref.id === mistake.id),
+        );
+        const mastered = practised.filter((mistake) => isMastered(mistake) && !run.start.fixed.has(mistake.id)).length;
+        const fixedXp = mastered * MISTAKE_MASTERED_XP;
+        const masteryUps = settleMastery(run.start.mastery).filter((up) => up.xp > 0);
+        const xp = answersXp + fixedXp + masteryUps.reduce((sum, up) => sum + up.xp, 0);
+        // A finished session keeps the streak going, even if every answer was shown.
+        const reward = progress.awardXp(xp, {}, true);
         reportChallengeEvent({ type: 'practice-session', category: kind as PracticeKind });
         analytics.track('practice_session_completed', {
           kind,
@@ -295,14 +334,21 @@ export function PracticeSessionScreen({
         if (source === 'coach_pick') {
           analytics.track('coach_pick_completed', { kind: kind === 'mistakes' ? 'mistakes' : 'drill' });
         }
-        const saved = useMistakesStore.getState().mistakes;
-        const practised = saved.filter(
-          (mistake) => session.steps.some((step) => step.id === mistake.id) || (session.ref?.source === 'mistake' && session.ref.id === mistake.id),
-        );
-        const mastered = practised.filter(isMastered).length;
         const comesBack = kind === 'mistakes' || kind === 'position' ? nextDueDay(practised, todayKey()) : null;
         const nextReview = comesBack ? dueIn(comesBack, todayKey()) : null;
-        setResult({ outcome, reward, xp, mastered, level: getDrillCategory(kind)?.mixLevels ? null : after, levelUp, nextReview });
+        setResult({
+          outcome,
+          reward,
+          xp,
+          mastered,
+          fixedXp,
+          masteryUps,
+          round: run.start.rounds + 1,
+          factor,
+          level: getDrillCategory(kind)?.mixLevels ? null : after,
+          levelUp,
+          nextReview,
+        });
       }}
     />
   );

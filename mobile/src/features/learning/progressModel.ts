@@ -1,11 +1,14 @@
 import { getLesson, isScored, isSkillId, stepSkill, type Lesson, type LessonStep, type SkillId } from '@/curriculum';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
+import { isMasteryLevel, masteryRank, type MasteryLevel } from '@/features/skills/masteryLevel';
 import { isPlainObject } from '@/state/sanitize';
 
 import { ACHIEVEMENTS, type AchievementContext } from './achievements';
 import {
   emptyLessonRecord,
   emptyStreak,
+  lessonPlaysToday,
+  lessonRepeatFactor,
   lessonXpBreakdown,
   levelInfo,
   newlyUnlockedLessons,
@@ -32,6 +35,8 @@ export interface ProgressData {
   stats: LearningStats;
   /** Achievement id -> ISO date unlocked. */
   achievements: Record<string, string>;
+  /** The highest mastery level each skill has reached. Only goes up: its XP is paid once. */
+  skillLevels: Partial<Record<SkillId, MasteryLevel>>;
 }
 
 /**
@@ -102,6 +107,7 @@ export function initialProgress(): ProgressData {
       practiceSessions: 0,
     },
     achievements: {},
+    skillLevels: {},
   };
 }
 
@@ -196,6 +202,7 @@ export function applyLessonResult(
   const replay = previous.completed;
   const record = {
     ...previous,
+    dayPlays: lessonPlaysToday(previous, today) + 1,
     attempts: previous.attempts + 1,
     completed: previous.completed || outcome.passed,
     completions: previous.completions + (outcome.passed ? 1 : 0),
@@ -217,7 +224,8 @@ export function applyLessonResult(
     },
   };
 
-  const xp = lessonXpBreakdown(lesson, exerciseResults, outcome, firstCompletion, replay);
+  // Replaying the same lesson again and again in one day earns less.
+  const xp = lessonXpBreakdown(lesson, exerciseResults, outcome, firstCompletion, replay, lessonRepeatFactor(previous, today));
   // Finishing a lesson counts for the streak, passed or not.
   const granted = grantXp(withLesson, xp.total, today, {}, true);
   return {
@@ -230,6 +238,19 @@ export function applyLessonResult(
       stars: outcome.stars,
       bestStars: record.bestStars,
     },
+  };
+}
+
+/** A lesson's reward with XP granted after it (skills that reached a new level), as one celebration. */
+export function withSkillXp(lesson: LessonReward, extra: Reward): LessonReward {
+  if (extra.xpGained <= 0) return lesson;
+  return {
+    ...lesson,
+    xpGained: lesson.xpGained + extra.xpGained,
+    levelAfter: extra.levelAfter,
+    dailyGoalReached: lesson.dailyGoalReached || extra.dailyGoalReached,
+    newAchievements: [...lesson.newAchievements, ...extra.newAchievements],
+    xp: { ...lesson.xp, skills: (lesson.xp.skills ?? 0) + extra.xpGained, total: lesson.xp.total + extra.xpGained },
   };
 }
 
@@ -321,6 +342,26 @@ export function upgradeProgress<T>(saved: T): T {
   const rest: Record<string, unknown> = { ...stats };
   delete rest.byCategory;
   return { ...saved, version: 2, stats: { ...rest, bySkill } } as T;
+}
+
+/** Saves the levels skills have reached, keeping the highest of each. */
+export function raiseSkillLevels(
+  saved: Partial<Record<SkillId, MasteryLevel>>,
+  reached: Partial<Record<SkillId, MasteryLevel>>,
+): Partial<Record<SkillId, MasteryLevel>> {
+  const next = { ...saved };
+  for (const [skill, level] of Object.entries(reached) as [SkillId, MasteryLevel][]) {
+    if (masteryRank(level) > masteryRank(next[skill] ?? 'none')) next[skill] = level;
+  }
+  return next;
+}
+
+/** Mastery levels a save may hold: known skills and known levels. */
+export function checkedSkillLevels(value: unknown): Partial<Record<SkillId, MasteryLevel>> {
+  if (!isPlainObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(([skill, level]) => isSkillId(skill) && isMasteryLevel(level)),
+  ) as Partial<Record<SkillId, MasteryLevel>>;
 }
 
 /** Per-skill statistics a save may hold: known skills with the expected fields. */

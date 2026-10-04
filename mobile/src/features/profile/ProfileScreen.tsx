@@ -20,8 +20,10 @@ import { FeedbackDialog } from '@/features/feedback/FeedbackDialog';
 import { legalLinks } from '@/features/monetization/legal';
 import { ReminderSettings } from '@/features/reminders/ReminderSettings';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
+import { allMastery } from '@/features/skills/mastery';
 import { useGameStore } from '@/state/gameStore';
 import { useMistakesStore } from '@/state/mistakesStore';
+import { usePracticeStore } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
 import { useToday } from '@/state/useToday';
 import { feedbackConfigured } from '@/services/analytics';
@@ -60,6 +62,14 @@ export function ProfileScreen() {
   // Each block appears once there is something real to show.
   const skills = skillRows(progress.stats.bySkill);
   const focus = focusSkill(skills);
+  const practice = usePracticeStore((state) => state.records);
+  const mastery = allMastery({
+    lessons: progress.lessons,
+    bySkill: progress.stats.bySkill,
+    drillLevels: Object.fromEntries(Object.entries(practice).map(([kind, record]) => [kind, record?.levels ?? {}])),
+    mistakes,
+    today,
+  });
   const trend = qualityTrend(finishedGames);
 
   // Games finished before background reviews existed get reviewed here, for the trend.
@@ -101,7 +111,7 @@ export function ProfileScreen() {
         <StatTile icon="fire" color={colors.streak} value={visibleStreak(progress.streak, today)} label="Day streak" />
         <StatTile icon="calendar-star" color={colors.streak} value={progress.streak.longest} label="Best streak" />
         <StatTile icon="book-open-variant" color={colors.info} value={completed} label="Lessons done" />
-        <StatTile icon="star" color={colors.star} value={mastered} label="Mastered" />
+        <StatTile icon="star" color={colors.star} value={mastered} label="3-star lessons" />
         <StatTile icon="puzzle" color={colors.success} value={progress.stats.exercisesAttempted} label="Exercises" />
         <StatTile
           icon="bullseye-arrow"
@@ -111,12 +121,12 @@ export function ProfileScreen() {
         />
       </View>
 
-      {skills.length > 0 ? (
+      {mastery.length > 0 ? (
         <>
           <AppText variant="label" color="textSecondary">
-            Your skills · first-try accuracy
+            Your skills
           </AppText>
-          <SkillBreakdown rows={skills} focus={focus} drillUnlocked={focusDrillOpen} />
+          <SkillBreakdown skills={mastery} accuracy={skills} focus={focus} drillUnlocked={focusDrillOpen} />
         </>
       ) : null}
 

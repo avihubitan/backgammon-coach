@@ -1,6 +1,6 @@
 import type { GameStats } from '@/features/gameplay/gameModel';
 import type { LessonRecord } from '@/features/learning/progression';
-import { upgradeProgress, type ProgressData, type SkillStats } from '@/features/learning/progressModel';
+import { checkedSkillLevels, raiseSkillLevels, upgradeProgress, type ProgressData, type SkillStats } from '@/features/learning/progressModel';
 import { MAX_MISTAKES, isMastered, type UserMistake } from '@/features/practice/mistakes';
 import type { LevelStats } from '@/features/practice/drillLevels';
 import type { PracticeKind, PracticeRecord } from '@/state/practiceStore';
@@ -50,6 +50,11 @@ function mergeLesson(a: LessonRecord | undefined, b: LessonRecord | undefined): 
     completions: Math.max(a.completions, b.completions),
     firstCompletedAt: minDate(a.firstCompletedAt, b.firstCompletedAt),
     lastPlayedAt: maxDate(a.lastPlayedAt, b.lastPlayedAt),
+    // Plays on the latest day: the copy that played last knows them (both, if it was the same day).
+    dayPlays:
+      a.lastPlayedAt === b.lastPlayedAt
+        ? Math.max(a.dayPlays ?? 0, b.dayPlays ?? 0)
+        : ((a.lastPlayedAt ?? '') > (b.lastPlayedAt ?? '') ? a.dayPlays : b.dayPlays) ?? 0,
   };
 }
 
@@ -88,7 +93,16 @@ export function mergeProgress(first: ProgressData, second: ProgressData, newer: 
       practiceSessions: Math.max(a.stats.practiceSessions, b.stats.practiceSessions),
     },
     achievements: mergeRecord(a.achievements, b.achievements, (x, y) => minDate(x ?? null, y ?? null)!),
+    // A copy from before skill levels existed has none.
+    skillLevels: raiseSkillLevels(checkedSkillLevels(a.skillLevels), checkedSkillLevels(b.skillLevels)),
   };
+}
+
+/** Rounds on the latest day either copy played (both, if they played the same day). */
+function laterRounds(x: PracticeRecord['dayRounds'], y: PracticeRecord['dayRounds']): PracticeRecord['dayRounds'] {
+  if (!x || !y) return x ?? y;
+  if (x.day !== y.day) return x.day > y.day ? x : y;
+  return { day: x.day, rounds: Math.max(x.rounds, y.rounds) };
 }
 
 function mergePractice(
@@ -107,6 +121,7 @@ function mergePractice(
               sessions: Math.max(x.sessions, y.sessions),
               bestFirstTry: Math.max(x.bestFirstTry, y.bestFirstTry),
               lastPlayedAt: maxDate(x.lastPlayedAt, y.lastPlayedAt),
+              ...(x.dayRounds || y.dayRounds ? { dayRounds: laterRounds(x.dayRounds, y.dayRounds) } : {}),
               // Each level keeps the copy with more answers, so its accuracy stays whole.
               ...(x.levels || y.levels
                 ? {

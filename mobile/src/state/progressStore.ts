@@ -6,9 +6,11 @@ import { dayKey, emptyLessonRecord, type ExerciseResult, type LessonAccess } fro
 import {
   applyLessonResult,
   applyPracticeResults,
+  checkedSkillLevels,
   checkedSkillStats,
   grantXp,
   initialProgress,
+  raiseSkillLevels,
   upgradeProgress,
   type LessonReward,
   type ProgressData,
@@ -16,6 +18,8 @@ import {
   type SkillResult,
 } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
+import type { SkillId } from '@/curriculum';
+import type { MasteryLevel } from '@/features/skills/masteryLevel';
 import { analytics } from '@/services/analytics';
 
 import { isPlainObject, keepEntries, mergeChecked, withDefaults } from './sanitize';
@@ -44,6 +48,8 @@ interface ProgressActions {
   recordPracticeSession: () => void;
   /** First-try results from practice (drills, positions from games), filed under their skills. */
   recordSkillResults: (results: SkillResult[]) => void;
+  /** Mastery levels skills have reached (each skill keeps its highest). */
+  recordSkillLevels: (levels: Partial<Record<SkillId, MasteryLevel>>) => void;
   setDailyGoal: (xp: number) => void;
   resetProgress: () => void;
 }
@@ -90,6 +96,8 @@ export const useProgressStore = create<ProgressStore>()(
 
       recordSkillResults: (results) => set(applyPracticeResults(get(), results, dayKey(clock()))),
 
+      recordSkillLevels: (levels) => set({ skillLevels: raiseSkillLevels(get().skillLevels, levels) }),
+
       setDailyGoal: (xp) => set({ dailyGoalXp: Math.max(10, Math.min(200, Math.round(xp))) }),
 
       resetProgress: () => set(initialProgress()),
@@ -111,6 +119,7 @@ export const useProgressStore = create<ProgressStore>()(
         xpByDay: keepEntries<number>(saved.xpByDay, (xp) => typeof xp === 'number' && Number.isFinite(xp)),
         achievements: keepEntries<string>(saved.achievements, (day) => typeof day === 'string'),
         stats: { ...saved.stats, bySkill: checkedSkillStats(saved.stats.bySkill) },
+        skillLevels: checkedSkillLevels(saved.skillLevels),
       })),
       partialize: (state): ProgressData => ({
         version: state.version,
@@ -122,6 +131,7 @@ export const useProgressStore = create<ProgressStore>()(
         dailyGoalXp: state.dailyGoalXp,
         stats: state.stats,
         achievements: state.achievements,
+        skillLevels: state.skillLevels,
       }),
     },
   ),

@@ -11,19 +11,24 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useCountUp } from '@/components/ui/useCountUp';
-import { getSection, type Lesson } from '@/curriculum';
+import { getSection, SKILLS, type Lesson } from '@/curriculum';
 import { getAchievement } from '@/features/learning/achievements';
 import type { LessonReward } from '@/features/learning/progressModel';
 import type { LessonOutcome } from '@/features/lessons/engine/session';
 import { QuickFeedback } from '@/features/feedback/QuickFeedback';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { freezeLines } from '@/features/learning/streakLines';
+import { MASTERY_BADGE, type MasteryUp } from '@/features/skills/mastery';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 interface LessonCompleteProps {
   lesson: Lesson;
   outcome: LessonOutcome;
   reward: LessonReward;
+  /** Skills this lesson took to a new level. */
+  masteryUps?: MasteryUp[];
+  /** Today's replay number of this lesson, when replaying it again earned less XP. */
+  replayRound?: number | null;
   onContinue: () => void;
   onRetry: () => void;
   onNextLesson?: (lessonId: string) => void;
@@ -58,7 +63,16 @@ const BEAT = {
 } as const;
 
 /** Celebrates a finished lesson: stars, XP, level ups, streaks, unlocks and achievements. */
-export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, onNextLesson }: LessonCompleteProps) {
+export function LessonComplete({
+  lesson,
+  outcome,
+  reward,
+  masteryUps = [],
+  replayRound = null,
+  onContinue,
+  onRetry,
+  onNextLesson,
+}: LessonCompleteProps) {
   const insets = useSafeAreaInsets();
   const xp = useCountUp(reward.xpGained, 800, BEAT.xp);
   const section = getSection(lesson.sectionId);
@@ -88,15 +102,31 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
   if (leveledUp) {
     extras.push({ icon: 'arrow-up-bold-circle', color: colors.primary, text: `Level ${reward.levelAfter} reached!` });
   }
+  for (const up of masteryUps) {
+    if (up.level === 'none' || up.level === 'introduced') continue;
+    extras.push({
+      icon: MASTERY_BADGE[up.level].icon,
+      color: up.level === 'practised' ? colors.info : colors.star,
+      text: `${SKILLS[up.skill].title}: ${MASTERY_BADGE[up.level].label}!`,
+    });
+  }
   for (const id of reward.newAchievements) {
     const achievement = getAchievement(id);
     if (achievement) extras.push({ icon: achievement.icon, color: colors.info, text: `Achievement: ${achievement.title}` });
+  }
+  if (replayRound !== null) {
+    extras.push({
+      icon: 'information-outline',
+      color: colors.textSecondary,
+      text: `Round ${replayRound} of this lesson today, so less XP. A new lesson or a drill earns full XP.`,
+    });
   }
 
   const breakdown = [
     { label: 'Exercises', value: reward.xp.exercises },
     { label: 'First completion', value: reward.xp.completion },
     { label: 'Perfect', value: reward.xp.perfect },
+    { label: 'Skill levels', value: reward.xp.skills ?? 0 },
   ].filter((part) => part.value > 0);
 
   return (

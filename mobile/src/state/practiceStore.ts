@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { DrillCategory } from '@/curriculum/drills';
+import { dayKey } from '@/features/learning/progression';
 import type { LevelStats } from '@/features/practice/drillLevels';
 
 import { isPlainObject, keepEntries, mergeChecked } from './sanitize';
@@ -17,6 +18,13 @@ export interface PracticeRecord {
   lastPlayedAt: string | null;
   /** Answers per drill level: how the drill knows when to move up. Older saves lack it. */
   levels?: Partial<Record<string, LevelStats>>;
+  /** Rounds played on the latest day: the same drill over and over earns less XP. */
+  dayRounds?: { day: string; rounds: number };
+}
+
+/** Rounds of this practice already played on `day`. */
+export function roundsOn(record: PracticeRecord | undefined, day: string): number {
+  return record?.dayRounds?.day === day ? record.dayRounds.rounds : 0;
 }
 
 /** One answer in a drill session, filed under its level. */
@@ -40,6 +48,9 @@ export function addLevelResults(
 const isLevelStats = (value: unknown): value is LevelStats =>
   isPlainObject(value) && typeof value.attempted === 'number' && typeof value.firstTry === 'number';
 
+const isDayRounds = (value: unknown): value is PracticeRecord['dayRounds'] =>
+  isPlainObject(value) && typeof value.day === 'string' && typeof value.rounds === 'number';
+
 interface PracticeState {
   records: Partial<Record<PracticeKind, PracticeRecord>>;
   recordSession: (kind: PracticeKind, firstTry: number, now?: string, levelResults?: LevelResult[]) => void;
@@ -53,6 +64,7 @@ export const usePracticeStore = create<PracticeState>()(
       recordSession: (kind, firstTry, now = new Date().toISOString(), levelResults = []) => {
         const previous = get().records[kind] ?? { sessions: 0, bestFirstTry: 0, lastPlayedAt: null };
         const levels = levelResults.length > 0 ? addLevelResults(previous.levels, levelResults) : previous.levels;
+        const day = dayKey(new Date(now));
         set({
           records: {
             ...get().records,
@@ -61,6 +73,7 @@ export const usePracticeStore = create<PracticeState>()(
               bestFirstTry: Math.max(previous.bestFirstTry, firstTry),
               lastPlayedAt: now,
               ...(levels ? { levels } : {}),
+              dayRounds: { day, rounds: roundsOn(previous, day) + 1 },
             },
           },
         });
@@ -75,9 +88,11 @@ export const usePracticeStore = create<PracticeState>()(
         records: Object.fromEntries(
           Object.entries(keepEntries<PracticeRecord>(saved.records, isPlainObject)).map(([kind, record]) => [
             kind,
-            isPlainObject(record.levels)
-              ? { ...record, levels: keepEntries<LevelStats>(record.levels, isLevelStats) }
-              : { ...record, levels: undefined },
+            {
+              ...record,
+              levels: isPlainObject(record.levels) ? keepEntries<LevelStats>(record.levels, isLevelStats) : undefined,
+              dayRounds: isDayRounds(record.dayRounds) ? record.dayRounds : undefined,
+            },
           ]),
         ),
       })),

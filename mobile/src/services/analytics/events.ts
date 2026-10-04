@@ -70,6 +70,9 @@ export interface AnalyticsEvents {
   daily_challenge_started: { challenge_id: string };
   daily_challenge_completed: { challenge_id: string; xp: number };
 
+  /** A skill reached a mastery level for the first time (practised, reliable, mastered). */
+  skill_level_up: { skill: string; level: string; xp: number };
+
   /** Home's "Coach's pick" opened: what the coach suggested, and why (due review, pattern, new drill…). */
   coach_pick_opened: { kind: 'lesson' | 'drill' | 'mistakes'; topic: string; done_today: boolean; trigger: string };
   /** The lesson or practice the pick opened was finished. */

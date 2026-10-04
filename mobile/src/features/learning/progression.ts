@@ -13,6 +13,8 @@ export interface LessonRecord {
   completions: number;
   firstCompletedAt: string | null;
   lastPlayedAt: string | null;
+  /** Times played on `lastPlayedAt`: replaying one lesson over and over earns less. */
+  dayPlays?: number;
 }
 
 export type LessonRecords = Record<string, LessonRecord>;
@@ -25,6 +27,7 @@ export const emptyLessonRecord = (): LessonRecord => ({
   completions: 0,
   firstCompletedAt: null,
   lastPlayedAt: null,
+  dayPlays: 0,
 });
 
 // ---------------------------------------------------------------------------
@@ -46,17 +49,46 @@ export interface ExerciseResult {
   revealed: boolean;
 }
 
-export function exerciseXp(result: ExerciseResult | undefined, replay = false): number {
+/** `factor`: the share earned by a round repeated too often today (see repeatFactor). */
+export function exerciseXp(result: ExerciseResult | undefined, replay = false, factor = 1): number {
   if (!result || !result.solved || result.revealed) return 0;
   const base = result.mistakes === 0 ? EXERCISE_XP : EXERCISE_XP / 2;
-  return replay ? Math.ceil(base / 2) : base;
+  return Math.round((replay ? Math.ceil(base / 2) : base) * factor);
 }
+
+/**
+ * XP rewards practice, not tapping: the same drill (or a replay of the same
+ * lesson) earns full XP three times a day, then half, then a quarter. Moving
+ * on to something else earns full XP again, and mixing skills is better
+ * practice anyway.
+ */
+export const REPEAT_XP = [1, 1, 1, 0.5, 0.5, 0.5, 0.25] as const;
+
+/** The share of XP a round earns after `roundsBefore` rounds of the same thing today. */
+export function repeatFactor(roundsBefore: number): number {
+  return REPEAT_XP[Math.max(0, Math.min(roundsBefore, REPEAT_XP.length - 1))];
+}
+
+/** Rounds of one lesson already played today (replays only count against XP). */
+export function lessonPlaysToday(record: LessonRecord | undefined, today: string): number {
+  return record?.lastPlayedAt === today ? (record.dayPlays ?? 1) : 0;
+}
+
+/** The XP factor for playing a lesson now: first runs always earn in full. */
+export function lessonRepeatFactor(record: LessonRecord | undefined, today: string): number {
+  return record?.completed ? repeatFactor(lessonPlaysToday(record, today)) : 1;
+}
+
+/** Fixing a mistake from your own games for good (spaced repetition marks it mastered). */
+export const MISTAKE_MASTERED_XP = 15;
 
 export interface LessonXpBreakdown {
   exercises: number;
   /** One-time bonus for finishing the lesson for the first time. */
   completion: number;
   perfect: number;
+  /** Skills that reached a new level with this lesson (see mastery). */
+  skills?: number;
   total: number;
 }
 
@@ -66,10 +98,11 @@ export function lessonXpBreakdown(
   outcome: { passed: boolean; stars: number },
   firstCompletion: boolean,
   replay: boolean,
+  factor = 1,
 ): LessonXpBreakdown {
   const exercises = lesson.steps
     .filter(isScored)
-    .reduce((sum, step) => sum + exerciseXp(results[step.id], replay), 0);
+    .reduce((sum, step) => sum + exerciseXp(results[step.id], replay, factor), 0);
   const completion = outcome.passed && firstCompletion ? lesson.xp : 0;
   const perfect = outcome.passed && outcome.stars === 3 && !replay ? PERFECT_BONUS_XP : 0;
   return { exercises, completion, perfect, total: exercises + completion + perfect };

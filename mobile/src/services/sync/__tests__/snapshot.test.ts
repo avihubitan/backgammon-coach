@@ -157,6 +157,36 @@ describe('merging snapshots', () => {
     expect(merged.games.stats.gamesPlayed).toBe(5);
   });
 
+  it('keeps the highest skill levels, and counts today’s rounds and replays once', () => {
+    const a = base({
+      progress: {
+        ...initialProgress(),
+        skillLevels: { safety: 'reliable', hitting: 'introduced' },
+        lessons: { 'board-1': lesson({ completed: true, lastPlayedAt: '2026-10-04', dayPlays: 2 }) },
+      },
+      practice: { hitting: { sessions: 3, bestFirstTry: 4, lastPlayedAt: '2026-10-04T09:00:00Z', dayRounds: { day: '2026-10-04', rounds: 3 } } },
+    });
+    const b = base({
+      progress: {
+        ...initialProgress(),
+        skillLevels: { safety: 'practised', hitting: 'practised', points: 'introduced' },
+        lessons: { 'board-1': lesson({ completed: true, lastPlayedAt: '2026-10-03', dayPlays: 6 }) },
+      },
+      practice: { hitting: { sessions: 2, bestFirstTry: 5, lastPlayedAt: '2026-10-03T09:00:00Z', dayRounds: { day: '2026-10-03', rounds: 5 } } },
+    });
+    const merged = mergeSnapshots(a, b);
+    expect(merged.progress.skillLevels).toEqual({ safety: 'reliable', hitting: 'practised', points: 'introduced' });
+    expect(merged.progress.lessons['board-1'].dayPlays).toBe(2);
+    expect(merged.practice.hitting?.dayRounds).toEqual({ day: '2026-10-04', rounds: 3 });
+    // A copy from before skill levels existed.
+    const old = { ...b.progress } as Partial<typeof b.progress>;
+    delete old.skillLevels;
+    expect(mergeSnapshots(a, base({ progress: old as typeof b.progress })).progress.skillLevels).toEqual({
+      safety: 'reliable',
+      hitting: 'introduced',
+    });
+  });
+
   it('is idempotent: merging a copy with itself changes nothing', () => {
     const a = base({ progress: { ...initialProgress(), xp: 10, lessons: { 'board-1': lesson({ completed: true }) } } });
     expect(contentKey(mergeSnapshots(a, a))).toBe(contentKey(a));

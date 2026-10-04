@@ -9,7 +9,9 @@ import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useCountUp } from '@/components/ui/useCountUp';
+import { SKILLS } from '@/curriculum';
 import { starsForAccuracy } from '@/features/lessons/engine/session';
+import { MASTERY_BADGE } from '@/features/skills/mastery';
 import type { PracticeKind } from '@/state/practiceStore';
 import { freezeLines } from '@/features/learning/streakLines';
 import { colors, MAX_CONTENT_WIDTH, radii, SCREEN_GUTTER, spacing } from '@/theme';
@@ -64,11 +66,21 @@ export function PracticeComplete({ title, kind, result, onAgain, againLabel = 'P
   } else if (level) {
     lines.push({ icon: 'stairs', color: colors.info, text: `Level ${level.number} of ${level.of}: ${level.level.title}` });
   }
+  for (const up of result.masteryUps) {
+    if (up.level === 'none' || up.level === 'introduced') continue;
+    lines.push({
+      icon: MASTERY_BADGE[up.level].icon,
+      color: up.level === 'practised' ? colors.info : colors.star,
+      text: `${SKILLS[up.skill].title}: ${MASTERY_BADGE[up.level].label}! +${up.xp} XP`,
+    });
+  }
   if (mastered > 0) {
     lines.push({
       icon: 'check-decagram',
       color: colors.success,
-      text: single ? 'Mastered: you’ve found it on three different days' : `${mastered} mistake${mastered === 1 ? '' : 's'} mastered`,
+      text: single
+        ? `Mastered: you’ve found it on three different days. +${result.fixedXp} XP`
+        : `${mastered} mistake${mastered === 1 ? '' : 's'} mastered. +${result.fixedXp} XP`,
     });
   }
   if (result.nextReview) {
@@ -83,6 +95,13 @@ export function PracticeComplete({ title, kind, result, onAgain, againLabel = 'P
   }
   lines.push(...freezeLines(reward));
   if (reward.dailyGoalReached) lines.push({ icon: 'target', color: colors.success, text: 'Daily goal reached' });
+  if (result.factor < 1) {
+    lines.push({
+      icon: 'information-outline',
+      color: colors.textSecondary,
+      text: `Round ${result.round} of this today, so ${result.factor === 0.5 ? 'half' : 'a quarter of the'} XP. Something different earns full XP.`,
+    });
+  }
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + spacing.xl }]} testID="practice-complete">
