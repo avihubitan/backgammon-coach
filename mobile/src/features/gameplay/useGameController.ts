@@ -34,9 +34,9 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
 import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllows } from './coachWatch';
 import { gameXp } from './gameModel';
+import { aiStepDelay, PLAYER_PASS_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
-const AI_DELAY = { roll: 700, think: 850, move: 520, end: 450, cube: 1100 } as const;
 const HUMAN_STEP = MOVE_STEP_MS;
 
 export interface GameOutcome {
@@ -154,16 +154,7 @@ export function useGameController() {
     const aiActs = (state.phase === 'rolling' || state.phase === 'moving') && state.currentPlayer === 'player2';
     if (!aiResponds && !aiActs) return;
 
-    const delay =
-      state.phase === 'doubling'
-        ? AI_DELAY.cube
-        : state.phase === 'rolling'
-          ? AI_DELAY.roll
-          : state.turn && state.turn.moves.length === 0 && !aiPlan.current
-            ? AI_DELAY.think
-            : state.turn && isTurnComplete(state.turn)
-              ? AI_DELAY.end
-              : AI_DELAY.move;
+    const delay = aiStepDelay(state, { planned: aiPlan.current !== null, level });
 
     const timer = setTimeout(() => {
       const current = latestState();
@@ -232,7 +223,7 @@ export function useGameController() {
     !!state && state.phase === 'moving' && state.currentPlayer === 'player1' && state.turn?.requiredMoves === 0;
   useEffect(() => {
     if (!dancing) return;
-    const timer = setTimeout(() => dispatch({ type: 'end-turn' }), 1800);
+    const timer = setTimeout(() => dispatch({ type: 'end-turn' }), PLAYER_PASS_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dancing, state]);
