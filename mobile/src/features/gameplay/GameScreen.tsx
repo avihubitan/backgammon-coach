@@ -164,7 +164,9 @@ export function GameScreen() {
   // A new game: the board and its checkers settle in, and "Roll to start" invites the first tap.
   const fresh = state.phase === 'opening' && state.openingTies.length === 0;
   const panelWidth = Math.min(width, MAX_CONTENT_WIDTH) - 2 * SCREEN_GUTTER;
-  // Narrow phones (under 360 pt): rows of buttons drop their icons and tighten so labels fit.
+  // Rows of buttons tighten under 400 pt (iPhone SE, small Androids) and also drop their icons
+  // under 360 pt, so every label fits whole.
+  const dense = width < 400;
   const narrow = width < 360;
 
   // A tap on the board before it's time to move isn't ignored: the roll button, or
@@ -293,24 +295,24 @@ export function GameScreen() {
           <View style={styles.row}>
             {canDouble(state) ? (
               <View style={styles.flex}>
-                <Button testID="double" label={`Double to ${state.cube.value * 2}`} variant="secondary" dense={narrow} onPress={game.double} />
+                <Button testID="double" label={`Double to ${state.cube.value * 2}`} variant="secondary" dense={dense} onPress={game.double} />
               </View>
             ) : null}
             <Animated.View key={nudge?.target === 'roll' ? nudge.key : 0} style={[styles.flex, nudge?.target === 'roll' ? NUDGE : null]}>
-              <Button testID="roll" label="Roll" icon="dice-multiple" dense={narrow} onPress={game.roll} />
+              <Button testID="roll" label="Roll" icon="dice-multiple" dense={dense} onPress={game.roll} />
             </Animated.View>
           </View>
         ) : game.watch ? (
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Button testID="coach-watch-retry" label="Try again" variant="secondary" dense={narrow} onPress={() => game.answerWatch('retry')} />
+              <Button testID="coach-watch-retry" label="Try again" variant="secondary" dense={dense} onPress={() => game.answerWatch('retry')} />
             </View>
             <View style={styles.flex}>
               <Button
                 testID="coach-watch-show"
                 label="Show me"
                 icon={narrow ? undefined : 'lightbulb-on-outline'}
-                dense={narrow}
+                dense={dense}
                 onPress={() => game.answerWatch('show')}
               />
             </View>
@@ -334,7 +336,7 @@ export function GameScreen() {
                 testID="undo"
                 label="Undo"
                 icon={narrow ? undefined : 'undo-variant'}
-                dense={narrow}
+                dense={dense}
                 variant="secondary"
                 disabled={!turn || turn.moves.length === 0 || game.busy}
                 onPress={game.undo}
@@ -345,7 +347,7 @@ export function GameScreen() {
                 testID="done"
                 label="Done"
                 icon={narrow ? undefined : 'check-bold'}
-                dense={narrow}
+                dense={dense}
                 disabled={!canEndTurn(state) || game.busy}
                 onPress={game.endTurn}
               />
@@ -354,10 +356,10 @@ export function GameScreen() {
         ) : state.phase === 'doubling' && state.doubleOfferedBy === 'player2' ? (
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Button testID="drop" label="Drop" variant="secondary" dense={narrow} onPress={() => game.respondToDouble(false)} />
+              <Button testID="drop" label="Drop" variant="secondary" dense={dense} onPress={() => game.respondToDouble(false)} />
             </View>
             <View style={styles.flex}>
-              <Button testID="take" label="Take" dense={narrow} onPress={() => game.respondToDouble(true)} />
+              <Button testID="take" label="Take" dense={dense} onPress={() => game.respondToDouble(true)} />
             </View>
           </View>
         ) : state.phase === 'finished' ? null : (

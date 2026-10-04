@@ -132,6 +132,9 @@ export function Button({
                       color={palette.text}
                       style={size === 'small' || dense ? styles.smallLabel : undefined}
                       numberOfLines={1}
+                      // Larger system text: the label shrinks a little rather than being cut off.
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
                     >
                       {label.toUpperCase()}
                     </AppText>

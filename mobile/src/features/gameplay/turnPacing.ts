@@ -40,6 +40,11 @@ export const PLAYER_PASS_MS = 1500;
 export const END_BANNER_DELAY_MS = 450;
 /** The opponent's goodbye comes just after the banner, before the result sheet. */
 export const FAREWELL_DELAY_MS = END_BANNER_DELAY_MS + 200;
+/**
+ * The coach reviews the game while the end banner shows: nothing else is
+ * happening, and the result sheet then rises with the verdict ready.
+ */
+export const REVIEW_DELAY_MS = END_BANNER_DELAY_MS + 150;
 /** When the result sheet follows: long enough to take in the end, short enough not to wait. */
 export const RESULT_SHEET_DELAY_MS = { won: 1700, lost: 1300 } as const;
 

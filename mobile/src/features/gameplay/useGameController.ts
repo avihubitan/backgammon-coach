@@ -37,7 +37,7 @@ import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllow
 import { gameXp } from './gameModel';
 import { farewellMoment, openingMoment, pickLine, seedFrom, shouldSpeak, type Moment } from './opponentLines';
 import { opponentFor } from './opponents';
-import { aiStepDelay, FAREWELL_DELAY_MS, OPENING_REVEAL_MS, PLAYER_PASS_MS } from './turnPacing';
+import { aiStepDelay, FAREWELL_DELAY_MS, OPENING_REVEAL_MS, PLAYER_PASS_MS, REVIEW_DELAY_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
 /** How long a line stays next to the opponent's seat. */
@@ -155,7 +155,7 @@ export function useGameController() {
     recordedFor.current = key;
     const recorded = useGameStore.getState().finishGame();
     // The coach reviews the game in the background (move quality, mistakes to practise).
-    scheduleReviews();
+    scheduleReviews(REVIEW_DELAY_MS);
     const xp = gameXp(game.settings.level, finishedState.result);
     const won = finishedState.result.winner === 'player1';
     const startedAt = new Date(game.startedAt).getTime();
