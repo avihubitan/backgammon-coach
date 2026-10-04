@@ -9,6 +9,7 @@ import {
   currentLegalMoves,
   formatPlay,
   gameReducer,
+  GameRuleError,
   isTurnComplete,
   rollDice,
   rollDie,
@@ -18,7 +19,7 @@ import {
   type GameState,
   type MoveSource,
 } from '@/game';
-import { DICE_SETTLE_MS, MOVE_STEP_MS } from '@/components/board/motion';
+import { DICE_SETTLE_MS, hopDelays } from '@/components/board/motion';
 import { scheduleReviews } from '@/features/coach/reviewQueue';
 import type { Reward } from '@/features/learning/progressModel';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
@@ -39,7 +40,6 @@ import { opponentFor } from './opponents';
 import { aiStepDelay, OPENING_REVEAL_MS, PLAYER_PASS_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
-const HUMAN_STEP = MOVE_STEP_MS;
 /** How long a line stays next to the opponent's seat. */
 const SPEECH_MS = 2800;
 /** The greeting waits for the board to settle in. */
@@ -176,7 +176,15 @@ export function useGameController() {
   const dispatch = (action: GameAction, extra?: Parameters<typeof updateState>[1]): GameState | null => {
     const current = latestState();
     if (!current) return null;
-    const next = gameReducer(current, action);
+    let next: GameState;
+    try {
+      next = gameReducer(current, action);
+    } catch (error) {
+      // The rules refused a stale action (a tap that raced the game): the game stays as it was.
+      if (!(error instanceof GameRuleError)) throw error;
+      crashReporter.captureException(error, { action: action.type, phase: current.phase });
+      return null;
+    }
     updateState(next, extra);
     if (next.phase === 'finished' && current.phase !== 'finished') onFinished(next);
     return next;
@@ -339,18 +347,25 @@ export function useGameController() {
       if (next) autoSelect(next);
       return;
     }
+    // One hop per die: each lands and rests a moment before the next takes off.
+    const start = latestState();
+    const delays = start?.turn ? hopDelays(start.turn.board, 'player1', moves) : [];
     moves.forEach((move, index) => {
       const step = () => {
-        const next = dispatch({ type: 'move', move });
-        if (index === moves.length - 1) {
+        // The game may have moved on meanwhile (a resign): only play a hop the rules still allow.
+        const current = latestState();
+        const stillLegal =
+          !!current && current.phase === 'moving' && current.currentPlayer === 'player1' && currentLegalMoves(current).some((legal) => sameMove(legal, move));
+        const next = stillLegal ? dispatch({ type: 'move', move }) : null;
+        if (index === moves.length - 1 || !next) {
           setBusy(false);
-          autoSelect(next);
+          autoSelect(next ?? latestState());
         } else {
           setSelected(null);
         }
       };
       if (index === 0) step();
-      else timers.current.push(setTimeout(step, HUMAN_STEP * index));
+      else timers.current.push(setTimeout(step, delays[index] ?? 0));
     });
     if (moves.length > 1) setBusy(true);
   };

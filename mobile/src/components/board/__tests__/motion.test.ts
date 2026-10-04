@@ -1,8 +1,19 @@
 import { applyMove, createBoard, initialBoard, type BoardState, type CheckerMove } from '@/game';
 
 import { checkerCenterOnPoint, columnCenterX, computeMetrics, placeAt } from '../geometry';
-import { diffLayout, layoutFromBoard } from '../layout';
-import { flightDuration, mergeCues, MOVE_STEP_MS, planMotions, SETTLE_MS, STAGGER_MS } from '../motion';
+import { diffLayout, layoutFromBoard, stackKey } from '../layout';
+import {
+  flightDuration,
+  HOP_REST_MS,
+  hopDelays,
+  KNOCK_EXTRA_MS,
+  mergeCues,
+  MOVE_STEP_MS,
+  planMotions,
+  RESPACE_LEAD_MS,
+  SETTLE_MS,
+  STAGGER_MS,
+} from '../motion';
 
 const m = computeMetrics(390);
 
@@ -38,7 +49,7 @@ describe('planMotions', () => {
     expect(delays).toEqual([0, STAGGER_MS]);
   });
 
-  it('makes a hit checker wait for the hitter, then fly to the bar with an impact', () => {
+  it('knocks a hit checker off to the bar the moment the hitter comes down on it', () => {
     const board = createBoard({ player1: { 8: 2, 6: 5 }, player2: { 5: 1, 19: 5 } });
     const { next, plan } = step(board, [{ from: 8, to: 5, die: 3, hit: true }]);
     const hitter = next.find((checker) => checker.player === 'player1' && checker.moved)!;
@@ -46,13 +57,34 @@ describe('planMotions', () => {
     const hitterMotion = plan.motions[hitter.id];
     const victimMotion = plan.motions[victim.id];
     const landing = hitterMotion.delay + hitterMotion.duration;
+    // The hitter lands hard; the hit checker doesn't move before it's touched.
+    expect(hitterMotion.hits).toBe(true);
     expect(victimMotion.kind).toBe('hit');
-    expect(victimMotion.delay).toBe(landing - 40);
+    expect(victimMotion.delay).toBe(landing);
     expect(victimMotion.hop).toBeGreaterThan(hitterMotion.hop);
+    expect(victimMotion.hits).toBeUndefined();
     expect(plan.impacts).toHaveLength(1);
     expect(plan.impacts[0]).toMatchObject({ delay: landing, victim: 'player2' });
     expect(plan.cues.map((cue) => cue.kind)).toEqual(['hit', 'place']);
     expect(plan.totalMs).toBe(victimMotion.delay + victimMotion.duration);
+  });
+
+  it('flies a hit checker a little longer than a plain move of the same length', () => {
+    const board = createBoard({ player1: { 8: 2, 6: 5 }, player2: { 5: 1, 19: 5 } });
+    const { next, plan } = step(board, [{ from: 8, to: 5, die: 3, hit: true }]);
+    const victim = next.find((checker) => checker.player === 'player2' && checker.moved)!;
+    expect(plan.motions[victim.id].duration).toBeGreaterThanOrEqual(220 + KNOCK_EXTRA_MS);
+    expect(plan.motions[victim.id].duration).toBeLessThanOrEqual(MOVE_STEP_MS - 20 + KNOCK_EXTRA_MS);
+  });
+
+  it('closes up a full point just before a checker lands on it, not while it is far away', () => {
+    // The 6-point holds five: a sixth squeezes the stack.
+    const { next, plan } = step(initialBoard(), [{ from: 8, to: 6, die: 2, hit: false }]);
+    const mover = next.find((checker) => checker.moved)!;
+    const motion = plan.motions[mover.id];
+    expect(plan.respace[stackKey(mover)]).toBe(motion.delay + motion.duration - RESPACE_LEAD_MS);
+    // The stack it left needs no waiting.
+    expect(plan.respace['player1:p8']).toBeUndefined();
   });
 
   it('cues the bear-off sound for checkers going into the tray', () => {
@@ -81,6 +113,25 @@ describe('timing helpers', () => {
     expect(flightDuration(0, m)).toBe(220);
     expect(flightDuration(m.width * 10, m)).toBe(MOVE_STEP_MS - 20);
     expect(flightDuration(m.width / 2, m)).toBeGreaterThan(flightDuration(m.width / 6, m));
+  });
+
+  it('times each hop of a multi-step move by its length, with a short rest on each point', () => {
+    // 8/7/4 with 1-3: a one-pip hop, then a hop over the bar.
+    const delays = hopDelays(initialBoard(), 'player1', [
+      { from: 8, to: 7, die: 1, hit: false },
+      { from: 7, to: 4, die: 3, hit: false },
+    ]);
+    expect(delays[0]).toBe(0);
+    // A short hop doesn't wait for the longest possible flight.
+    expect(delays[1]).toBeLessThan(MOVE_STEP_MS);
+    expect(delays[1]).toBeGreaterThanOrEqual(220 + HOP_REST_MS);
+    // A long one (13 to 7, corner to corner) gets all the time it needs.
+    const lone = createBoard({ player1: { 13: 1, 6: 14 }, player2: { 24: 15 } });
+    const long = hopDelays(lone, 'player1', [
+      { from: 13, to: 7, die: 6, hit: false },
+      { from: 7, to: 1, die: 6, hit: false },
+    ]);
+    expect(long[1]).toBe(MOVE_STEP_MS - 20 + HOP_REST_MS);
   });
 
   it('merges near-simultaneous sounds, keeping the strongest', () => {
@@ -136,7 +187,7 @@ describe('dragging and dropping', () => {
     const next = diffLayout(before, applyMove(board, 'player1', { from: 8, to: 5, die: 3, hit: true }));
     const plan = planMotions(before, next, m, 1, { player: 'player1', at: { x: 300, y: 300 } });
     const victim = next.find((checker) => checker.player === 'player2' && checker.moved)!;
-    expect(plan.motions[victim.id].delay).toBe(SETTLE_MS - 40);
+    expect(plan.motions[victim.id].delay).toBe(SETTLE_MS);
     expect(plan.impacts[0].delay).toBe(SETTLE_MS);
 
     const ai = planMotions(before, next, m, 2, { player: 'player2', at: { x: 0, y: 0 } });

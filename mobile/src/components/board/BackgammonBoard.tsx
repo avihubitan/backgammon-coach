@@ -51,7 +51,7 @@ import {
   type BoardMetrics,
   type Point2D,
 } from './geometry';
-import { diffLayout, layoutFromBoard, stackSizes, type PlacedChecker } from './layout';
+import { diffLayout, layoutFromBoard, stackKey, stackSizes, type PlacedChecker } from './layout';
 import {
   checkerCenter,
   DICE_SETTLE_MS,
@@ -59,6 +59,7 @@ import {
   mergeCues,
   planMotions,
   type DropInfo,
+  type Motion,
   type MotionPlan,
   type SoundCueKind,
 } from './motion';
@@ -305,7 +306,7 @@ export function BackgammonBoard({
   }, [plan, sounds]);
   useEffect(() => () => soundTimers.current.forEach(clearTimeout), []);
 
-  // Hits and wrong answers shake the whole board a little.
+  // A hit jolts the board, just perceptibly; wrong answers shake it a little more.
   const shake = useSharedValue(0);
   const firstImpact = plan.impacts[0]?.delay;
   useEffect(() => {
@@ -313,11 +314,10 @@ export function BackgammonBoard({
     shake.value = withDelay(
       firstImpact,
       withSequence(
-        withTiming(-4, { duration: 40 }),
-        withTiming(4, { duration: 60 }),
-        withTiming(-2.5, { duration: 60 }),
-        withTiming(1.5, { duration: 50 }),
-        withTiming(0, { duration: 40 }),
+        withTiming(-2, { duration: 35 }),
+        withTiming(2, { duration: 55 }),
+        withTiming(-1, { duration: 55 }),
+        withTiming(0, { duration: 45 }),
       ),
     );
   }, [plan, firstImpact, reduceMotion, shake]);
@@ -616,19 +616,21 @@ export function BackgammonBoard({
       {/* Render in a stable id order: re-ordering DOM nodes would cancel animations on web. */}
       {[...layout].sort(compareIds).map((checker) => {
         const lifted = checker.id === liftedId;
+        const motion = plan.motions[checker.id];
         return (
           <AnimatedChecker
             key={`${layoutKey}-${checker.id}`}
             checker={checker}
             center={checkerCenter(m, checker, sizes)}
-            motion={plan.motions[checker.id]}
+            motion={motion}
             updateId={updateId}
             lifted={lifted}
             metrics={m}
             reduceMotion={reduceMotion}
-            zIndex={lifted ? 75 : checker.moved ? 40 + checker.index : 10 + checker.index}
+            zIndex={checkerZ(checker, motion, lifted)}
             hidden={lifted && dragging !== null}
             enterDelay={entrance ? entranceDelay(checker) : undefined}
+            settleDelay={checker.moved ? undefined : plan.respace[stackKey(checker)]}
           />
         );
       })}
@@ -770,13 +772,13 @@ export function BackgammonBoard({
 
       {plan.impacts.map((impact) => (
         <View key={impact.id} style={[StyleSheet.absoluteFill, { zIndex: 96 }, { pointerEvents: 'none' }]}>
-          <ImpactRing x={impact.at.x} y={impact.at.y} size={m.checker * 1.3} delay={impact.delay} color="#FFE6A8" />
+          <ImpactRing x={impact.at.x} y={impact.at.y} size={m.checker * 1.15} delay={impact.delay} color="#FFE6A8" />
           <ParticleBurst
             x={impact.at.x}
             y={impact.at.y}
             delay={impact.delay}
-            count={10}
-            radius={m.checker * 1.8}
+            count={7}
+            radius={m.checker * 1.6}
             size={Math.max(4, m.checker * 0.22)}
             gravity={m.checker * 0.6}
             duration={520}
@@ -928,6 +930,16 @@ function RefusalMark({ center, size }: { center: Point2D; size: number }) {
       ]}
     />
   );
+}
+
+/**
+ * Drawing order: a picked-up checker above everything, checkers in flight above
+ * the ones at rest, and a hitter above the checker it knocks off.
+ */
+function checkerZ(checker: PlacedChecker, motion: Motion | undefined, lifted: boolean): number {
+  if (lifted) return 75;
+  if (!checker.moved) return 10 + checker.index;
+  return (motion?.kind === 'hit' ? 33 : 40) + checker.index;
 }
 
 /** Checkers settle onto a new board column by column, left to right, each stack from the bottom up. */

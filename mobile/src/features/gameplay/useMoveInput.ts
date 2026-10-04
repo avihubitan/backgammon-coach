@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { MOVE_STEP_MS } from '@/components/board/motion';
+import { hopDelays, MOVE_STEP_MS } from '@/components/board/motion';
 import { isTurnComplete, playMove, undoLastMove, type CheckerMove, type MoveSource, type TurnState } from '@/game';
 import { feedback } from '@/services/feedback';
 import { haptics } from '@/services/haptics';
@@ -49,6 +49,8 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
       commit(current);
       return;
     }
+    // One hop per die: each lands and rests a moment before the next takes off.
+    const delays = hopDelays(start.board, start.player, moves);
     moves.forEach((move, index) => {
       const step = () => {
         current = playMove(current, move);
@@ -62,7 +64,7 @@ export function useMoveInput(initial: TurnState, { enabled = true, onComplete, o
         }
       };
       if (index === 0) step();
-      else timers.current.push(setTimeout(step, STEP_DELAY * index));
+      else timers.current.push(setTimeout(step, delays[index]));
     });
     if (moves.length > 1) setBusy(true);
   };
