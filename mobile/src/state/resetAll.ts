@@ -1,4 +1,5 @@
 import { useChallengeStore } from './challengeStore';
+import { useDailyPositionStore } from './dailyPositionStore';
 import { useEntitlementsStore } from './entitlementsStore';
 import { useGameStore } from './gameStore';
 import { useMistakesStore } from './mistakesStore';
@@ -10,6 +11,7 @@ import { useSyncStore } from './syncStore';
 export function resetAllProgress() {
   useProgressStore.getState().resetProgress();
   useChallengeStore.getState().reset();
+  useDailyPositionStore.getState().reset();
   usePracticeStore.getState().reset();
   useMistakesStore.getState().reset();
   useGameStore.getState().resetGames();

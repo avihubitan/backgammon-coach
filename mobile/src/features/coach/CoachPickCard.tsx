@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
@@ -16,8 +16,8 @@ import { colors, radii, spacing } from '@/theme';
 
 import { coachPlan, type CoachPick } from './coachPick';
 
-function open({ action, topic }: Pick<CoachPick, 'action' | 'topic'>, doneToday: boolean) {
-  analytics.track('coach_pick_opened', { kind: action.kind, topic, done_today: doneToday });
+function open({ action, topic, trigger }: Pick<CoachPick, 'action' | 'topic' | 'trigger'>, doneToday: boolean) {
+  analytics.track('coach_pick_opened', { kind: action.kind, topic, done_today: doneToday, trigger });
   // `source` lets the session report a finished pick (coach_pick_completed).
   const source = 'coach_pick';
   if (action.kind === 'mistakes') router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes', source } });
@@ -25,7 +25,48 @@ function open({ action, topic }: Pick<CoachPick, 'action' | 'topic'>, doneToday:
   else router.push({ pathname: '/lesson/[id]', params: { id: action.lessonId, source } });
 }
 
-/** "Coach's pick": the one thing worth practising next, from the player's own games and lessons. */
+const ACTION_NAME = { mistakes: 'Your positions', drill: 'Drill', lesson: 'Lesson replay' } as const;
+
+/** One more suggestion under the pick: a single tappable row. */
+function MoreRow({ pick, doneToday }: { pick: CoachPick; doneToday: boolean }) {
+  return (
+    <Pressable
+      testID={`coach-more-${pick.trigger}`}
+      accessibilityRole="button"
+      accessibilityLabel={`${pick.topic}, ${ACTION_NAME[pick.action.kind].toLowerCase()}, about ${pick.minutes} minutes`}
+      onPress={() => open(pick, doneToday)}
+      style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+    >
+      <Icon name={pick.icon} size={18} color="textSecondary" />
+      <View style={styles.flex}>
+        <AppText variant="smallStrong" numberOfLines={1}>
+          {pick.topic}
+        </AppText>
+        <AppText variant="caption" color="textMuted" numberOfLines={1}>
+          {ACTION_NAME[pick.action.kind]} · {pick.minutes} min
+        </AppText>
+      </View>
+      <Icon name="chevron-right" size={18} color="textMuted" />
+    </Pressable>
+  );
+}
+
+function Minutes({ minutes }: { minutes: number }) {
+  return (
+    <View style={styles.minutes} accessibilityLabel={`About ${minutes} minutes`}>
+      <Icon name="clock-outline" size={12} color={colors.textSecondary} />
+      <AppText variant="caption" color="textSecondary">
+        {minutes} min
+      </AppText>
+    </View>
+  );
+}
+
+/**
+ * "Recommended for you": the coach's one pick, from the player's own games
+ * and answers, with how long it takes, and a couple of other things worth
+ * doing.
+ */
 export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
   const mistakes = useMistakesStore((state) => state.mistakes);
   const bySkill = useProgressStore((state) => state.stats.bySkill);
@@ -44,7 +85,18 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
     practiced,
   });
   if (!plan) return null;
-  const { pick, done, next } = plan;
+  const { pick, done, next, more } = plan;
+  const moreRows =
+    more.length > 0 ? (
+      <View style={styles.moreList}>
+        <AppText variant="caption" color="textMuted">
+          ALSO FOR YOU
+        </AppText>
+        {more.map((other) => (
+          <MoreRow key={`${other.trigger}-${other.topic}`} pick={other} doneToday={done} />
+        ))}
+      </View>
+    ) : null;
 
   if (done) {
     return (
@@ -67,13 +119,14 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
         {next ? (
           <Button
             testID="coach-pick-next"
-            label="Keep going"
+            label={`Keep going · ${next.minutes} min`}
             iconRight="arrow-right"
             variant="secondary"
             size="medium"
             onPress={() => open(next, true)}
           />
         ) : null}
+        {moreRows}
       </Card>
     );
   }
@@ -85,10 +138,15 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
           <Icon name={pick.icon} size={24} color="info" />
         </View>
         <View style={styles.flex}>
-          <AppText variant="label" color="info">
-            Your coach’s pick
+          <View style={styles.labelRow}>
+            <AppText variant="label" color="info" style={styles.flex}>
+              Your coach’s pick
+            </AppText>
+            <Minutes minutes={pick.minutes} />
+          </View>
+          <AppText variant="subheading" testID="coach-pick-title">
+            {pick.title}
           </AppText>
-          <AppText variant="subheading">Let’s work on {pick.topic.toLowerCase()}.</AppText>
         </View>
       </View>
       <AppText variant="small" color="textSecondary">
@@ -102,6 +160,7 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
         size="medium"
         onPress={() => open(pick, false)}
       />
+      {moreRows}
     </Card>
   );
 }
@@ -111,6 +170,7 @@ const styles = StyleSheet.create({
   cardDone: { borderColor: 'rgba(61, 214, 140, 0.35)' },
   iconDone: { backgroundColor: colors.successSoft },
   top: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   icon: {
     width: 44,
     height: 44,
@@ -119,5 +179,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.infoSoft,
   },
+  minutes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceRaised,
+  },
+  moreList: { gap: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
+  more: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgElevated,
+  },
+  pressed: { opacity: 0.7 },
   flex: { flex: 1 },
 });

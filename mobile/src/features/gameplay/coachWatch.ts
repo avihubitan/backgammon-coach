@@ -1,3 +1,5 @@
+import type { SkillId } from '@/curriculum';
+import { skillOfMistake } from '@/features/skills/extract';
 import {
   describePlay,
   explainDifference,
@@ -23,6 +25,8 @@ export interface CoachWatchVerdict {
   clue: string;
   /** The coach's move, for "Show me". */
   hint: CoachHint;
+  /** The idea the clue is about, so the panel can name the lesson that taught it. */
+  skill: SkillId;
 }
 
 /** Clues by the review's headline for the same mistake. */
@@ -50,11 +54,12 @@ export function watchPlay(turn: TurnState): CoachWatchVerdict | null {
   const severity = severityFor(ranked[0].equity - ranked[played].equity, played + 1);
   if (severity !== 'mistake' && severity !== 'blunder') return null;
   const best = ranked[0].play.moves;
-  const { headline } = explainDifference(turn.startBoard, turn.player, turn.moves, best, false);
+  const { category, headline } = explainDifference(turn.startBoard, turn.player, turn.moves, best, false);
   return {
     severity,
     clue: CLUES[headline] ?? DEFAULT_CLUE,
     hint: { moves: [...best], notation: formatPlay(turn.player, best), reason: describePlay(turn.startBoard, turn.player, best) },
+    skill: skillOfMistake({ category, headline }),
   };
 }
 

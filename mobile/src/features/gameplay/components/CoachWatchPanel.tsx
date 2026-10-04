@@ -16,12 +16,15 @@ import type { CoachWatchVerdict } from '../coachWatch';
 export function CoachWatchPanel({
   verdict,
   lastFree,
+  practised,
   onPlayAnyway,
   compact = false,
 }: {
   verdict: CoachWatchVerdict;
   /** This was the last free check of the game. */
   lastFree: boolean;
+  /** "You practised this in “Making Points”.", when a finished lesson taught the idea. */
+  practised?: string | null;
   onPlayAnyway: () => void;
   compact?: boolean;
 }) {
@@ -58,6 +61,14 @@ export function CoachWatchPanel({
       <AppText variant={compact ? 'caption' : 'small'} color="textSecondary">
         There’s a stronger move here. Clue: {verdict.clue}
       </AppText>
+      {practised ? (
+        <View style={styles.practised}>
+          <Icon name="school-outline" size={13} color={colors.info} />
+          <AppText testID="coach-watch-practised" variant="caption" color="info" style={styles.flex}>
+            {practised}
+          </AppText>
+        </View>
+      ) : null}
       {lastFree ? (
         <AppText variant="caption" color="textMuted">
           Last free check this game. Premium checks every move.
@@ -78,6 +89,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(98, 182, 255, 0.3)',
   },
   title: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  practised: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   flex: { flex: 1 },
   anyway: {
     flexDirection: 'row',

@@ -11,7 +11,7 @@ export type ChallengeEvent =
   | { type: 'exercise-correct'; firstTry: boolean }
   | { type: 'hit' }
   | { type: 'lesson-completed'; stars: number }
-  | { type: 'practice-session'; category: DrillCategory | 'mistakes' }
+  | { type: 'practice-session'; category: DrillCategory | 'mistakes' | 'position' }
   | { type: 'mistake-fixed' }
   | { type: 'game-won' };
 
@@ -24,6 +24,8 @@ export interface ChallengeContext {
   openMistakes: number;
   /** Whether the learner can open mistake practice (a Premium feature). */
   canPracticeMistakes: boolean;
+  /** The drill the coach would send the learner to first, if any. */
+  focusDrill?: DrillCategory | null;
 }
 
 export type ChallengeAction =
@@ -138,10 +140,17 @@ function hashDay(day: string): number {
   return hash >>> 0;
 }
 
-/** Today's challenge, picked deterministically from those the learner can do. */
+/**
+ * Today's challenge, picked deterministically from those the learner can do.
+ * Every other day it's the drill the coach would pick, so the challenge
+ * works on what the learner needs.
+ */
 export function challengeForDay(day: string, context: ChallengeContext): ChallengeDefinition {
   const available = CHALLENGES.filter((challenge) => challenge.available(context));
-  return available[hashDay(day) % available.length];
+  const hash = hashDay(day);
+  const focus = context.focusDrill ? available.find((challenge) => challenge.id === `drill-${context.focusDrill}`) : undefined;
+  if (focus && hash % 2 === 0) return focus;
+  return available[hash % available.length];
 }
 
 export interface DailyChallengeState {

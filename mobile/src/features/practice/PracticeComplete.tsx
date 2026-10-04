@@ -20,7 +20,9 @@ interface PracticeCompleteProps {
   title: string;
   kind: PracticeKind;
   result: PracticeResult;
-  onAgain: () => void;
+  /** Another round; left out when there's nothing more to offer. */
+  onAgain?: () => void;
+  againLabel?: string;
   onDone: () => void;
 }
 
@@ -35,18 +37,24 @@ const riseIn = (delay: number) => ({
 });
 
 /** End of a practice run: stars for accuracy, XP, and what improved. */
-export function PracticeComplete({ title, kind, result, onAgain, onDone }: PracticeCompleteProps) {
+export function PracticeComplete({ title, kind, result, onAgain, againLabel = 'Practice again', onDone }: PracticeCompleteProps) {
   const insets = useSafeAreaInsets();
   const { outcome, reward, xp, mastered, level } = result;
   const stars = outcome.scoredSteps > 0 ? starsForAccuracy(outcome.accuracy) : 0;
   const shownXp = useCountUp(xp, 700, 1100);
   const [levelUp, setLevelUp] = useState(reward.levelAfter > reward.levelBefore);
 
+  // One position ("What would you play?") reads as a single answer, not a score.
+  const single = kind === 'position';
   const lines: { icon: IconName; color: string; text: string }[] = [
     {
       icon: 'bullseye-arrow',
       color: colors.success,
-      text: `${outcome.firstTryCorrect} of ${outcome.scoredSteps} right on the first try`,
+      text: single
+        ? outcome.firstTryCorrect > 0
+          ? 'You found the best move'
+          : 'Now you know the better move'
+        : `${outcome.firstTryCorrect} of ${outcome.scoredSteps} right on the first try`,
     },
   ];
   if (result.levelUp && level) {
@@ -56,11 +64,19 @@ export function PracticeComplete({ title, kind, result, onAgain, onDone }: Pract
   } else if (level) {
     lines.push({ icon: 'stairs', color: colors.info, text: `Level ${level.number} of ${level.of}: ${level.level.title}` });
   }
-  if (kind === 'mistakes' && mastered > 0) {
-    lines.push({ icon: 'check-decagram', color: colors.success, text: `${mastered} mistake${mastered === 1 ? '' : 's'} mastered` });
+  if (mastered > 0) {
+    lines.push({
+      icon: 'check-decagram',
+      color: colors.success,
+      text: single ? 'Mastered: you’ve found it on three different days' : `${mastered} mistake${mastered === 1 ? '' : 's'} mastered`,
+    });
   }
-  if (kind === 'mistakes' && result.nextReview) {
-    lines.push({ icon: 'calendar-check', color: colors.info, text: `They come back ${result.nextReview}, to make them stick` });
+  if (result.nextReview) {
+    lines.push({
+      icon: 'calendar-check',
+      color: colors.info,
+      text: single ? `It comes back ${result.nextReview}, to make it stick` : `They come back ${result.nextReview}, to make them stick`,
+    });
   }
   if (reward.streakExtended && reward.streak > 0) {
     lines.push({ icon: 'fire', color: colors.streak, text: `${reward.streak}-day streak!` });
@@ -104,8 +120,8 @@ export function PracticeComplete({ title, kind, result, onAgain, onDone }: Pract
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <Button testID="practice-again" label="Practice again" icon="refresh" onPress={onAgain} />
-        <Button testID="practice-done" label="Done" variant="ghost" size="medium" onPress={onDone} />
+        {onAgain ? <Button testID="practice-again" label={againLabel} icon="refresh" onPress={onAgain} /> : null}
+        <Button testID="practice-done" label="Done" variant={onAgain ? 'ghost' : 'primary'} size={onAgain ? 'medium' : 'large'} onPress={onDone} />
       </View>
 
       {levelUp ? <LevelUpOverlay level={reward.levelAfter} onClose={() => setLevelUp(false)} /> : null}

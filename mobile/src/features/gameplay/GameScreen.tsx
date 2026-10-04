@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/Button';
 import { useBackPress } from '@/components/system/useBackPress';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
+import { practisedLine } from '@/features/skills/gameLink';
 import { canDouble, canEndTurn, pipCount, type Player } from '@/game';
 import { feedback } from '@/services/feedback';
 import { useGameStore } from '@/state/gameStore';
+import { useProgressStore } from '@/state/progressStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
 import type { BoardArrow, BoardDice } from '@/types/board';
@@ -61,6 +63,7 @@ export function GameScreen() {
   const continueMatch = useGameStore((store) => store.continueMatch);
   const abandonGame = useGameStore((store) => store.abandonGame);
   const gamesPlayed = useGameStore((store) => store.stats.gamesPlayed);
+  const lessons = useProgressStore((store) => store.lessons);
   const [confirm, setConfirm] = useState<'leave' | 'resign' | null>(null);
   // The last tap on the board that came before the player could move (a new key each time).
   const [nudge, setNudge] = useState<{ target: 'roll' | 'opponent'; key: number } | null>(null);
@@ -253,6 +256,7 @@ export function GameScreen() {
               <CoachWatchPanel
                 verdict={game.watch}
                 lastFree={game.watchLeft === 0}
+                practised={practisedLine(game.watch.skill, lessons)}
                 onPlayAnyway={() => game.answerWatch('play')}
                 compact={layout.compact}
               />
@@ -379,6 +383,14 @@ export function GameScreen() {
                 }
               : undefined
           }
+          onPractise={(mistakeId) => {
+            game.clearOutcome();
+            abandonGame();
+            router.replace({
+              pathname: '/practice/[kind]',
+              params: { kind: 'position', position: `mistake:${mistakeId}`, source: 'game_result' },
+            });
+          }}
           onNextGame={() => {
             game.clearOutcome();
             continueMatch();

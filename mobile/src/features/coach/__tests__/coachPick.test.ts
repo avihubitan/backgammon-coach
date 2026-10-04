@@ -1,8 +1,11 @@
+import { allLessons } from '@/curriculum';
 import { emptyLessonRecord } from '@/features/learning/progression';
 import { emptySkillStats } from '@/features/learning/progressModel';
+import { lessonMinutes } from '@/features/learning/timeEstimates';
 import type { UserMistake } from '@/features/practice/mistakes';
+import { REVIEW_HEADLINES } from '@/game';
 
-import { coachPick, coachPicks, coachPlan, RECENT_DAYS, type CoachInput } from '../coachPick';
+import { coachPick, coachPicks, coachPlan, focusDrill, MORE_PICKS, RECENT_DAYS, type CoachInput } from '../coachPick';
 
 const mistake = (category: UserMistake['category'], solved = 0) =>
   ({ id: `${category}-${Math.random()}`, category, solved, attempts: solved, severity: 0.1 }) as unknown as UserMistake;
@@ -126,5 +129,99 @@ describe("coach's pick over time", () => {
     expect(practised).toMatchObject({ done: true, pick: { topic: 'Hitting' }, next: { topic: 'Openings' } });
     // Yesterday's practice doesn't count for today.
     expect(coachPlan({ ...base, practiced: { hitting: { lastPlayedAt: '2026-03-29T08:00:00' } } })?.done).toBe(false);
+  });
+});
+
+describe("coach's pick: more ways to help", () => {
+  const today = '2026-10-04';
+  const due = (id: string, dueDay = today) =>
+    ({
+      id,
+      category: 'risk',
+      headline: REVIEW_HEADLINES.safer,
+      createdAt: `${today}T09:00:00`,
+      solved: 0,
+      attempts: 0,
+      severity: 0.1,
+      streak: 0,
+      dueDay,
+    }) as unknown as UserMistake;
+  const three = () => ['a', 'b', 'c'].map((id) => due(id));
+
+  it('puts due positions from your games first for Premium, with a time estimate', () => {
+    const pick = coachPick(input({ mistakes: [due('a'), due('b')], canPracticeMistakes: true, today }));
+    expect(pick).toMatchObject({ trigger: 'review', title: 'Time for your review.', action: { kind: 'mistakes' }, premium: true });
+    expect(pick?.reason).toContain('2 positions you got wrong');
+    expect(pick?.minutes).toBeGreaterThanOrEqual(1);
+    // Free players get their due positions one a day, in Position of the Day.
+    expect(coachPick(input({ mistakes: [due('a')], today }))).toBeNull();
+    // Nothing due yet: nothing to review.
+    expect(coachPick(input({ mistakes: [due('a', '2026-10-09')], canPracticeMistakes: true, today }))).toBeNull();
+  });
+
+  it('keeps the pattern as a drill when the review already covers the positions', () => {
+    const picks = coachPicks(input({ mistakes: three(), canPracticeMistakes: true, unlockedDrills: ['safety'], today }));
+    expect(picks.map((pick) => pick.trigger)).toEqual(['review', 'pattern']);
+    expect(picks[1]).toMatchObject({ topic: 'Playing safe', action: { kind: 'drill', drill: 'safety' }, premium: false });
+  });
+
+  it('suggests a drill that just opened, while the lesson is fresh', () => {
+    const lessons = { 'points-3': { ...emptyLessonRecord(), completed: true, firstCompletedAt: '2026-10-03' } };
+    const pick = coachPick(input({ lessons, unlockedDrills: ['primes'], today }));
+    expect(pick).toMatchObject({ trigger: 'new-drill', title: 'New drill: “Walls & primes”.', action: { kind: 'drill', drill: 'primes' } });
+    expect(pick?.reason).toBe('It opened when you finished “Walls & Primes” yesterday. A few quick positions now help it stick.');
+    // Tried already, or opened too long ago: not new any more.
+    const tried = { primes: { lastPlayedAt: '2026-10-03T10:00:00' } };
+    expect(coachPick(input({ lessons, unlockedDrills: ['primes'], today, practiced: tried }))).toBeNull();
+    expect(coachPick(input({ lessons, unlockedDrills: ['primes'], today: '2026-10-09' }))).toBeNull();
+  });
+
+  it('spots a skill slipping in the latest answers, even with a good record overall', () => {
+    const bySkill = { shots: { ...emptySkillStats(), attempted: 30, firstTry: 26, recent: '11000100' } };
+    const pick = coachPick(input({ bySkill, unlockedDrills: ['shots'] }));
+    expect(pick).toMatchObject({ trigger: 'slipping', topic: 'Counting shots', action: { kind: 'drill', drill: 'shots' } });
+    expect(pick?.reason).toBe('Only 3 of your last 8 answers about counting shots were right on the first try.');
+    // Too few answers to tell.
+    expect(coachPick(input({ bySkill: { shots: { ...bySkill.shots, recent: '00' } }, unlockedDrills: ['shots'] }))).toBeNull();
+  });
+
+  it('brings back a skill you have not practised in a while', () => {
+    const primes = { ...emptySkillStats(), attempted: 12, firstTry: 11, recent: '111111111110', days: 3, lastDay: '2026-09-20' };
+    const pick = coachPick(input({ bySkill: { primes }, unlockedDrills: ['primes'], today }));
+    expect(pick).toMatchObject({ trigger: 'fading', title: 'A refresher: building walls.' });
+    expect(pick?.reason).toBe('It’s been 14 days since you practised building walls. A quick round keeps it sharp.');
+    // The fundamentals come up in every game, and one day of practice isn't a habit to keep up.
+    expect(coachPick(input({ bySkill: { board: primes }, unlockedDrills: ['board'], today }))).toBeNull();
+    expect(coachPick(input({ bySkill: { primes: { ...primes, days: 1 } }, unlockedDrills: ['primes'], today }))).toBeNull();
+    expect(coachPick(input({ bySkill: { primes: { ...primes, lastDay: '2026-09-30' } }, unlockedDrills: ['primes'], today }))).toBeNull();
+  });
+
+  it('lists a couple more things worth doing, each with a time', () => {
+    const plan = coachPlan(
+      input({
+        mistakes: three(),
+        bySkill: { hitting: stats(10, 4), openings: stats(10, 6), points: stats(10, 7) },
+        unlockedDrills: ['safety', 'hitting', 'opening', 'points'],
+        today,
+      }),
+    )!;
+    expect(plan.pick.topic).toBe('Playing safe');
+    expect(plan.more.map((pick) => pick.topic)).toEqual(['Hitting', 'Openings']);
+    expect(plan.more).toHaveLength(MORE_PICKS);
+    for (const pick of [plan.pick, ...plan.more]) expect(pick.minutes).toBeGreaterThan(0);
+  });
+
+  it('names the drill the daily challenge should lean on', () => {
+    expect(focusDrill(input())).toBeNull();
+    expect(focusDrill(input({ bySkill: { hitting: stats(10, 4) }, unlockedDrills: ['hitting'] }))).toBe('hitting');
+    // The review comes first for Premium, but the challenge goes with the first drill.
+    expect(focusDrill(input({ mistakes: three(), canPracticeMistakes: true, unlockedDrills: ['safety'], today }))).toBe('safety');
+  });
+
+  it('estimates every lesson at a few minutes', () => {
+    for (const lesson of allLessons) {
+      expect(lessonMinutes(lesson)).toBeGreaterThanOrEqual(1);
+      expect(lessonMinutes(lesson)).toBeLessThanOrEqual(6);
+    }
   });
 });

@@ -13,12 +13,16 @@ import { isPersonalBest, moveQuality, qualityBand } from '@/features/coach/playQ
 import { BAND_COLOR } from '@/features/coach/qualityStyle';
 import { QuickFeedback } from '@/features/feedback/QuickFeedback';
 import { getAchievement } from '@/features/learning/achievements';
-import { levelInfo } from '@/features/learning/progression';
+import { dayKey, levelInfo } from '@/features/learning/progression';
 import { freezeLines } from '@/features/learning/streakLines';
+import { POSITION_MINUTES } from '@/features/learning/timeEstimates';
+import { gameLesson, gameLessonText } from '@/features/skills/gameLink';
 import type { GameResult, MatchScore } from '@/game';
 import { feedback } from '@/services/feedback';
 import { useGameStore } from '@/state/gameStore';
+import { useMistakesStore } from '@/state/mistakesStore';
 import { useProgressStore } from '@/state/progressStore';
+import { useToday } from '@/state/useToday';
 import { colors, radii, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { resultCopy, resultTypeLabel, reviewTeaser } from '../resultCopy';
@@ -37,6 +41,8 @@ interface GameResultSheetProps {
   match: MatchScore;
   matchLength: number;
   onReview?: () => void;
+  /** Practise one position from this game (free): the first one about the idea that tripped the player up. */
+  onPractise?: (mistakeId: string) => void;
   onNextGame: () => void;
   onPlayAgain: () => void;
   onDone: () => void;
@@ -49,6 +55,7 @@ export function GameResultSheet({
   match,
   matchLength,
   onReview,
+  onPractise,
   onNextGame,
   onPlayAgain,
   onDone,
@@ -148,6 +155,9 @@ export function GameResultSheet({
             </View>
             <LevelProgress earned={outcome.xp} />
             {outcome.gameId ? <MoveQualityLine gameId={outcome.gameId} teaser={!won} /> : null}
+            {outcome.gameId ? (
+              <GameLessonLine gameId={outcome.gameId} onPractise={!isMatch || outcome.matchOver ? onPractise : undefined} />
+            ) : null}
             {isMatch ? (
               <AppText variant="heading" align="center">
                 You {match.player1} – {match.player2} Computer
@@ -350,6 +360,45 @@ function MoveQualityLine({ gameId, teaser }: { gameId: string; teaser: boolean }
   );
 }
 
+/**
+ * What this game says about the learner's lessons, once the background review
+ * is done: "You practised playing safe in “Safe or Risky?”. It tripped you up
+ * twice today." and one position from the game to practise, free.
+ */
+function GameLessonLine({ gameId, onPractise }: { gameId: string; onPractise?: (mistakeId: string) => void }) {
+  const finished = useGameStore((store) => store.finished);
+  const lessons = useProgressStore((store) => store.lessons);
+  const mistakes = useMistakesStore((store) => store.mistakes);
+  const { day } = useToday();
+  const review = finished.find((entry) => entry.id === gameId)?.review;
+  // "Today" means games played today, whenever their review ran.
+  const playedToday = new Set(finished.filter((entry) => dayKey(new Date(entry.finishedAt)) === day).map((entry) => entry.id));
+  const note = review ? gameLesson(gameId, review, lessons, mistakes, day, playedToday) : null;
+  if (!note) return null;
+  // The position has to be saved to be practised (a full list keeps only the most useful ones).
+  const saved = mistakes.some((mistake) => mistake.id === note.mistakeId);
+  return (
+    <Animated.View testID="result-lesson" style={[styles.lesson, pop(380)]}>
+      <View style={styles.lessonText}>
+        <Icon name="school-outline" size={18} color={colors.info} />
+        <AppText variant="small" style={styles.flex}>
+          {gameLessonText(note)}
+        </AppText>
+      </View>
+      {onPractise && saved ? (
+        <Button
+          testID="result-practise"
+          label={`Practise it · ${POSITION_MINUTES} min`}
+          icon="lightbulb-on-outline"
+          variant="secondary"
+          size="medium"
+          onPress={() => onPractise(note.mistakeId)}
+        />
+      ) : null}
+    </Animated.View>
+  );
+}
+
 const pop = (delay: number) => ({
   animationName: {
     '0%': { opacity: 0, transform: [{ scale: 0.8 }] },
@@ -363,6 +412,9 @@ const pop = (delay: number) => ({
 
 const styles = StyleSheet.create({
   qualityBlock: { alignItems: 'center', gap: spacing.xs },
+  lesson: { gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg, backgroundColor: colors.infoSoft },
+  lessonText: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  flex: { flex: 1 },
   quality: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: 24 },
   best: {
     flexDirection: 'row',

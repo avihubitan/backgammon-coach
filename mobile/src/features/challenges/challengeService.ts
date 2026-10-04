@@ -1,4 +1,5 @@
 import { curriculum } from '@/curriculum';
+import { focusDrill } from '@/features/coach/coachPick';
 import { isFeatureUnlocked } from '@/features/learning/progression';
 import { currentFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { isMastered } from '@/features/practice/mistakes';
@@ -7,6 +8,7 @@ import { analytics } from '@/services/analytics';
 import { feedback } from '@/services/feedback';
 import { useChallengeStore } from '@/state/challengeStore';
 import { useMistakesStore } from '@/state/mistakesStore';
+import { usePracticeStore } from '@/state/practiceStore';
 import { todayKey, useProgressStore } from '@/state/progressStore';
 import { useToastStore } from '@/state/toastStore';
 
@@ -14,15 +16,28 @@ import { getChallenge, type ChallengeContext, type ChallengeEvent } from './chal
 
 /** What the learner can currently do, for picking a fair daily challenge. */
 export function currentChallengeContext(): ChallengeContext {
-  const lessons = useProgressStore.getState().lessons;
+  const { lessons, stats } = useProgressStore.getState();
+  const mistakes = useMistakesStore.getState().mistakes;
+  const access = currentFeatureAccess();
+  const unlockedDrills = unlockedDrillCategories(lessons).map((info) => info.id);
   return {
     completedSections: curriculum
       .filter((section) => section.lessons.length > 0 && section.lessons.every((lesson) => lessons[lesson.id]?.completed))
       .map((section) => section.id),
-    unlockedDrills: unlockedDrillCategories(lessons).map((info) => info.id),
+    unlockedDrills,
     playUnlocked: isFeatureUnlocked('play', lessons),
-    openMistakes: useMistakesStore.getState().mistakes.filter((mistake) => !isMastered(mistake)).length,
-    canPracticeMistakes: currentFeatureAccess().canUseAdvancedTraining(),
+    openMistakes: mistakes.filter((mistake) => !isMastered(mistake)).length,
+    canPracticeMistakes: access.canUseAdvancedTraining(),
+    focusDrill: focusDrill({
+      mistakes,
+      bySkill: stats.bySkill,
+      lessons,
+      unlockedDrills,
+      canPracticeMistakes: access.canUseAdvancedTraining(),
+      canAccessLesson: access.canAccessLesson,
+      today: todayKey(),
+      practiced: usePracticeStore.getState().records,
+    }),
   };
 }
 

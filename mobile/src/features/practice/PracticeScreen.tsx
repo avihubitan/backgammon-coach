@@ -97,7 +97,9 @@ export function PracticeScreen() {
               {openMistakes === 0
                 ? 'Play a game and open its review: your mistakes are collected here.'
                 : due > 0
-                  ? 'Moves you got wrong in your games come back until they stick: soon at first, then further apart each time you find them.'
+                  ? canPracticeMistakes
+                    ? 'Moves you got wrong in your games come back until they stick: soon at first, then further apart each time you find them.'
+                    : 'Moves you got wrong in your games come back until they stick. One a day is your free Position of the Day on Home; Premium reviews them all.'
                   : `All caught up. The next one comes back ${next ? dueIn(next, today) : 'soon'}.`}
             </AppText>
           </View>

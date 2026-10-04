@@ -10,6 +10,7 @@ import {
 } from '@/curriculum/drills';
 import type { LessonRecords } from '@/features/learning/progression';
 import { skillOfMistake } from '@/features/skills/extract';
+import type { PositionRef } from '@/features/coach/positionOfTheDay';
 import { createRng, formatPlay, type Rng } from '@/game';
 
 import { openLevels, planLevels, type LessonDone, type LevelStats } from './drillLevels';
@@ -63,10 +64,12 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
 export interface PracticeSession {
   id: string;
   title: string;
-  category: DrillCategory | 'mistakes';
+  category: DrillCategory | 'mistakes' | 'position';
   steps: LessonStep[];
   /** The level each step comes from, for drills (step id → level id). */
   levelOf: Record<string, string>;
+  /** For a single position: which one it is. */
+  ref?: PositionRef;
 }
 
 export const SESSION_LENGTH = 5;

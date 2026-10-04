@@ -57,7 +57,15 @@ export function setAnalyticsEnabled(enabled: boolean) {
   connectVendor();
 }
 
-const LAUNCH_SOURCES: readonly LaunchSource[] = ['coach_pick', 'daily_challenge', 'path', 'practice', 'review'];
+const LAUNCH_SOURCES: readonly LaunchSource[] = [
+  'coach_pick',
+  'daily_challenge',
+  'daily_position',
+  'game_result',
+  'path',
+  'practice',
+  'review',
+];
 
 /** A route's `source` param, if it is one we know. */
 export function launchSource(value: string | undefined): LaunchSource | undefined {

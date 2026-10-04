@@ -9,8 +9,14 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { IconButton } from '@/components/ui/IconButton';
+import { getDrillCategory } from '@/curriculum/drills';
+import { SKILLS, type SkillId } from '@/curriculum';
+import type { LessonRecords } from '@/features/learning/progression';
+import { DRILL_MINUTES, lessonMinutes } from '@/features/learning/timeEstimates';
+import { unlockedDrillCategories } from '@/features/practice/practiceModel';
+import { skillOfMistake, trainingFor } from '@/features/skills/extract';
+import { practisedLine, reviewFocus } from '@/features/skills/gameLink';
 import {
-  categoryLabel,
   formatPlay,
   moveOutcome,
   reviewGame,
@@ -26,7 +32,7 @@ import type { BoardArrow } from '@/types/board';
 import { analytics } from '@/services/analytics';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useEntitlementsStore } from '@/state/entitlementsStore';
-import { todayKey } from '@/state/progressStore';
+import { todayKey, useProgressStore } from '@/state/progressStore';
 
 /** Explanations that already compare the two moves' shots. */
 const SAFETY_HEADLINES = new Set<string>([REVIEW_HEADLINES.safer, REVIEW_HEADLINES.slightlySafer]);
@@ -55,7 +61,9 @@ export function GameReviewScreen({
   const saveReview = useGameStore((store) => store.saveReview);
   const addMistakes = useMistakesStore((store) => store.addFromReview);
   // Usually saved by the background review before this screen opens.
-  const saved = useMistakesStore((store) => store.mistakes.filter((mistake) => mistake.gameId === gameId).length);
+  const savedIds = useMistakesStore((store) => store.mistakes.filter((mistake) => mistake.gameId === gameId).map((mistake) => mistake.id).join(','));
+  const saved = savedIds ? savedIds.split(',').length : 0;
+  const lessons = useProgressStore((store) => store.lessons);
   const technicalSetting = useSettingsStore((store) => store.showTechnicalStats);
   const access = useFeatureAccess();
   const unlockReview = useEntitlementsStore((store) => store.unlockReview);
@@ -154,6 +162,15 @@ export function GameReviewScreen({
     outcome.shots.played > outcome.shots.best &&
     outcome.shots.played >= 4 &&
     !SAFETY_HEADLINES.has(current?.headline ?? '');
+  // The idea behind a weaker move, and the lesson that taught it.
+  const idea: SkillId | null = current && current.severity !== 'best' && current.severity !== 'fine' ? skillOfMistake(current) : null;
+  const practised = idea ? practisedLine(idea, lessons) : null;
+  // Any position saved from this game can be practised on its own, free.
+  const currentId = current ? `${game.id}:${current.index}` : null;
+  const canPractise =
+    !!current && (current.severity === 'mistake' || current.severity === 'blunder') && !!currentId && savedIds.split(',').includes(currentId);
+  const focus = reviewFocus(review);
+  const focusTraining = focus ? trainFocus(focus, lessons) : null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -211,11 +228,28 @@ export function GameReviewScreen({
               No serious mistakes this game. Great discipline!
             </AppText>
           )}
-          {summary.focus ? (
-            <AppText variant="small" color="textSecondary">
-              Area to improve: <AppText variant="smallStrong">{categoryLabel(summary.focus)}</AppText>
-              {saved > 0 ? ` · ${saved} position${saved === 1 ? '' : 's'} saved to “My mistakes”` : ''}
-            </AppText>
+          {focus ? (
+            <View style={styles.focusRow}>
+              <AppText variant="small" color="textSecondary" style={styles.flex}>
+                Area to improve: <AppText variant="smallStrong">{SKILLS[focus].title}</AppText>
+                {saved > 0 ? ` · ${saved} position${saved === 1 ? '' : 's'} saved to “My mistakes”` : ''}
+              </AppText>
+              {focusTraining ? (
+                <Pressable
+                  testID="review-focus-practise"
+                  accessibilityRole="button"
+                  accessibilityLabel={`${focusTraining.label}, about ${focusTraining.minutes} minutes`}
+                  hitSlop={8}
+                  onPress={focusTraining.open}
+                  style={({ pressed }) => [styles.focusLink, pressed && styles.pressed]}
+                >
+                  <AppText variant="smallStrong" color="primary">
+                    {focusTraining.label}
+                  </AppText>
+                  <Icon name="chevron-right" size={16} color={colors.primary} />
+                </Pressable>
+              ) : null}
+            </View>
           ) : null}
           {review.cube.map((decision) => (
             <View key={decision.index} style={styles.cubeRow}>
@@ -250,6 +284,16 @@ export function GameReviewScreen({
               <AppText variant="body" color="textSecondary">
                 {current.explanation}
               </AppText>
+              {idea ? (
+                <View style={styles.idea} testID="review-key-idea">
+                  <Icon name="lightbulb-on-outline" size={16} color={colors.primary} />
+                  <AppText variant="small" color="textSecondary" style={styles.flex}>
+                    <AppText variant="smallStrong">Key idea: {SKILLS[idea].title}. </AppText>
+                    {SKILLS[idea].summary}
+                    {practised ? ` ${practised}` : ''}
+                  </AppText>
+                </View>
+              ) : null}
               {outcome && (showShots || (showWinChances && access.canAnalyzeGame())) ? (
                 <View style={styles.outcomes} testID="review-outcome">
                   {showShots ? (
@@ -275,17 +319,18 @@ export function GameReviewScreen({
                 <ToggleChip active={!showBest} label={`You: ${formatPlay('player1', current.played)}`} onPress={() => setShowBest(false)} />
                 <ToggleChip active={showBest} label={`Best: ${formatPlay('player1', current.best)}`} onPress={() => setShowBest(true)} />
               </View>
-              {fullReview && (current.severity === 'mistake' || current.severity === 'blunder') ? (
+              {canPractise ? (
                 <Button
                   testID="review-practise-position"
                   label="Practise this position"
-                  icon={access.canUseAdvancedTraining() ? 'target' : 'crown'}
+                  icon="target"
                   variant="secondary"
                   size="medium"
                   onPress={() =>
-                    access.canUseAdvancedTraining()
-                      ? router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes', focus: `${game.id}:${current.index}` } })
-                      : router.push({ pathname: '/paywall', params: { source: 'mistakes' } })
+                    router.push({
+                      pathname: '/practice/[kind]',
+                      params: { kind: 'position', position: `mistake:${currentId}`, source: 'review' },
+                    })
                   }
                 />
               ) : null}
@@ -303,6 +348,7 @@ export function GameReviewScreen({
                     icon="chevron-left"
                     variant="secondary"
                     size="medium"
+                    dense
                     disabled={position <= 1}
                     onPress={() => setSelected(review.moves[position - 2].index)}
                   />
@@ -312,6 +358,7 @@ export function GameReviewScreen({
                     label="Next"
                     iconRight="chevron-right"
                     size="medium"
+                    dense
                     disabled={position >= review.moves.length}
                     onPress={() => setSelected(review.moves[position].index)}
                   />
@@ -403,6 +450,26 @@ export function GameReviewScreen({
   );
 }
 
+/** Where to practise the game's area to improve: its drill when it's open, else a replay of the lesson. */
+function trainFocus(skill: SkillId, lessons: LessonRecords) {
+  const { drill, lesson } = trainingFor(skill);
+  if (drill && unlockedDrillCategories(lessons).some((info) => info.id === drill)) {
+    return {
+      label: `Practise: ${getDrillCategory(drill)?.title ?? 'drill'}`,
+      minutes: DRILL_MINUTES,
+      open: () => router.push({ pathname: '/practice/[kind]', params: { kind: drill, source: 'review' } }),
+    };
+  }
+  if (lesson && lessons[lesson.id]?.completed) {
+    return {
+      label: 'Replay the lesson',
+      minutes: lessonMinutes(lesson),
+      open: () => router.push({ pathname: '/lesson/[id]', params: { id: lesson.id, source: 'review' } }),
+    };
+  }
+  return null;
+}
+
 function Stat({ value, label, color }: { value: string | number; label: string; color: string }) {
   return (
     <View style={styles.stat}>
@@ -443,6 +510,17 @@ function ToggleChip({ active, label, onPress }: { active: boolean; label: string
 }
 
 const styles = StyleSheet.create({
+  focusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  focusLink: { flexDirection: 'row', alignItems: 'center', minHeight: 32 },
+  pressed: { opacity: 0.6 },
+  idea: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+  },
   outcomes: { gap: 4 },
   outcomeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   root: { flex: 1, backgroundColor: colors.bg },

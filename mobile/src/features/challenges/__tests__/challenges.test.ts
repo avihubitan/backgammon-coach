@@ -49,6 +49,19 @@ describe('daily challenges', () => {
     expect(ids.size).toBeGreaterThan(4);
   });
 
+  it('leans on the drill the coach would pick, every other day', () => {
+    const focused = { ...advanced, focusDrill: 'safety' as const };
+    const days = Array.from({ length: 30 }, (_, day) => `2026-11-${String(day + 1).padStart(2, '0')}`);
+    const picks = days.map((day) => challengeForDay(day, focused).id);
+    const share = picks.filter((id) => id === 'drill-safety').length / days.length;
+    expect(share).toBeGreaterThan(0.3);
+    expect(share).toBeLessThan(0.8);
+    // Still a mix of challenges, and never a drill the learner hasn't opened.
+    expect(new Set(picks).size).toBeGreaterThan(3);
+    for (const day of days) expect(challengeForDay(day, { ...advanced, focusDrill: 'cube' as never }).available(advanced)).toBe(true);
+    expect(days.map((day) => challengeForDay(day, { ...advanced, focusDrill: 'primes' }).id)).not.toContain('drill-primes');
+  });
+
   it('counts matching events and completes exactly once', () => {
     let state = { ...startDaily('2026-10-02', advanced), id: 'hit-blots' };
     const now = '2026-10-02T10:00:00Z';

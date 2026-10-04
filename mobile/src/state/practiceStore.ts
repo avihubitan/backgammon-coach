@@ -7,7 +7,8 @@ import type { LevelStats } from '@/features/practice/drillLevels';
 import { isPlainObject, keepEntries, mergeChecked } from './sanitize';
 import { persistStorage } from './storage';
 
-export type PracticeKind = DrillCategory | 'mistakes';
+/** Drills, your own mistakes, or single positions ("What would you play?"). */
+export type PracticeKind = DrillCategory | 'mistakes' | 'position';
 
 export interface PracticeRecord {
   sessions: number;

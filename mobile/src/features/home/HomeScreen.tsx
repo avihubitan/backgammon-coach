@@ -11,6 +11,7 @@ import { StatChip } from '@/components/ui/StatChip';
 import { allLessons, curriculum, getSection, sectionNumber } from '@/curriculum';
 import { DailyChallengeCard } from '@/features/challenges/DailyChallengeCard';
 import { CoachPickCard } from '@/features/coach/CoachPickCard';
+import { PositionOfTheDayCard } from '@/features/coach/PositionOfTheDayCard';
 import {
   currentSection,
   levelInfo,
@@ -191,6 +192,8 @@ export function HomeScreen() {
       )}
 
       <CoachPickCard enterDelay={150} />
+
+      <PositionOfTheDayCard enterDelay={165} />
 
       <DailyChallengeCard enterDelay={180} compact />
 

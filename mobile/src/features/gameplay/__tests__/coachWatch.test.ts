@@ -23,6 +23,8 @@ describe('Coach Watch verdicts', () => {
     expect(verdict.clue).not.toContain('8/5');
     expect(verdict.hint.notation).toBe('8/5 6/5');
     expect(verdict.hint.reason).toMatch(/5-point/);
+    // Filed under the skill, so the panel can name the lesson that taught it.
+    expect(verdict.skill).toBe('points');
   });
 
   it('notices a missed hit', () => {
@@ -30,7 +32,9 @@ describe('Coach Watch verdicts', () => {
       player1: { 13: 4, 8: 3, 6: 5, 24: 2, 5: 1 },
       player2: { 9: 1, 19: 5, 17: 3, 12: 4, 1: 2 },
     });
-    expect(watchPlay(played(board, [4, 1], '24/20 24/23'))!.clue).toBe('There’s a hit you can make.');
+    const verdict = watchPlay(played(board, [4, 1], '24/20 24/23'))!;
+    expect(verdict.clue).toBe('There’s a hit you can make.');
+    expect(verdict.skill).toBe('hitting');
   });
 
   it('stays quiet for good moves, reasonable alternatives and forced moves', () => {

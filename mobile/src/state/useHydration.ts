@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { crashReporter } from '@/services/crash';
 
 import { useChallengeStore } from './challengeStore';
+import { useDailyPositionStore } from './dailyPositionStore';
 import { useEntitlementsStore } from './entitlementsStore';
 import { useFeedbackStore } from './feedbackStore';
 import { useGameStore } from './gameStore';
@@ -18,6 +19,7 @@ const stores = [
   useGameStore,
   useMistakesStore,
   useChallengeStore,
+  useDailyPositionStore,
   usePracticeStore,
   useEntitlementsStore,
   useSyncStore,

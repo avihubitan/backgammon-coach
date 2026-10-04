@@ -159,6 +159,18 @@ export function LessonComplete({ lesson, outcome, reward, onContinue, onRetry, o
           </Animated.View>
         ) : null}
 
+        {passed ? (
+          <Animated.View style={[styles.card, styles.inGameCard, riseIn(BEAT.stats + 250)]} testID="lesson-in-game">
+            <Icon name="dice-multiple" size={22} color={colors.info} />
+            <View style={styles.nextText}>
+              <AppText variant="caption" color="info">
+                IN YOUR GAMES
+              </AppText>
+              <AppText variant="small">{lesson.purpose.inGame}</AppText>
+            </View>
+          </Animated.View>
+        ) : null}
+
         {passed && next ? (
           <Animated.View style={[styles.card, styles.nextCard, riseIn(BEAT.unlock - 300)]} testID="unlocked-card">
             <AnimatedUnlock size={24} delay={leveledUp ? 350 : BEAT.unlock} paused={levelUp !== 'done'} />
@@ -321,6 +333,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   nextCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.primary },
+  inGameCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: 'rgba(98, 182, 255, 0.35)' },
   nextText: { flex: 1 },
   premiumCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: 'rgba(255, 201, 77, 0.45)' },
   extra: {
