@@ -19,7 +19,7 @@ import {
   type GameState,
   type MoveSource,
 } from '@/game';
-import { DICE_SETTLE_MS, hopDelays } from '@/components/board/motion';
+import { hopDelays } from '@/components/board/motion';
 import { scheduleReviews } from '@/features/coach/reviewQueue';
 import type { Reward } from '@/features/learning/progressModel';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';
@@ -35,15 +35,17 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
 import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllows } from './coachWatch';
 import { gameXp } from './gameModel';
-import { pickLine, seedFrom, shouldSpeak, type Moment } from './opponentLines';
+import { farewellMoment, openingMoment, pickLine, seedFrom, shouldSpeak, type Moment } from './opponentLines';
 import { opponentFor } from './opponents';
-import { aiStepDelay, OPENING_REVEAL_MS, PLAYER_PASS_MS } from './turnPacing';
+import { aiStepDelay, FAREWELL_DELAY_MS, OPENING_REVEAL_MS, PLAYER_PASS_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
 /** How long a line stays next to the opponent's seat. */
 const SPEECH_MS = 2800;
 /** The greeting waits for the board to settle in. */
 const GREETING_DELAY_MS = 700;
+/** What each opponent said last at each moment, so a line isn't repeated in the next game. */
+const lastLines = new Map<string, string>();
 
 export interface GameOutcome {
   /** Id of the recorded game (for the coach review). */
@@ -112,7 +114,9 @@ export function useGameController() {
     const game = useGameStore.getState().active;
     if (!game || !shouldSpeak(moment, turnsPlayed, lastSpoke.current)) return;
     lastSpoke.current = turnsPlayed;
-    const text = pickLine(game.settings.level, moment, seedFrom(game.id) + game.gameNumber + turnsPlayed);
+    const said = `${game.settings.level}:${moment}`;
+    const text = pickLine(game.settings.level, moment, seedFrom(game.id) + game.gameNumber + turnsPlayed, lastLines.get(said));
+    lastLines.set(said, text);
     timers.current.push(
       setTimeout(() => {
         setSpeech((last) => ({ key: (last?.key ?? 0) + 1, text }));
@@ -128,7 +132,10 @@ export function useGameController() {
     if (!gameKey || greeted.current === gameKey || !current || current.phase !== 'opening' || current.openingTies.length > 0) return;
     greeted.current = gameKey;
     lastSpoke.current = null;
-    if (useGameStore.getState().active?.gameNumber === 1) speak('greeting', 0, GREETING_DELAY_MS);
+    const games = useGameStore.getState();
+    if (games.active?.gameNumber !== 1) return;
+    // Straight after a game against the same opponent: "Again?" rather than hello.
+    speak(openingMoment(games.active.settings.level, games.finished[0], Date.now()), 0, GREETING_DELAY_MS);
   }, [gameKey]);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -157,8 +164,9 @@ export function useGameController() {
       hints_used: game.hintsUsed ?? 0,
       coach_watch_shown: game.watchUsed ?? 0,
     });
-    const gammon = finishedState.result.type !== 'single';
-    speak(won ? (gammon ? 'youGammon' : 'youWin') : gammon ? 'theyGammon' : 'theyWin', finishedState.history.length);
+    // The goodbye comes once the last checker is down and the board has said who won.
+    const farewell = farewellMoment(finishedState);
+    if (farewell) speak(farewell, finishedState.history.length, FAREWELL_DELAY_MS);
     const reward = useProgressStore.getState().awardXp(xp, { games: useGameStore.getState().stats });
     // The win sound and haptic come with the end banner on the game screen.
     if (finishedState.result.winner === 'player1') reportChallengeEvent({ type: 'game-won' });
@@ -227,9 +235,8 @@ export function useGameController() {
         }
         aiPlan.current = null;
         setLastAiPlay(null);
-        const rolled = dispatch({ type: 'roll', dice: rollDice() });
+        dispatch({ type: 'roll', dice: rollDice() });
         setRollId((id) => id + 1);
-        if (rolled?.turn && rolled.turn.dice.length === 4) speak('theyDoubles', rolled.history.length, DICE_SETTLE_MS);
         return;
       }
       if (current.phase === 'moving' && current.turn) {
@@ -315,7 +322,6 @@ export function useGameController() {
     const next = dispatch({ type: 'roll', dice: rollDice() });
     setRollId((id) => id + 1);
     autoSelect(next);
-    if (next?.turn && next.turn.dice.length === 4) speak('youDoubles', next.history.length, DICE_SETTLE_MS);
   };
 
   const double = () => {

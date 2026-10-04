@@ -27,13 +27,15 @@ interface SeatProps {
   compact: boolean;
   /** A line the player at this seat just said (a new key for each). */
   speech?: { key: number; text: string } | null;
+  /** Changes when the player tapped the board during this seat's turn: its badge answers. */
+  nudgeKey?: number;
 }
 
 /**
  * One side of the table: who sits there, how they stand, and whether it's
  * their move. The active seat lights up; the other one steps back.
  */
-export function Seat({ testID, name, detail, avatar, active, activity, cube, score, height, compact, speech }: SeatProps) {
+export function Seat({ testID, name, detail, avatar, active, activity, cube, score, height, compact, speech, nudgeKey }: SeatProps) {
   const size = compact ? 30 : 36;
   return (
     <View
@@ -76,7 +78,11 @@ export function Seat({ testID, name, detail, avatar, active, activity, cube, sco
           <AppText variant="number">{score}</AppText>
         </View>
       ) : null}
-      {activity ? <TurnBadge key={activity} activity={activity} /> : null}
+      {activity ? (
+        <Animated.View key={nudgeKey ?? 0} style={nudgeKey ? NUDGE : null}>
+          <TurnBadge key={activity} activity={activity} />
+        </Animated.View>
+      ) : null}
       {speech ? <SpeechBubble key={speech.key} text={speech.text} left={size + 6 + spacing.sm + spacing.xs} /> : null}
     </View>
   );
@@ -156,6 +162,17 @@ function ThinkingDots() {
     </View>
   );
 }
+
+/** "Still my turn": one small pulse when the player taps the board too early. */
+const NUDGE = {
+  animationName: {
+    '0%': { transform: [{ scale: 1 }] },
+    '40%': { transform: [{ scale: 1.1 }] },
+    '100%': { transform: [{ scale: 1 }] },
+  },
+  animationDuration: 280,
+  animationTimingFunction: 'ease-out',
+} as const;
 
 const BREATHE = {
   animationName: { from: { opacity: 0.45, transform: [{ scale: 0.8 }] }, to: { opacity: 1, transform: [{ scale: 1 }] } },

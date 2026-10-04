@@ -6,10 +6,7 @@ import { AppText } from '@/components/ui/AppText';
 import type { GameResult } from '@/game';
 import { colors } from '@/theme';
 
-/** When the banner appears after the last move: the last checker has landed. */
-export const END_BANNER_DELAY_MS = 450;
-/** When the result sheet follows: long enough to take in the end, short enough not to wait. */
-export const RESULT_SHEET_DELAY_MS = { won: 1700, lost: 1300 } as const;
+import { END_BANNER_DELAY_MS } from '../turnPacing';
 
 const TYPE_LINE = { single: null, gammon: 'Gammon!', backgammon: 'Backgammon!' } as const;
 

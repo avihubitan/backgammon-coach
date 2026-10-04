@@ -50,8 +50,9 @@ export function DieFace({ value, size, player = 'player1', used = false }: DieFa
           borderRightColor: light ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.35)',
           borderBottomColor: light ? 'rgba(90, 70, 40, 0.38)' : 'rgba(0, 0, 0, 0.55)',
           borderBottomWidth: edge,
-          opacity: used ? 0.3 : 1,
-          transform: [{ scale: used ? 0.88 : 1 }],
+          // A played die steps back but stays readable, on the felt as well as on a dark point.
+          opacity: used ? (light ? 0.42 : 0.55) : 1,
+          transform: [{ scale: used ? 0.84 : 1 }],
           transitionProperty: ['opacity', 'transform'],
           transitionDuration: 220,
         },

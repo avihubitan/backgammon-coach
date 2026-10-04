@@ -157,6 +157,14 @@ const PULSE = {
   animationTimingFunction: 'ease-in-out',
 } as const;
 
+/** A finished turn's dice, picked up off the board. */
+const DICE_LEAVE = {
+  animationName: { from: { opacity: 1, transform: [{ scale: 1 }] }, to: { opacity: 0, transform: [{ scale: 0.94 }] } },
+  animationDuration: 220,
+  animationFillMode: 'forwards',
+  animationTimingFunction: 'ease-in',
+} as const;
+
 /** Movable checkers breathe more slowly still: an invitation, not an alarm. */
 const MOVABLE_PULSE = {
   animationName: {
@@ -337,6 +345,22 @@ export function BackgammonBoard({
     );
   }, [shakeKey, reduceMotion, nudge]);
   const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value + nudge.value }] }));
+
+  // When a turn ends its dice are picked up: they fade off the board rather than vanish.
+  const lastDice = useRef<BoardDice | null>(null);
+  const [leavingDice, setLeavingDice] = useState<BoardDice | null>(null);
+  useEffect(() => {
+    if (dice) {
+      lastDice.current = dice;
+      return;
+    }
+    const last = lastDice.current;
+    lastDice.current = null;
+    if (!last || reduceMotion) return;
+    setLeavingDice(last);
+    const timer = setTimeout(() => setLeavingDice(null), DICE_LEAVE.animationDuration);
+    return () => clearTimeout(timer);
+  }, [dice, reduceMotion]);
 
   // The checker the player has picked up.
   const liftedId =
@@ -838,7 +862,16 @@ export function BackgammonBoard({
         </>
       ) : null}
 
-      {dice ? <DiceRow dice={dice} metrics={m} sounds={sounds} /> : null}
+      {dice ? (
+        <DiceRow dice={dice} metrics={m} sounds={sounds} />
+      ) : leavingDice ? (
+        <Animated.View
+          key={`leaving-${leavingDice.rollId ?? 'd'}`}
+          style={[StyleSheet.absoluteFill, DICE_LEAVE, { zIndex: 70, pointerEvents: 'none' }]}
+        >
+          <DiceRow dice={{ ...leavingDice, animate: false, split: false, winner: null }} metrics={m} sounds={false} />
+        </Animated.View>
+      ) : null}
       {cube ? <CubeView cube={cube} metrics={m} /> : null}
 
       {interactive ? (

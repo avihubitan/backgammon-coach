@@ -36,6 +36,13 @@ export const OPENING_REVEAL_MS = 750;
 /** The player has no legal move: the message shows this long before the turn passes. */
 export const PLAYER_PASS_MS = 1500;
 
+/** When the end banner appears after the last move: the last checker has landed. */
+export const END_BANNER_DELAY_MS = 450;
+/** The opponent's goodbye comes just after the banner, before the result sheet. */
+export const FAREWELL_DELAY_MS = END_BANNER_DELAY_MS + 200;
+/** When the result sheet follows: long enough to take in the end, short enough not to wait. */
+export const RESULT_SHEET_DELAY_MS = { won: 1700, lost: 1300 } as const;
+
 /** The wait before the computer's next step in `state`. */
 export function aiStepDelay(state: GameState, { planned, level }: { planned: boolean; level: AiLevel }): number {
   if (state.phase === 'doubling') return AI_PACE.cube;

@@ -19,12 +19,13 @@ import type { BoardArrow, BoardDice } from '@/types/board';
 
 import { CoachHintBubble } from './components/CoachHintBubble';
 import { CoachWatchPanel } from './components/CoachWatchPanel';
-import { EndBanner, END_BANNER_DELAY_MS, RESULT_SHEET_DELAY_MS } from './components/EndBanner';
+import { EndBanner } from './components/EndBanner';
 import { GameResultSheet } from './components/GameResultSheet';
 import { Seat } from './components/Seat';
 import { gameLayout } from './gameLayout';
 import { gameStatus, HOW_TO_GAMES } from './gameStatus';
 import { usedDice } from './moveInput';
+import { END_BANNER_DELAY_MS, RESULT_SHEET_DELAY_MS } from './turnPacing';
 import { useGameController } from './useGameController';
 
 const STATUS_COLOR = { neutral: 'textSecondary', info: 'text', warning: 'streak' } as const;
@@ -45,6 +46,17 @@ const INVITE = {
   animationTimingFunction: 'ease-in-out',
 } as const;
 
+/** A tap that came too early: the thing to do (or wait for) answers with one small pulse. */
+const NUDGE = {
+  animationName: {
+    '0%': { transform: [{ scale: 1 }] },
+    '40%': { transform: [{ scale: 1.06 }] },
+    '100%': { transform: [{ scale: 1 }] },
+  },
+  animationDuration: 260,
+  animationTimingFunction: 'ease-out',
+} as const;
+
 const FADE_IN = {
   animationName: { from: { opacity: 0, transform: [{ translateY: 4 }] }, to: { opacity: 1, transform: [{ translateY: 0 }] } },
   animationDuration: 200,
@@ -60,6 +72,8 @@ export function GameScreen() {
   const abandonGame = useGameStore((store) => store.abandonGame);
   const gamesPlayed = useGameStore((store) => store.stats.gamesPlayed);
   const [confirm, setConfirm] = useState<'leave' | 'resign' | null>(null);
+  // The last tap on the board that came before the player could move (a new key each time).
+  const [nudge, setNudge] = useState<{ target: 'roll' | 'opponent'; key: number } | null>(null);
   // Android back asks first, like the close button. Open dialogs and the result sheet handle back themselves.
   useBackPress(!!game.active && !!game.state && confirm === null && !game.outcome, () => setConfirm('leave'));
 
@@ -153,6 +167,14 @@ export function GameScreen() {
   // Narrow phones (under 360 pt): rows of buttons drop their icons and tighten so labels fit.
   const narrow = width < 360;
 
+  // A tap on the board before it's time to move isn't ignored: the roll button, or
+  // the opponent's "Thinking", answers it.
+  const tapBoard = (place: number | 'bar' | 'off', how?: { dragged?: boolean }) => {
+    const early = state.phase === 'opening' || (state.phase === 'rolling' && humanTurn) ? 'roll' : aiThinking ? 'opponent' : null;
+    if (early) setNudge((last) => ({ target: early, key: (last?.key ?? 0) + 1 }));
+    else game.tap(place, how);
+  };
+
   const newGame = () => {
     game.clearOutcome();
     startGame(active.settings);
@@ -194,6 +216,7 @@ export function GameScreen() {
             height={layout.seat}
             compact={layout.compact}
             speech={game.speech}
+            nudgeKey={nudge?.target === 'opponent' ? nudge.key : undefined}
           />
           <View>
             <BackgammonBoard
@@ -210,9 +233,9 @@ export function GameScreen() {
               movable={settings.showMovableHints && game.selected === null ? game.movable : []}
               targets={game.targets}
               arrows={arrows}
-              onPressPoint={game.tap}
-              onPressBar={() => game.tap('bar')}
-              onPressOff={(how) => game.tap('off', how)}
+              onPressPoint={tapBoard}
+              onPressBar={() => tapBoard('bar')}
+              onPressOff={(how) => tapBoard('off', how)}
             />
             {state.phase === 'finished' && state.result ? (
               <EndBanner result={state.result} opponentName={opponent.name} width={layout.boardWidth} height={layout.boardHeight} />
@@ -262,7 +285,9 @@ export function GameScreen() {
       <View style={[styles.actions, { height: layout.actions + layout.bottomInset, paddingBottom: layout.bottomInset }]}>
         {state.phase === 'opening' ? (
           <Animated.View style={fresh ? INVITE : null}>
-            <Button testID="roll-opening" label="Roll to start" icon="dice-multiple" onPress={game.rollOpening} />
+            <Animated.View key={nudge?.target === 'roll' ? nudge.key : 0} style={nudge?.target === 'roll' ? NUDGE : null}>
+              <Button testID="roll-opening" label="Roll to start" icon="dice-multiple" onPress={game.rollOpening} />
+            </Animated.View>
           </Animated.View>
         ) : state.phase === 'rolling' && humanTurn ? (
           <View style={styles.row}>
@@ -271,9 +296,9 @@ export function GameScreen() {
                 <Button testID="double" label={`Double to ${state.cube.value * 2}`} variant="secondary" dense={narrow} onPress={game.double} />
               </View>
             ) : null}
-            <View style={styles.flex}>
+            <Animated.View key={nudge?.target === 'roll' ? nudge.key : 0} style={[styles.flex, nudge?.target === 'roll' ? NUDGE : null]}>
               <Button testID="roll" label="Roll" icon="dice-multiple" dense={narrow} onPress={game.roll} />
-            </View>
+            </Animated.View>
           </View>
         ) : game.watch ? (
           <View style={styles.row}>

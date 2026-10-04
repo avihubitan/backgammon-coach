@@ -1,6 +1,6 @@
-import type { GameResult } from '@/game';
+import type { GameResult, GameReview } from '@/game';
 
-import { resultCopy } from '../resultCopy';
+import { resultCopy, resultTypeLabel, reviewTeaser } from '../resultCopy';
 
 const result = (winner: 'player1' | 'player2', reason: GameResult['reason'] = 'bore-off'): GameResult =>
   ({ winner, type: 'single', cubeValue: 1, points: 1, reason }) as GameResult;
@@ -33,5 +33,32 @@ describe('the result sheet’s words', () => {
   it('speaks of the match when a match ends', () => {
     expect(copy(result('player2'), { isMatch: true, matchOver: true, matchWon: false }).title).toBe('Good match');
     expect(copy(result('player1'), { isMatch: true, matchOver: true, matchWon: true }).title).toBe('Match won!');
+  });
+});
+
+describe('the details under the title', () => {
+  const gammon = (winner: 'player1' | 'player2') => ({ winner, type: 'gammon', cubeValue: 1, points: 2, reason: 'bore-off' }) as GameResult;
+
+  it('cheers a gammon the player won, and only that one', () => {
+    expect(resultTypeLabel(gammon('player1'))).toBe('Gammon!');
+    expect(resultTypeLabel(gammon('player2'))).toBe('Gammon');
+    expect(resultTypeLabel(result('player2'))).toBe('Single game');
+  });
+
+  const review = (counts: { mistakes?: number; blunders?: number; inaccuracies?: number }, wrongCube = 0): GameReview =>
+    ({
+      moves: [],
+      cube: Array.from({ length: wrongCube }, () => ({ correct: false })),
+      summary: { mistakes: 0, blunders: 0, inaccuracies: 0, ...counts },
+    }) as unknown as GameReview;
+
+  it('gives a reason to open the review, or says the dice decided', () => {
+    expect(reviewTeaser(undefined)).toBeNull();
+    expect(reviewTeaser(review({ mistakes: 1, blunders: 1 }))).toBe('Your coach found 2 moves to look at.');
+    expect(reviewTeaser(review({}, 1))).toBe('Your coach found 1 move to look at.');
+    // Many mistakes: one lesson to start with, not a discouraging count.
+    expect(reviewTeaser(review({ mistakes: 9, blunders: 5 }))).toBe('Your coach has this game’s biggest lesson ready.');
+    expect(reviewTeaser(review({ inaccuracies: 3 }))).toBe('No big mistakes, just a few small ones to look at.');
+    expect(reviewTeaser(review({}))).toBe('No real mistakes: the dice won this one.');
   });
 });
