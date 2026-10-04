@@ -23,7 +23,15 @@ export const AI_PACE = {
   pass: 1000,
   /** Answering the player's double. */
   cube: 1000,
+  /**
+   * The first move of the game: the opening dice are shown on both halves,
+   * then slide together (OPENING_REVEAL_MS + 380 ms) before the computer moves.
+   */
+  opening: 1250,
 } as const;
+
+/** How long the opening dice stay on their owners' halves before sliding together. */
+export const OPENING_REVEAL_MS = 750;
 
 /** The player has no legal move: the message shows this long before the turn passes. */
 export const PLAYER_PASS_MS = 1500;
@@ -34,7 +42,10 @@ export function aiStepDelay(state: GameState, { planned, level }: { planned: boo
   if (state.phase === 'rolling') return AI_PACE.roll;
   const turn = state.turn;
   if (!turn) return AI_PACE.move;
-  if (turn.moves.length === 0 && !planned) return turn.requiredMoves === 0 ? AI_PACE.pass : AI_PACE.think[level];
+  if (turn.moves.length === 0 && !planned) {
+    if (turn.requiredMoves === 0) return AI_PACE.pass;
+    return state.history.length === 0 ? AI_PACE.opening : AI_PACE.think[level];
+  }
   const last = turn.moves[turn.moves.length - 1];
   if (last?.hit) return AI_PACE.afterHit;
   return isTurnComplete(turn) ? AI_PACE.end : AI_PACE.move;

@@ -33,6 +33,8 @@ interface AnimatedCheckerProps {
   zIndex: number;
   /** Being dragged: the board draws it under the finger instead. */
   hidden?: boolean;
+  /** A new game: the checker settles onto the board after this many ms. */
+  enterDelay?: number;
 }
 
 const FLIGHT_EASING = Easing.inOut(Easing.cubic);
@@ -52,6 +54,7 @@ export function AnimatedChecker({
   reduceMotion,
   zIndex,
   hidden = false,
+  enterDelay,
 }: AnimatedCheckerProps) {
   const size = m.checker;
   const fromX = useSharedValue(center.x);
@@ -205,9 +208,20 @@ export function AnimatedChecker({
       <Animated.View style={faceStyle}>
         <Animated.View
           style={
-            checker.appeared
-              ? { animationName: { from: { opacity: 0 }, to: { opacity: 1 } }, animationDuration: 260 }
-              : undefined
+            enterDelay !== undefined && !reduceMotion
+              ? {
+                  animationName: {
+                    from: { opacity: 0, transform: [{ translateY: -size * 0.5 }, { scale: 1.08 }] },
+                    to: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+                  },
+                  animationDuration: 320,
+                  animationDelay: enterDelay,
+                  animationFillMode: 'backwards',
+                  animationTimingFunction: 'ease-out',
+                }
+              : checker.appeared
+                ? { animationName: { from: { opacity: 0 }, to: { opacity: 1 } }, animationDuration: 260 }
+                : undefined
           }
         >
           {showSlab ? (

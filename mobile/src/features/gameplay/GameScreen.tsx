@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/Button';
 import { useBackPress } from '@/components/system/useBackPress';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
-import { canDouble, canEndTurn, pipCount } from '@/game';
+import { canDouble, canEndTurn, pipCount, type Player } from '@/game';
 import { useGameStore } from '@/state/gameStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
-import type { BoardArrow } from '@/types/board';
+import type { BoardArrow, BoardDice } from '@/types/board';
 
 import { CoachHintBubble } from './components/CoachHintBubble';
 import { CoachWatchPanel } from './components/CoachWatchPanel';
@@ -26,6 +26,22 @@ import { usedDice } from './moveInput';
 import { useGameController } from './useGameController';
 
 const STATUS_COLOR = { neutral: 'textSecondary', info: 'text', warning: 'streak' } as const;
+
+const TABLE_ENTRANCE = {
+  animationName: { from: { opacity: 0, transform: [{ scale: 0.965 }] }, to: { opacity: 1, transform: [{ scale: 1 }] } },
+  animationDuration: 360,
+  animationTimingFunction: 'ease-out',
+} as const;
+
+/** Once the board has settled, the first button breathes gently. */
+const INVITE = {
+  animationName: { from: { transform: [{ scale: 1 }] }, to: { transform: [{ scale: 1.025 }] } },
+  animationDuration: 900,
+  animationDelay: 900,
+  animationIterationCount: 'infinite',
+  animationDirection: 'alternate',
+  animationTimingFunction: 'ease-in-out',
+} as const;
 
 const FADE_IN = {
   animationName: { from: { opacity: 0, transform: [{ translateY: 4 }] }, to: { opacity: 1, transform: [{ translateY: 0 }] } },
@@ -84,6 +100,39 @@ export function GameScreen() {
     showHowTo: gamesPlayed < HOW_TO_GAMES,
   });
   const off = state.board.off;
+  // The opening roll: each side's die on its own half; once decided, the two
+  // dice slide together and are the first roll (each keeping its colour).
+  const opening = active.openingRoll;
+  const fromOpening =
+    !!opening &&
+    !!turn?.roll &&
+    state.history.length === 0 &&
+    opening.player1 !== opening.player2 &&
+    turn.roll[0] === opening.player1 &&
+    turn.roll[1] === opening.player2;
+  const boardDice: BoardDice | null =
+    state.phase === 'opening'
+      ? opening && state.openingTies.length > 0
+        ? { values: [opening.player1, opening.player2], player: 'player1', owners: ['player1', 'player2'], split: true, rollId: game.rollId, animate: true }
+        : null
+      : turn
+        ? {
+            values: turn.dice,
+            used: usedDice(turn),
+            player: state.currentPlayer,
+            rollId: game.rollId,
+            animate: true,
+            ...(fromOpening
+              ? {
+                  owners: ['player1', 'player2'] as Player[],
+                  split: game.openingReveal,
+                  winner: game.openingReveal && opening ? (opening.player1 > opening.player2 ? 0 : 1) : null,
+                }
+              : null),
+          }
+        : null;
+  // A new game: the board and its checkers settle in, and "Roll to start" invites the first tap.
+  const fresh = state.phase === 'opening' && state.openingTies.length === 0;
   const panelWidth = Math.min(width, MAX_CONTENT_WIDTH) - 2 * SCREEN_GUTTER;
   // Narrow phones (under 360 pt): rows of buttons drop their icons and tighten so labels fit.
   const narrow = width < 360;
@@ -113,7 +162,10 @@ export function GameScreen() {
 
       <View style={styles.middle}>
         <View style={styles.spacer} />
-        <View style={[styles.table, { width: layout.boardWidth }]}>
+        <Animated.View
+          key={`${active.id}-${active.gameNumber}`}
+          style={[styles.table, { width: layout.boardWidth }, fresh ? TABLE_ENTRANCE : null]}
+        >
           <Seat
             testID="seat-opponent"
             name={opponent.name}
@@ -132,17 +184,8 @@ export function GameScreen() {
             width={layout.boardWidth}
             layoutKey={`${active.id}-${active.gameNumber}`}
             showPointNumbers={settings.showPointNumbers}
-            dice={
-              turn
-                ? {
-                    values: turn.dice,
-                    used: usedDice(turn),
-                    player: state.currentPlayer,
-                    rollId: game.rollId,
-                    animate: true,
-                  }
-                : null
-            }
+            dice={boardDice}
+            entrance={fresh}
             cube={active.settings.cubeEnabled ? state.cube : null}
             selected={humanTurn ? game.selected : null}
             movable={settings.showMovableHints && game.selected === null ? game.movable : []}
@@ -164,7 +207,7 @@ export function GameScreen() {
             height={layout.seat}
             compact={layout.compact}
           />
-        </View>
+        </Animated.View>
         <View style={[styles.panel, { height: layout.panel, width: panelWidth }]}>
           <ScrollView contentContainerStyle={styles.panelContent} showsVerticalScrollIndicator={false}>
             {game.watch ? (
@@ -195,7 +238,9 @@ export function GameScreen() {
 
       <View style={[styles.actions, { height: layout.actions + layout.bottomInset, paddingBottom: layout.bottomInset }]}>
         {state.phase === 'opening' ? (
-          <Button testID="roll-opening" label="Roll to start" icon="dice-multiple" onPress={game.rollOpening} />
+          <Animated.View style={fresh ? INVITE : null}>
+            <Button testID="roll-opening" label="Roll to start" icon="dice-multiple" onPress={game.rollOpening} />
+          </Animated.View>
         ) : state.phase === 'rolling' && humanTurn ? (
           <View style={styles.row}>
             {canDouble(state) ? (

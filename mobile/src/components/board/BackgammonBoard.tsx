@@ -34,12 +34,13 @@ import { AnimatedChecker } from './AnimatedChecker';
 import { BoardArt } from './BoardArt';
 import { CheckerFace } from './Checker';
 import { useBoardPalette } from './palette';
-import { RollingDie } from './Die';
+import { DICE_SETTLE_MS, RollingDie } from './Die';
 import {
   barRect,
   checkerCenterOnBar,
   checkerCenterOnPoint,
   columnCenterX,
+  columnIndex,
   computeMetrics,
   diceCenter,
   isTopPoint,
@@ -89,6 +90,8 @@ export interface BackgammonBoardProps {
   celebrate?: { key: string | number; spots: MoveTarget[] } | null;
   /** Play move, hit and dice sounds for this board (on by default). */
   sounds?: boolean;
+  /** A new game: the checkers settle onto their points, left to right, when the board first appears. */
+  entrance?: boolean;
   testID?: string;
 }
 
@@ -249,6 +252,7 @@ export function BackgammonBoard({
   shakeKey,
   celebrate,
   sounds = true,
+  entrance = false,
   testID,
 }: BackgammonBoardProps) {
   const m = computeMetrics(width);
@@ -619,6 +623,7 @@ export function BackgammonBoard({
             reduceMotion={reduceMotion}
             zIndex={lifted ? 75 : checker.moved ? 40 + checker.index : 10 + checker.index}
             hidden={lifted && dragging !== null}
+            enterDelay={entrance ? entranceDelay(checker) : undefined}
           />
         );
       })}
@@ -853,6 +858,12 @@ export function BackgammonBoard({
   );
 }
 
+/** Checkers settle onto a new board column by column, left to right, each stack from the bottom up. */
+function entranceDelay(checker: PlacedChecker): number {
+  if (checker.location.kind !== 'point') return 0;
+  return 80 + columnIndex(checker.location.point) * 22 + checker.index * 14;
+}
+
 function playCue(kind: SoundCueKind) {
   if (kind === 'hit') feedback.hit();
   else if (kind === 'bearoff') feedback.bearOff();
@@ -979,33 +990,73 @@ function ArrowPath({ arrow, board, metrics: m }: { arrow: BoardArrow; board: Boa
 }
 
 function DiceRow({ dice, metrics: m, sounds }: { dice: BoardDice; metrics: BoardMetrics; sounds: boolean }) {
-  const center = diceCenter(m, dice.player);
   const many = dice.values.length > 2;
   const size = many ? Math.round(m.dieSize * 0.78) : m.dieSize;
   const gap = size * 0.28;
   const total = dice.values.length * size + (dice.values.length - 1) * gap;
+  const together = diceCenter(m, dice.player);
   const rollKey = dice.animate ? `${dice.rollId ?? 'd'}` : null;
   useEffect(() => {
     if (rollKey !== null && sounds) feedback.diceRoll();
   }, [rollKey, sounds]);
   return (
-    <View
-      style={[styles.abs, styles.diceRow, { left: center.x - total / 2, top: center.y - size / 2, gap }, { pointerEvents: 'none' }]}
-    >
-      {dice.values.map((value, index) => (
-        <RollingDie
-          key={`${dice.rollId ?? 'd'}-${index}`}
-          value={value}
-          size={size}
-          player={dice.player}
-          used={dice.used?.[index] ?? false}
-          animate={dice.animate ?? false}
-          index={index}
-          delay={index * 50}
-          onSettle={index === 0 && sounds ? feedback.diceLand : undefined}
-        />
-      ))}
-    </View>
+    <>
+      {dice.values.map((value, index) => {
+        const owner = dice.owners?.[index] ?? dice.player;
+        // Each die has its place in the row; the opening roll moves it onto its owner's half.
+        const x = together.x - total / 2 + index * (size + gap);
+        const shift = dice.split ? diceCenter(m, owner).x - (x + size / 2) : 0;
+        return (
+          <Animated.View
+            key={`${dice.rollId ?? 'd'}-${index}`}
+            style={[
+              styles.abs,
+              {
+                left: x,
+                top: together.y - size / 2,
+                zIndex: 70,
+                transform: [{ translateX: shift }],
+                transitionProperty: 'transform',
+                transitionDuration: 380,
+                transitionTimingFunction: 'ease-in-out',
+              },
+              { pointerEvents: 'none' },
+            ]}
+          >
+            <RollingDie
+              value={value}
+              size={size}
+              player={owner}
+              used={dice.used?.[index] ?? false}
+              animate={dice.animate ?? false}
+              index={index}
+              // Doubles: two dice are thrown, the other two pop in once they land.
+              copy={many && index >= 2}
+              delay={many && index >= 2 ? DICE_SETTLE_MS + (index - 2) * 70 : dice.split ? 0 : index * 50}
+              onSettle={index === 0 && sounds ? (many ? feedback.doubles : feedback.diceLand) : undefined}
+              standing={dice.winner === null || dice.winner === undefined ? null : dice.winner === index ? 'won' : 'lost'}
+            />
+          </Animated.View>
+        );
+      })}
+      {many && dice.animate ? (
+        <View key={`dbl-${dice.rollId ?? 'd'}`} style={[StyleSheet.absoluteFill, { zIndex: 69 }, { pointerEvents: 'none' }]}>
+          <ParticleBurst
+            x={together.x}
+            y={together.y}
+            delay={DICE_SETTLE_MS + 60}
+            count={12}
+            radius={size * 2.2}
+            size={Math.max(4, size * 0.16)}
+            gravity={size * 0.4}
+            duration={700}
+            shapes={['spark', 'circle']}
+            colors={['#FFE6A8', '#F3B847', '#FFFFFF']}
+            seed={dice.values[0] * 7 + Number(dice.rollId ?? 0)}
+          />
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -1074,7 +1125,6 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 6px rgba(0,0,0,0.4)',
   },
   labelText: { fontFamily: fontFamilies.extrabold, fontSize: 11, letterSpacing: 0.3 },
-  diceRow: { flexDirection: 'row', zIndex: 70 },
   cube: {
     backgroundColor: '#F6EFDF',
     alignItems: 'center',

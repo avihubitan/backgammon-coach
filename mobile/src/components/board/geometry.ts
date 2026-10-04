@@ -62,7 +62,7 @@ export function computeMetrics(width: number): BoardMetrics {
     innerTop,
     innerBottom,
     midY: (innerTop + innerBottom) / 2,
-    dieSize: Math.round(checker * 1.22),
+    dieSize: Math.round(checker * 1.28),
     slabHeight: Math.max(4, checker * 0.24),
   };
 }

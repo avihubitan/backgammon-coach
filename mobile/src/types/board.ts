@@ -37,6 +37,15 @@ export interface BoardDice {
   /** Change this to replay the roll animation. */
   rollId?: string | number;
   animate?: boolean;
+  /** Parallel to `values`: whose die each one is (its colour). Defaults to `player` for all. */
+  owners?: Player[];
+  /**
+   * The opening roll: each die sits on its owner's half of the board. Turning
+   * this off slides them together onto `player`'s side, without a new throw.
+   */
+  split?: boolean;
+  /** Index of the die that won the opening roll, to set it apart. */
+  winner?: number | null;
 }
 
 export type BoardCube = CubeState;

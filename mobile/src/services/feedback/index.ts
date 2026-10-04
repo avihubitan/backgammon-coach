@@ -23,6 +23,8 @@ export interface GameFeedback {
   diceRoll(): void;
   /** The dice settle after a roll. */
   diceLand(): void;
+  /** The dice settle showing doubles: four moves. */
+  doubles(): void;
   /** XP arriving at a counter. */
   xp(): void;
   /** Stars pop one by one (1, 2, 3). */
@@ -70,6 +72,10 @@ export const feedback: GameFeedback = {
     haptics.light();
   },
   diceLand: () => haptics.medium(),
+  doubles: () => {
+    soundBank.play('star1', { volume: 0.55 });
+    haptics.success();
+  },
   xp: () => {
     soundBank.play('xp');
     haptics.tap();

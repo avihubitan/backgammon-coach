@@ -35,7 +35,7 @@ import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
 import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllows } from './coachWatch';
 import { gameXp } from './gameModel';
 import { opponentFor } from './opponents';
-import { aiStepDelay, PLAYER_PASS_MS } from './turnPacing';
+import { aiStepDelay, OPENING_REVEAL_MS, PLAYER_PASS_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
 const HUMAN_STEP = MOVE_STEP_MS;
@@ -71,6 +71,8 @@ export function useGameController() {
   const [messageTone, setMessageTone] = useState<'info' | 'warning'>('info');
   // Changes on every refused tap, so the board can give a small "no".
   const [refusals, setRefusals] = useState(0);
+  // The decisive opening roll: each die stays on its owner's half for a moment.
+  const [openingReveal, setOpeningReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rollId, setRollId] = useState(0);
   const [lastAiPlay, setLastAiPlay] = useState<{ moves: CheckerMove[]; text: string } | null>(null);
@@ -250,6 +252,10 @@ export function useGameController() {
     if (dice[0] === dice[1]) say(`You both rolled ${dice[0]}. Roll again!`);
     else if (dice[0] > dice[1]) say(`You rolled ${dice[0]}, ${opponent.name} rolled ${dice[1]}. You start!`);
     else say(`${opponent.name} rolled ${dice[1]}, you rolled ${dice[0]}. ${opponent.name} starts.`);
+    if (dice[0] !== dice[1]) {
+      setOpeningReveal(true);
+      timers.current.push(setTimeout(() => setOpeningReveal(false), OPENING_REVEAL_MS));
+    }
     autoSelect(next);
   };
 
@@ -454,6 +460,8 @@ export function useGameController() {
     messageTone: dancing ? ('info' as const) : messageTone,
     /** Changes whenever a tap is refused (the board shakes its head). */
     refusals,
+    /** The opening roll's dice are still on their owners' halves. */
+    openingReveal,
     opponent,
     dancing,
     busy,

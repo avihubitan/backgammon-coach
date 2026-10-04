@@ -7,11 +7,17 @@ import {
   type GameState,
 } from '@/game';
 
-import { AI_PACE, aiStepDelay } from '../turnPacing';
+import { AI_PACE, aiStepDelay, OPENING_REVEAL_MS } from '../turnPacing';
 
-/** The computer to play with `dice` from the opening position. */
+/** Some turns into the game: the opening roll is long past. */
+const midGame = (state: GameState): GameState => ({
+  ...state,
+  history: [{ player: 'player1', roll: [3, 1], boardBefore: initialBoard(), moves: [] }],
+});
+
+/** The computer to play with `dice` from the starting position, mid-game. */
 function computerRolled(dice: [1 | 2 | 3 | 4 | 5 | 6, 1 | 2 | 3 | 4 | 5 | 6]): GameState {
-  const ready = createGameFromPosition(initialBoard(), 'player2', { cubeEnabled: false });
+  const ready = midGame(createGameFromPosition(initialBoard(), 'player2', { cubeEnabled: false }));
   return gameReducer(ready, { type: 'roll', dice });
 }
 
@@ -41,11 +47,21 @@ describe('the computer’s pace', () => {
     points[13] -= 1;
     points[20] = 1;
     const blotted = { ...board, points };
-    const state = gameReducer(createGameFromPosition(blotted, 'player2', { cubeEnabled: false }), { type: 'roll', dice: [4, 3] });
+    const state = gameReducer(midGame(createGameFromPosition(blotted, 'player2', { cubeEnabled: false })), {
+      type: 'roll',
+      dice: [4, 3],
+    });
     const hitting = currentLegalMoves(state).find((move) => move.hit);
     expect(hitting).toBeDefined();
     const after = gameReducer(state, { type: 'move', move: hitting! });
     expect(aiStepDelay(after, { planned: true, level: 'intermediate' })).toBe(AI_PACE.afterHit);
+  });
+
+  it('waits for the opening dice to come together before its first move of the game', () => {
+    const opened = gameReducer(createGame({ cubeEnabled: false }), { type: 'opening-roll', dice: [2, 5] });
+    expect(opened.currentPlayer).toBe('player2');
+    expect(aiStepDelay(opened, { planned: false, level: 'beginner' })).toBe(AI_PACE.opening);
+    expect(AI_PACE.opening).toBeGreaterThan(OPENING_REVEAL_MS + 380);
   });
 
   it('answers a double after a moment', () => {

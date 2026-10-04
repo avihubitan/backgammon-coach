@@ -22,12 +22,19 @@ interface DieFaceProps {
   used?: boolean;
 }
 
+/** A die seen from above: a rounded cube with a lit top edge and a shaded lower edge. */
 export function DieFace({ value, size, player = 'player1', used = false }: DieFaceProps) {
   const boardColors = useBoardPalette();
   const light = player === 'player1';
+  const edge = Math.max(1.5, size * 0.07);
+  // Pips sit on the top face, inside the bevelled edges.
+  const innerWidth = size - 2;
+  const innerHeight = size - 1 - edge;
   const pip = size * 0.18;
-  const pad = size * 0.17;
-  const step = (size - pad * 2 - pip) / 2;
+  const padX = innerWidth * 0.16;
+  const padY = innerHeight * 0.16;
+  const stepX = (innerWidth - padX * 2 - pip) / 2;
+  const stepY = (innerHeight - padY * 2 - pip) / 2;
   return (
     <Animated.View
       style={[
@@ -37,6 +44,11 @@ export function DieFace({ value, size, player = 'player1', used = false }: DieFa
           height: size,
           borderRadius: size * 0.22,
           backgroundColor: light ? boardColors.lightDie : boardColors.darkDie,
+          borderTopColor: light ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.24)',
+          borderLeftColor: light ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.14)',
+          borderRightColor: light ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.35)',
+          borderBottomColor: light ? 'rgba(90, 70, 40, 0.38)' : 'rgba(0, 0, 0, 0.55)',
+          borderBottomWidth: edge,
           opacity: used ? 0.3 : 1,
           transform: [{ scale: used ? 0.88 : 1 }],
           transitionProperty: ['opacity', 'transform'],
@@ -49,8 +61,8 @@ export function DieFace({ value, size, player = 'player1', used = false }: DieFa
           key={index}
           style={{
             position: 'absolute',
-            left: pad + cx * step,
-            top: pad + cy * step,
+            left: padX + cx * stepX,
+            top: padY + cy * stepY,
             width: pip,
             height: pip,
             borderRadius: pip / 2,
@@ -69,19 +81,37 @@ interface RollingDieProps extends DieFaceProps {
   index?: number;
   delay?: number;
   onSettle?: () => void;
+  /** The opening roll: this die won it (lit up) or lost it (steps back). */
+  standing?: 'won' | 'lost' | null;
+  /** Doubles: the third and fourth dice pop in beside the thrown pair instead of being thrown. */
+  copy?: boolean;
 }
 
 /** How long a throw takes; the face settles at about 70%. */
 export const DICE_THROW_MS = 640;
+/** When a thrown die has landed and can be read. */
+export const DICE_SETTLE_MS = Math.round(DICE_THROW_MS * 0.7);
 
 const TUMBLE_FACES: DieValue[] = [3, 6, 2, 5, 1, 4];
 
 /** A die thrown in from the roller's side (remount it with a new key for each roll). */
-export function RollingDie({ value, size, player = 'player1', used, animate = true, index = 0, delay = 0, onSettle }: RollingDieProps) {
-  const [frame, setFrame] = useState(animate ? 0 : -1);
+export function RollingDie({
+  value,
+  size,
+  player = 'player1',
+  used,
+  animate = true,
+  index = 0,
+  delay = 0,
+  onSettle,
+  standing = null,
+  copy = false,
+}: RollingDieProps) {
+  const thrown = animate && !copy;
+  const [frame, setFrame] = useState(thrown ? 0 : -1);
 
   useEffect(() => {
-    if (!animate) return;
+    if (!thrown) return;
     let current = 0;
     let tumble: ReturnType<typeof setInterval> | null = null;
     const start = setTimeout(() => {
@@ -95,7 +125,7 @@ export function RollingDie({ value, size, player = 'player1', used, animate = tr
         }
       }, 55);
     }, delay);
-    const settle = setTimeout(() => onSettle?.(), delay + DICE_THROW_MS * 0.7);
+    const settle = setTimeout(() => onSettle?.(), delay + DICE_SETTLE_MS);
     return () => {
       clearTimeout(start);
       clearTimeout(settle);
@@ -103,12 +133,38 @@ export function RollingDie({ value, size, player = 'player1', used, animate = tr
     };
     // A throw happens once per mount; later prop changes don't restart it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animate]);
+  }, [thrown]);
 
   const shown = frame >= 0 ? TUMBLE_FACES[(frame * 2 + value + index) % 6] : value;
-  return <Animated.View style={animate ? throwAnimation(size, player, index, delay) : undefined}>
-    <DieFace value={shown} size={size} player={player} used={used} />
-  </Animated.View>;
+  const entry = !animate ? undefined : copy ? popIn(delay) : throwAnimation(size, player, index, delay);
+  return (
+    <Animated.View style={entry}>
+      <Animated.View
+        style={[
+          { borderRadius: size * 0.26, transitionProperty: ['opacity', 'transform'], transitionDuration: 260 },
+          standing === 'won' && [styles.won, { borderRadius: size * 0.26 }],
+          standing === 'lost' && styles.lost,
+        ]}
+      >
+        <DieFace value={shown} size={size} player={player} used={used} />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+/** The extra dice of a double appear with a small pop once the thrown pair has landed. */
+function popIn(delay: number) {
+  return {
+    animationName: {
+      '0%': { opacity: 0, transform: [{ scale: 0.4 }] },
+      '60%': { opacity: 1, transform: [{ scale: 1.12 }] },
+      '100%': { opacity: 1, transform: [{ scale: 1 }] },
+    },
+    animationDuration: 280,
+    animationDelay: delay,
+    animationFillMode: 'backwards' as const,
+    animationTimingFunction: 'ease-out' as const,
+  };
 }
 
 function throwAnimation(size: number, player: Player, index: number, delay: number) {
@@ -141,6 +197,14 @@ function throwAnimation(size: number, player: Player, index: number, delay: numb
 
 const styles = StyleSheet.create({
   die: {
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.45)',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    boxShadow: '0px 3px 5px rgba(0, 0, 0, 0.5)',
   },
+  won: {
+    boxShadow: '0px 0px 0px 2px rgba(243, 184, 71, 0.95), 0px 0px 14px rgba(243, 184, 71, 0.55)',
+    transform: [{ scale: 1.08 }],
+  },
+  lost: { opacity: 0.55, transform: [{ scale: 0.94 }] },
 });
