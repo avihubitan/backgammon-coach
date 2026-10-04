@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Icon, type IconName } from '@/components/ui/Icon';
+import { Icon } from '@/components/ui/Icon';
 import { ToggleRow } from '@/components/ui/Toggle';
 import type { AiLevel } from '@/game';
 import { haptics } from '@/services/haptics';
@@ -14,29 +14,9 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { colors, radii, spacing } from '@/theme';
 import { analytics } from '@/services/analytics';
 
-const LEVELS: { id: AiLevel; title: string; description: string; icon: IconName; color: string }[] = [
-  {
-    id: 'beginner',
-    title: 'Beginner',
-    description: 'Plays sensibly but makes understandable mistakes.',
-    icon: 'sprout',
-    color: colors.success,
-  },
-  {
-    id: 'intermediate',
-    title: 'Intermediate',
-    description: 'Solid, reasonable strategy. A fair fight.',
-    icon: 'chess-knight',
-    color: colors.info,
-  },
-  {
-    id: 'advanced',
-    title: 'Advanced',
-    description: 'A neural network trained on 300,000 games. A real challenge.',
-    icon: 'crown',
-    color: colors.primary,
-  },
-];
+import { opponentFor } from './opponents';
+
+const LEVELS: AiLevel[] = ['beginner', 'intermediate', 'advanced'];
 
 const MATCH_LENGTHS = [1, 3, 5];
 
@@ -64,10 +44,10 @@ export function PlayHub({ early = false }: { early?: boolean }) {
               Game in progress
             </AppText>
             <AppText variant="subheading">
-              vs {LEVELS.find((level) => level.id === active.settings.level)?.title} computer
+              vs {opponentFor(active.settings.level).name} · {opponentFor(active.settings.level).title}
             </AppText>
             <AppText variant="small" color="textSecondary">
-              {active.state.currentPlayer === 'player1' ? 'It’s your turn.' : 'Waiting for the computer.'}
+              {active.state.currentPlayer === 'player1' ? 'It’s your turn.' : `${opponentFor(active.settings.level).name} is thinking.`}
             </AppText>
           </View>
           <Button testID="resume-game" label="Resume" fullWidth={false} size="medium" onPress={() => router.push('/game')} />
@@ -91,28 +71,35 @@ export function PlayHub({ early = false }: { early?: boolean }) {
         Choose your opponent
       </AppText>
       <View style={styles.levels}>
-        {LEVELS.map((level) => {
-          const selectedLevel = settings.level === level.id;
-          const record = `${stats.winsByLevel[level.id] ?? 0}–${(stats.playedByLevel[level.id] ?? 0) - (stats.winsByLevel[level.id] ?? 0)}`;
+        {LEVELS.map((id) => {
+          const opponent = opponentFor(id);
+          const selectedLevel = settings.level === id;
+          const record = `${stats.winsByLevel[id] ?? 0}–${(stats.playedByLevel[id] ?? 0) - (stats.winsByLevel[id] ?? 0)}`;
           return (
             <Pressable
-              key={level.id}
-              testID={`level-${level.id}`}
+              key={id}
+              testID={`level-${id}`}
               accessibilityRole="radio"
+              accessibilityLabel={`${opponent.name}, ${opponent.title}. ${opponent.description}`}
               accessibilityState={{ selected: selectedLevel }}
               onPress={() => {
                 haptics.tap();
-                setSettings({ level: level.id });
+                setSettings({ level: id });
               }}
-              style={[styles.level, selectedLevel && { borderColor: level.color, backgroundColor: colors.surfaceRaised }]}
+              style={[styles.level, selectedLevel && { borderColor: opponent.color, backgroundColor: colors.surfaceRaised }]}
             >
-              <View style={[styles.levelIcon, { backgroundColor: selectedLevel ? level.color : colors.surfaceRaised }]}>
-                <Icon name={level.icon} size={24} color={selectedLevel ? colors.textInverse : level.color} />
+              <View style={[styles.levelIcon, { backgroundColor: selectedLevel ? opponent.color : colors.surfaceRaised }]}>
+                <Icon name={opponent.icon} size={24} color={selectedLevel ? colors.textInverse : opponent.color} />
               </View>
               <View style={styles.flex}>
-                <AppText variant="subheading">{level.title}</AppText>
+                <View style={styles.nameRow}>
+                  <AppText variant="subheading">{opponent.name}</AppText>
+                  <AppText variant="caption" color={selectedLevel ? 'text' : 'textMuted'}>
+                    {opponent.title}
+                  </AppText>
+                </View>
                 <AppText variant="small" color="textSecondary">
-                  {level.description}
+                  {opponent.description}
                 </AppText>
               </View>
               <AppText variant="caption" color="textMuted">
@@ -122,6 +109,18 @@ export function PlayHub({ early = false }: { early?: boolean }) {
           );
         })}
       </View>
+
+      <Button
+        testID="start-game"
+        label={resumable ? 'Start a new game' : `Play ${opponentFor(settings.level).name}`}
+        icon="dice-multiple"
+        variant={resumable ? 'secondary' : 'primary'}
+        onPress={() => {
+          startGame(settings);
+          analytics.track('game_started', { mode: 'ai', level: settings.level, match_length: settings.matchLength });
+          router.push('/game');
+        }}
+      />
 
       <Card style={styles.options}>
         <AppText variant="bodyStrong">Game length</AppText>
@@ -162,18 +161,6 @@ export function PlayHub({ early = false }: { early?: boolean }) {
         />
       </Card>
 
-      <Button
-        testID="start-game"
-        label={resumable ? 'Start a new game' : 'Start game'}
-        icon="dice-multiple"
-        variant={resumable ? 'secondary' : 'primary'}
-        onPress={() => {
-          startGame(settings);
-          analytics.track('game_started', { mode: 'ai', level: settings.level, match_length: settings.matchLength });
-          router.push('/game');
-        }}
-      />
-
       {stats.gamesPlayed > 0 ? (
         <>
           <AppText variant="label" color="textSecondary">
@@ -209,7 +196,7 @@ export function PlayHub({ early = false }: { early?: boolean }) {
               <View style={styles.flex}>
                 <AppText variant="bodyStrong">
                   {game.playerWon ? 'Won' : 'Lost'} {game.result.type === 'single' ? '' : `(${game.result.type}) `}vs{' '}
-                  {LEVELS.find((level) => level.id === game.level)?.title}
+                  {opponentFor(game.level).name}
                 </AppText>
                 <AppText variant="caption" color="textSecondary">
                   {new Date(game.finishedAt).toLocaleDateString()} · {game.result.points} pt
@@ -256,6 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   levelIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
   options: { gap: spacing.md },
   segment: {
     flexDirection: 'row',

@@ -25,7 +25,7 @@ export const OPPONENTS: Record<AiLevel, Opponent> = {
     title: 'Beginner',
     icon: 'sprout',
     color: colors.success,
-    description: 'Friendly and relaxed. Plays sensibly but makes understandable mistakes.',
+    description: 'Friendly and relaxed. Makes understandable mistakes.',
   },
   intermediate: {
     level: 'intermediate',
@@ -41,7 +41,7 @@ export const OPPONENTS: Record<AiLevel, Opponent> = {
     title: 'Advanced',
     icon: 'crown',
     color: colors.primary,
-    description: 'Calm and exact: a neural network trained on 300,000 games. A real challenge.',
+    description: 'Calm and exact. A neural network trained on 300,000 games.',
   },
 };
 
