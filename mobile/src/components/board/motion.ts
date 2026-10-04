@@ -72,6 +72,11 @@ export interface MotionPlan {
 
 export const EMPTY_PLAN: MotionPlan = { motions: {}, impacts: [], glints: [], cues: [], totalMs: 0 };
 
+/** How long a dice throw takes; the face settles at about 70%. */
+export const DICE_THROW_MS = 640;
+/** When a thrown die has landed and can be read. */
+export const DICE_SETTLE_MS = Math.round(DICE_THROW_MS * 0.7);
+
 /** Several checkers moving at once take off one after another. */
 export const STAGGER_MS = 90;
 

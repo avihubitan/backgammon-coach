@@ -18,8 +18,7 @@ import {
   type GameState,
   type MoveSource,
 } from '@/game';
-import { DICE_SETTLE_MS } from '@/components/board/Die';
-import { MOVE_STEP_MS } from '@/components/board/motion';
+import { DICE_SETTLE_MS, MOVE_STEP_MS } from '@/components/board/motion';
 import { scheduleReviews } from '@/features/coach/reviewQueue';
 import type { Reward } from '@/features/learning/progressModel';
 import { reportChallengeEvent } from '@/features/challenges/challengeService';

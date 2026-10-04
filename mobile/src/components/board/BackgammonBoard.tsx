@@ -34,7 +34,7 @@ import { AnimatedChecker } from './AnimatedChecker';
 import { BoardArt } from './BoardArt';
 import { CheckerFace } from './Checker';
 import { useBoardPalette } from './palette';
-import { DICE_SETTLE_MS, RollingDie } from './Die';
+import { RollingDie } from './Die';
 import {
   barRect,
   checkerCenterOnBar,
@@ -54,6 +54,7 @@ import {
 import { diffLayout, layoutFromBoard, stackSizes, type PlacedChecker } from './layout';
 import {
   checkerCenter,
+  DICE_SETTLE_MS,
   EMPTY_PLAN,
   mergeCues,
   planMotions,

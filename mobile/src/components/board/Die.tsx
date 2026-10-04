@@ -4,6 +4,7 @@ import Animated from 'react-native-reanimated';
 
 import type { DieValue, Player } from '@/game';
 
+import { DICE_SETTLE_MS, DICE_THROW_MS } from './motion';
 import { useBoardPalette } from './palette';
 
 const PIPS: Record<DieValue, [number, number][]> = {
@@ -87,10 +88,8 @@ interface RollingDieProps extends DieFaceProps {
   copy?: boolean;
 }
 
-/** How long a throw takes; the face settles at about 70%. */
-export const DICE_THROW_MS = 640;
-/** When a thrown die has landed and can be read. */
-export const DICE_SETTLE_MS = Math.round(DICE_THROW_MS * 0.7);
+// Timing lives with the rest of the board's motion, free of rendering imports.
+export { DICE_SETTLE_MS, DICE_THROW_MS } from './motion';
 
 const TUMBLE_FACES: DieValue[] = [3, 6, 2, 5, 1, 4];
 
