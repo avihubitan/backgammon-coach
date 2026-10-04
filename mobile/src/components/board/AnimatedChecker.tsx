@@ -10,6 +10,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 import { boardColors } from '@/theme';
@@ -226,11 +227,19 @@ export function AnimatedChecker({
     return { transform: [{ translateX: x - size / 2 }, { translateY: y - size / 2 }] };
   });
 
-  // Picked up (selected) or in the air: whichever is higher.
+  // Picked up (selected) or in the air: whichever is higher. Lying down in the
+  // tray, the disc flattens into the slab's shape and hands over to it.
   const faceStyle = useAnimatedStyle(() => {
     const height = Math.max(hop.value * heightAt(t.value, mode.value), lift.value * 0.11);
+    const f = flat.value;
     return {
-      transform: [{ translateY: -height * size * 0.3 }, { scale: (1 + height) * (1 - settle.value * settleDepth.value) }],
+      opacity: 1 - f,
+      transform: [
+        { translateY: -height * size * 0.3 },
+        { scale: (1 + height) * (1 - settle.value * settleDepth.value) },
+        { scaleX: 1 - f * (1 - slab.width / size) },
+        { scaleY: 1 - f * (1 - slab.height / size) },
+      ],
     };
   });
 
@@ -249,13 +258,6 @@ export function AnimatedChecker({
     transform: [{ scale: 1.03 + 0.04 * glow.value }],
   }));
 
-  // Lying down: the disc flattens into the slab's shape and hands over to it.
-  const discStyle = useAnimatedStyle(() => ({
-    opacity: 1 - flat.value,
-    transform: [{ scaleX: 1 - flat.value * (1 - slab.width / size) }, { scaleY: 1 - flat.value * (1 - slab.height / size) }],
-  }));
-  const slabStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, flat.value * 1.6) }));
-
   // Only checkers in (or coming back out of) the tray need their slab.
   const hasSlab = isOff || checker.from?.kind === 'off';
 
@@ -264,6 +266,7 @@ export function AnimatedChecker({
       style={[styles.abs, { width: size, height: size, zIndex, opacity: hidden ? 0 : 1, pointerEvents: 'none' }, positionStyle]}
     >
       <Animated.View style={[styles.shadow, { width: size, height: size, borderRadius: size / 2 }, shadowStyle]} />
+      {hasSlab ? <TraySlab player={checker.player} slab={slab} size={size} flat={flat} /> : null}
       <Animated.View style={faceStyle}>
         <Animated.View
           style={
@@ -283,14 +286,7 @@ export function AnimatedChecker({
                 : undefined
           }
         >
-          {hasSlab ? (
-            <Animated.View style={[styles.slab, { width: size, height: size }, slabStyle]}>
-              <CheckerSlab player={checker.player} width={slab.width} height={slab.height} />
-            </Animated.View>
-          ) : null}
-          <Animated.View style={discStyle}>
-            <CheckerFace player={checker.player} size={size} />
-          </Animated.View>
+          <CheckerFace player={checker.player} size={size} />
         </Animated.View>
         {isOff ? null : (
           <Animated.View
@@ -309,6 +305,26 @@ export function AnimatedChecker({
           />
         )}
       </Animated.View>
+    </Animated.View>
+  );
+}
+
+/** A borne-off checker lying in the tray: it appears as the disc lies down. */
+function TraySlab({
+  player,
+  slab,
+  size,
+  flat,
+}: {
+  player: PlacedChecker['player'];
+  slab: { width: number; height: number };
+  size: number;
+  flat: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => ({ opacity: Math.min(1, flat.value * 1.6) }));
+  return (
+    <Animated.View style={[styles.slab, { width: size, height: size }, style]}>
+      <CheckerSlab player={player} width={slab.width} height={slab.height} />
     </Animated.View>
   );
 }
