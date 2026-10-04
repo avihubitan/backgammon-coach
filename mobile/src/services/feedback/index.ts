@@ -25,6 +25,8 @@ export interface GameFeedback {
   diceLand(): void;
   /** The dice settle showing doubles: four moves. */
   doubles(): void;
+  /** A game against the computer ends: a celebration for a win, only a soft touch for a loss. */
+  gameEnd(won: boolean): void;
   /** XP arriving at a counter. */
   xp(): void;
   /** Stars pop one by one (1, 2, 3). */
@@ -75,6 +77,14 @@ export const feedback: GameFeedback = {
   doubles: () => {
     soundBank.play('star1', { volume: 0.55 });
     haptics.success();
+  },
+  gameEnd: (won) => {
+    if (won) {
+      soundBank.play('complete');
+      haptics.success();
+    } else {
+      haptics.light();
+    }
   },
   xp: () => {
     soundBank.play('xp');

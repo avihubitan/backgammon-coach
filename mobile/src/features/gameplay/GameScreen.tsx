@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { useBackPress } from '@/components/system/useBackPress';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { IconButton } from '@/components/ui/IconButton';
 import { canDouble, canEndTurn, pipCount, type Player } from '@/game';
+import { feedback } from '@/services/feedback';
 import { useGameStore } from '@/state/gameStore';
 import { useSettingsStore } from '@/state/settingsStore';
 import { colors, MAX_CONTENT_WIDTH, SCREEN_GUTTER, spacing } from '@/theme';
@@ -18,6 +19,7 @@ import type { BoardArrow, BoardDice } from '@/types/board';
 
 import { CoachHintBubble } from './components/CoachHintBubble';
 import { CoachWatchPanel } from './components/CoachWatchPanel';
+import { EndBanner, END_BANNER_DELAY_MS, RESULT_SHEET_DELAY_MS } from './components/EndBanner';
 import { GameResultSheet } from './components/GameResultSheet';
 import { Seat } from './components/Seat';
 import { gameLayout } from './gameLayout';
@@ -60,6 +62,20 @@ export function GameScreen() {
   const [confirm, setConfirm] = useState<'leave' | 'resign' | null>(null);
   // Android back asks first, like the close button. Open dialogs and the result sheet handle back themselves.
   useBackPress(!!game.active && !!game.state && confirm === null && !game.outcome, () => setConfirm('leave'));
+
+  // The end of a game: the last checker lands, the board says who won, then the result sheet rises.
+  const outcomeKey = game.outcome && game.active ? `${game.active.id}-${game.active.gameNumber}` : null;
+  const wonLast = game.state?.result?.winner === 'player1';
+  const [sheetFor, setSheetFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!outcomeKey) return;
+    const cue = setTimeout(() => feedback.gameEnd(wonLast), END_BANNER_DELAY_MS);
+    const sheet = setTimeout(() => setSheetFor(outcomeKey), wonLast ? RESULT_SHEET_DELAY_MS.won : RESULT_SHEET_DELAY_MS.lost);
+    return () => {
+      clearTimeout(cue);
+      clearTimeout(sheet);
+    };
+  }, [outcomeKey, wonLast]);
 
   const { active, state } = game;
   if (!active || !state) {
@@ -179,24 +195,29 @@ export function GameScreen() {
             compact={layout.compact}
             speech={game.speech}
           />
-          <BackgammonBoard
-            testID="game-board"
-            board={state.board}
-            width={layout.boardWidth}
-            layoutKey={`${active.id}-${active.gameNumber}`}
-            showPointNumbers={settings.showPointNumbers}
-            dice={boardDice}
-            entrance={fresh}
-            refusal={game.refusal}
-            cube={active.settings.cubeEnabled ? state.cube : null}
-            selected={humanTurn ? game.selected : null}
-            movable={settings.showMovableHints && game.selected === null ? game.movable : []}
-            targets={game.targets}
-            arrows={arrows}
-            onPressPoint={game.tap}
-            onPressBar={() => game.tap('bar')}
-            onPressOff={(how) => game.tap('off', how)}
-          />
+          <View>
+            <BackgammonBoard
+              testID="game-board"
+              board={state.board}
+              width={layout.boardWidth}
+              layoutKey={`${active.id}-${active.gameNumber}`}
+              showPointNumbers={settings.showPointNumbers}
+              dice={boardDice}
+              entrance={fresh}
+              refusal={game.refusal}
+              cube={active.settings.cubeEnabled ? state.cube : null}
+              selected={humanTurn ? game.selected : null}
+              movable={settings.showMovableHints && game.selected === null ? game.movable : []}
+              targets={game.targets}
+              arrows={arrows}
+              onPressPoint={game.tap}
+              onPressBar={() => game.tap('bar')}
+              onPressOff={(how) => game.tap('off', how)}
+            />
+            {state.phase === 'finished' && state.result ? (
+              <EndBanner result={state.result} opponentName={opponent.name} width={layout.boardWidth} height={layout.boardHeight} />
+            ) : null}
+          </View>
           <Seat
             testID="seat-you"
             name="You"
@@ -320,9 +341,10 @@ export function GameScreen() {
         )}
       </View>
 
-      {game.outcome && state.result ? (
+      {game.outcome && state.result && sheetFor === outcomeKey ? (
         <GameResultSheet
           result={state.result}
+          opponentName={opponent.name}
           outcome={game.outcome}
           match={active.match}
           matchLength={active.settings.matchLength}

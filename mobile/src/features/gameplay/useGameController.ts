@@ -161,10 +161,8 @@ export function useGameController() {
     const gammon = finishedState.result.type !== 'single';
     speak(won ? (gammon ? 'youGammon' : 'youWin') : gammon ? 'theyGammon' : 'theyWin', finishedState.history.length);
     const reward = useProgressStore.getState().awardXp(xp, { games: useGameStore.getState().stats });
-    if (finishedState.result.winner === 'player1') {
-      feedback.lessonComplete();
-      reportChallengeEvent({ type: 'game-won' });
-    }
+    // The win sound and haptic come with the end banner on the game screen.
+    if (finishedState.result.winner === 'player1') reportChallengeEvent({ type: 'game-won' });
     setOutcome({
       gameId: recorded?.finished.id ?? null,
       level: game.settings.level,

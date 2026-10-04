@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import type { GameOutcome } from '../useGameController';
 
 interface GameResultSheetProps {
   result: GameResult;
+  opponentName: string;
   outcome: GameOutcome;
   match: MatchScore;
   matchLength: number;
@@ -34,6 +35,7 @@ const TYPE_LABEL = { single: 'Single game', gammon: 'Gammon!', backgammon: 'Back
 
 export function GameResultSheet({
   result,
+  opponentName,
   outcome,
   match,
   matchLength,
@@ -61,13 +63,16 @@ export function GameResultSheet({
   const reason =
     result.reason === 'dropped-double'
       ? won
-        ? 'The computer dropped your double.'
+        ? `${opponentName} dropped your double.`
         : 'You dropped the double.'
       : result.reason === 'resigned'
         ? 'You resigned this game.'
         : won
           ? 'You bore off all your checkers first.'
-          : 'The computer bore off first.';
+          : `${opponentName} bore off first.`;
+  // A loss isn't the end of anything: the review is the next step.
+  const reviewFirst = !won && !!onReview;
+  const xpShown = useCountUp(outcome.xp, 520, 650);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onDone}>
@@ -102,7 +107,7 @@ export function GameResultSheet({
                   : null,
               ]}
             >
-              <Icon name={won ? 'trophy' : 'emoticon-neutral-outline'} size={40} color={won ? 'textInverse' : 'textSecondary'} />
+              <Icon name={won ? 'trophy' : 'handshake-outline'} size={40} color={won ? 'textInverse' : 'textSecondary'} />
             </Animated.View>
             {won ? (
               <ParticleBurst
@@ -121,10 +126,10 @@ export function GameResultSheet({
             ) : null}
           </View>
           <AppText variant="display" align="center">
-            {isMatch && outcome.matchOver ? (matchWon ? 'Match won!' : 'Match lost') : won ? 'You won!' : 'You lost'}
+            {isMatch && outcome.matchOver ? (matchWon ? 'Match won!' : 'Good match') : won ? 'You won!' : 'Good game'}
           </AppText>
           <AppText variant="body" color="textSecondary" align="center">
-            {reason}
+            {reviewFirst ? `${reason} Let’s see what you can improve.` : reason}
           </AppText>
           <View style={styles.chips}>
             <View style={styles.chip}>
@@ -134,8 +139,8 @@ export function GameResultSheet({
             </View>
             <View style={styles.chip}>
               <Icon name="lightning-bolt" size={16} color={colors.xp} />
-              <AppText variant="smallStrong" color="xp">
-                +{outcome.xp} XP
+              <AppText variant="smallStrong" color="xp" testID="result-xp">
+                +{xpShown} XP
               </AppText>
             </View>
           </View>
@@ -183,12 +188,27 @@ export function GameResultSheet({
           ) : null}
           {!isMatch || outcome.matchOver ? <QuickFeedback context="game" subject={outcome.level} /> : null}
           <View style={styles.actions}>
+            {reviewFirst && onReview ? (
+              <Button testID="review-game" label="Review with coach" icon="school" onPress={onReview} />
+            ) : null}
             {isMatch && !outcome.matchOver ? (
-              <Button testID="next-game" label="Next game" icon="play" onPress={onNextGame} />
+              <Button
+                testID="next-game"
+                label="Next game"
+                icon="play"
+                variant={reviewFirst ? 'secondary' : 'primary'}
+                onPress={onNextGame}
+              />
             ) : (
-              <Button testID="play-again" label="Play again" icon="restart" onPress={onPlayAgain} />
+              <Button
+                testID="play-again"
+                label="Play again"
+                icon="restart"
+                variant={reviewFirst ? 'secondary' : 'primary'}
+                onPress={onPlayAgain}
+              />
             )}
-            {onReview ? (
+            {onReview && !reviewFirst ? (
               <Button testID="review-game" label="Review with coach" icon="school" variant="secondary" onPress={onReview} />
             ) : null}
             <Button testID="game-done" label="Done" variant="ghost" size="medium" onPress={onDone} />
@@ -200,6 +220,28 @@ export function GameResultSheet({
       </View>
     </Modal>
   );
+}
+
+/** Counts up to `target` once, after `delay` ms, over `duration` ms. */
+function useCountUp(target: number, delay: number, duration: number): number {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    let tick: ReturnType<typeof setInterval> | null = null;
+    const start = setTimeout(() => {
+      const began = Date.now();
+      tick = setInterval(() => {
+        const t = Math.min(1, (Date.now() - began) / duration);
+        // Ease out: quick at first, settling on the number.
+        setShown(Math.round(target * (1 - (1 - t) * (1 - t))));
+        if (t >= 1 && tick) clearInterval(tick);
+      }, 32);
+    }, delay);
+    return () => {
+      clearTimeout(start);
+      if (tick) clearInterval(tick);
+    };
+  }, [target, delay, duration]);
+  return shown;
 }
 
 /** The coach's quick verdict, as soon as the background review is done. */
