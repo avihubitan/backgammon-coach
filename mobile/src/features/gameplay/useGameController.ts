@@ -18,6 +18,7 @@ import {
   type GameState,
   type MoveSource,
 } from '@/game';
+import { DICE_SETTLE_MS } from '@/components/board/Die';
 import { MOVE_STEP_MS } from '@/components/board/motion';
 import { scheduleReviews } from '@/features/coach/reviewQueue';
 import type { Reward } from '@/features/learning/progressModel';
@@ -34,11 +35,16 @@ import { useSettingsStore } from '@/state/settingsStore';
 import { coachHint, remainingHintMoves, type CoachHint } from './coachHint';
 import { coachWatchApplies, watchPlay, type CoachWatchVerdict, watchSpacingAllows } from './coachWatch';
 import { gameXp } from './gameModel';
+import { pickLine, seedFrom, shouldSpeak, type Moment } from './opponentLines';
 import { opponentFor } from './opponents';
 import { aiStepDelay, OPENING_REVEAL_MS, PLAYER_PASS_MS } from './turnPacing';
 import { destinationsFrom, movableSources, resolveTap, type TapPlace } from './moveInput';
 
 const HUMAN_STEP = MOVE_STEP_MS;
+/** How long a line stays next to the opponent's seat. */
+const SPEECH_MS = 2800;
+/** The greeting waits for the board to settle in. */
+const GREETING_DELAY_MS = 700;
 
 export interface GameOutcome {
   /** Id of the recorded game (for the coach review). */
@@ -73,6 +79,10 @@ export function useGameController() {
   const [refusal, setRefusal] = useState<{ key: number; place: TapPlace } | null>(null);
   // The decisive opening roll: each die stays on its owner's half for a moment.
   const [openingReveal, setOpeningReveal] = useState(false);
+  // What the opponent just said, and when it last spoke (in finished turns).
+  const [speech, setSpeech] = useState<{ key: number; text: string } | null>(null);
+  const lastSpoke = useRef<number | null>(null);
+  const greeted = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rollId, setRollId] = useState(0);
   const [lastAiPlay, setLastAiPlay] = useState<{ moves: CheckerMove[]; text: string } | null>(null);
@@ -97,6 +107,30 @@ export function useGameController() {
     setMessage(text);
     setMessageTone(tone);
   };
+
+  /** The opponent says something fitting, unless it spoke too recently. */
+  const speak = (moment: Moment, turnsPlayed: number, delay = 0) => {
+    const game = useGameStore.getState().active;
+    if (!game || !shouldSpeak(moment, turnsPlayed, lastSpoke.current)) return;
+    lastSpoke.current = turnsPlayed;
+    const text = pickLine(game.settings.level, moment, seedFrom(game.id) + game.gameNumber + turnsPlayed);
+    timers.current.push(
+      setTimeout(() => {
+        setSpeech((last) => ({ key: (last?.key ?? 0) + 1, text }));
+        timers.current.push(setTimeout(() => setSpeech((now) => (now?.text === text ? null : now)), SPEECH_MS));
+      }, delay),
+    );
+  };
+
+  // A new game: the opponent says hello once the board has settled.
+  const gameKey = active ? `${active.id}-${active.gameNumber}` : null;
+  useEffect(() => {
+    const current = latestState();
+    if (!gameKey || greeted.current === gameKey || !current || current.phase !== 'opening' || current.openingTies.length > 0) return;
+    greeted.current = gameKey;
+    lastSpoke.current = null;
+    if (useGameStore.getState().active?.gameNumber === 1) speak('greeting', 0, GREETING_DELAY_MS);
+  }, [gameKey]);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -124,6 +158,8 @@ export function useGameController() {
       hints_used: game.hintsUsed ?? 0,
       coach_watch_shown: game.watchUsed ?? 0,
     });
+    const gammon = finishedState.result.type !== 'single';
+    speak(won ? (gammon ? 'youGammon' : 'youWin') : gammon ? 'theyGammon' : 'theyWin', finishedState.history.length);
     const reward = useProgressStore.getState().awardXp(xp, { games: useGameStore.getState().stats });
     if (finishedState.result.winner === 'player1') {
       feedback.lessonComplete();
@@ -186,8 +222,9 @@ export function useGameController() {
         }
         aiPlan.current = null;
         setLastAiPlay(null);
-        dispatch({ type: 'roll', dice: rollDice() });
+        const rolled = dispatch({ type: 'roll', dice: rollDice() });
         setRollId((id) => id + 1);
+        if (rolled?.turn && rolled.turn.dice.length === 4) speak('theyDoubles', rolled.history.length, DICE_SETTLE_MS);
         return;
       }
       if (current.phase === 'moving' && current.turn) {
@@ -227,6 +264,7 @@ export function useGameController() {
           });
         }
         const next = move ?? legal[0];
+        if (next?.hit) speak('theyHit', current.history.length, 300);
         if (next) dispatch({ type: 'move', move: next });
       }
     }, delay);
@@ -272,6 +310,7 @@ export function useGameController() {
     const next = dispatch({ type: 'roll', dice: rollDice() });
     setRollId((id) => id + 1);
     autoSelect(next);
+    if (next?.turn && next.turn.dice.length === 4) speak('youDoubles', next.history.length, DICE_SETTLE_MS);
   };
 
   const double = () => {
@@ -292,7 +331,10 @@ export function useGameController() {
 
   const runHumanMoves = (moves: CheckerMove[], instant = false) => {
     // A hit changes the game: say so, in words as well as on the board.
-    if (moves.some((move) => move.hit)) say(`Hit! ${opponent.name}’s checker goes to the bar.`);
+    if (moves.some((move) => move.hit)) {
+      say(`Hit! ${opponent.name}’s checker goes to the bar.`);
+      speak('youHit', latestState()?.history.length ?? 0, 350);
+    }
     if (instant) {
       // A dragged checker goes straight to where it was dropped.
       let next = latestState();
@@ -469,6 +511,8 @@ export function useGameController() {
     refusal,
     /** The opening roll's dice are still on their owners' halves. */
     openingReveal,
+    /** What the opponent is saying right now, if anything. */
+    speech,
     opponent,
     dancing,
     busy,

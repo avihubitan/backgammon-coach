@@ -177,6 +177,7 @@ export function GameScreen() {
             score={isMatch ? active.match.player2 : null}
             height={layout.seat}
             compact={layout.compact}
+            speech={game.speech}
           />
           <BackgammonBoard
             testID="game-board"

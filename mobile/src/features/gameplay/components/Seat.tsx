@@ -25,15 +25,15 @@ interface SeatProps {
   score?: number | null;
   height: number;
   compact: boolean;
-  /** Something said at this seat (the opponent's lines). */
-  children?: React.ReactNode;
+  /** A line the player at this seat just said (a new key for each). */
+  speech?: { key: number; text: string } | null;
 }
 
 /**
  * One side of the table: who sits there, how they stand, and whether it's
  * their move. The active seat lights up; the other one steps back.
  */
-export function Seat({ testID, name, detail, avatar, active, activity, cube, score, height, compact, children }: SeatProps) {
+export function Seat({ testID, name, detail, avatar, active, activity, cube, score, height, compact, speech }: SeatProps) {
   const size = compact ? 30 : 36;
   return (
     <View
@@ -64,7 +64,6 @@ export function Seat({ testID, name, detail, avatar, active, activity, cube, sco
           {detail}
         </AppText>
       </View>
-      {children}
       {cube ? (
         <View style={styles.cube} accessibilityLabel={`Owns the cube at ${cube}`}>
           <AppText variant="caption" color="textInverse">
@@ -78,7 +77,37 @@ export function Seat({ testID, name, detail, avatar, active, activity, cube, sco
         </View>
       ) : null}
       {activity ? <TurnBadge key={activity} activity={activity} /> : null}
+      {speech ? <SpeechBubble key={speech.key} text={speech.text} left={size + 6 + spacing.sm + spacing.xs} /> : null}
     </View>
+  );
+}
+
+/** A line from the opponent, next to its face: in, a moment to read, out. */
+function SpeechBubble({ text, left }: { text: string; left: number }) {
+  return (
+    <Animated.View
+      testID="opponent-speech"
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.speech,
+        {
+          left,
+          animationName: {
+            '0%': { opacity: 0, transform: [{ translateX: -6 }, { scale: 0.96 }] },
+            '8%': { opacity: 1, transform: [{ translateX: 0 }, { scale: 1 }] },
+            '88%': { opacity: 1, transform: [{ translateX: 0 }, { scale: 1 }] },
+            '100%': { opacity: 0, transform: [{ translateX: 0 }, { scale: 1 }] },
+          },
+          animationDuration: 2800,
+          animationFillMode: 'forwards',
+        },
+      ]}
+    >
+      <View style={styles.tail} />
+      <AppText variant="smallStrong" numberOfLines={2}>
+        {text}
+      </AppText>
+    </Animated.View>
   );
 }
 
@@ -180,4 +209,30 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primary },
   dots: { flexDirection: 'row', gap: 3, marginLeft: -2 },
   thinkDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.textSecondary },
+  speech: {
+    position: 'absolute',
+    right: spacing.xs,
+    top: 4,
+    bottom: 4,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    zIndex: 5,
+  },
+  tail: {
+    position: 'absolute',
+    left: -5,
+    top: '50%',
+    marginTop: -5,
+    width: 10,
+    height: 10,
+    backgroundColor: colors.surfaceRaised,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.borderStrong,
+    transform: [{ rotate: '45deg' }],
+  },
 });
