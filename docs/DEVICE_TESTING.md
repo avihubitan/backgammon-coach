@@ -124,10 +124,13 @@ Run every flow on every phone with a preview build. Note pass/fail and anything 
   build).
 - The result sheet fits on the small iPhone, with "How was this game?".
 - Game feel (judge on the phone, not the simulator): the opening dice land on both halves and slide
-  together; doubles pop in with a sparkle and a haptic; checkers lift, fly and land without
-  stutter on the low-end Android; the "Your turn" / "Thinking" badges are clear at a glance; the
+  together; doubles pop in with a sparkle and a haptic; checkers lift (the shadow falls away), fly
+  and set down without stutter on the low-end Android; a hit knocks the blot out from under your
+  checker; borne-off checkers lie down in the tray, also when bearing off quickly; your own moves
+  are felt, the opponent's only heard (no buzzing through its turn), being hit is felt; tapping
+  the board during the opponent's turn pulses its "Thinking"; Undo and Done fit on the SE; the
   opponent's lines are occasional, not chatty; a win ends with the board's "You win!" before the
-  sheet, a loss with "Good game".
+  sheet, a loss with "Good game" and a line about what the review holds.
 
 **Flow 4: coach.** Game → mistake → Coach Watch → review → practise the position → practice.
 - The review shows your move, the coach's move, why, and what could have happened.
@@ -242,7 +245,7 @@ Phone · OS · build (Profile → bottom) · date
 
 ## Already verified (not on phones)
 
-- 1,180+ unit tests, typecheck and lint.
+- 1,230 unit tests in 59 suites, typecheck and lint.
 - The web export in Chromium at phone sizes, including iPhone SE: every main route, onboarding,
   lessons, full games, reviews, feedback, backup and deletion against the API in Docker.
 - Also in Chromium, for the device-only risks fixed before the device pass: a damaged or

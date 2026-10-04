@@ -9,6 +9,71 @@ The next step is the first preview build on a physical phone, and it waits on an
 Nothing has been checked on a physical phone yet. After that comes the closed beta (20–50 testers):
 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) has the status table.
 
+### Game-feel polish (done)
+A last pass on how the game feels in the hand, before the first phone. Engine, AI strength, Coach
+Watch limits, Premium gating and saved data are untouched (nothing under `src/game`, `src/state`
+or monetization changed); all of it is presentation, timing and input safety. **None of it has
+been judged on a physical phone: that is the next step** (haptic strength, smoothness on a
+low-end Android, the sound mix).
+- **Checkers move like pieces:** picked up quickly with a soft shadow falling away, carried, set
+  down with weight and a small settle (was a 16% shrink with a spring bounce). A full point closes
+  up as the checker comes down onto it. Each checker still mounts with four animated styles.
+- **Hits:** the hitter lands on top of the blot (it used to land underneath, hidden for ~150 ms)
+  and comes down harder; the blot is knocked off at contact and slows onto the bar. Lighter jolt.
+- **Bearing off:** lifted higher, lands in its slot and lies down with a glint. Fixed: bearing off
+  several checkers quickly turned one into a slab in mid-air.
+- **Dice and turns:** used dice step back but stay readable (the opponent's dark ones all but
+  vanished); a finished turn's dice fade away. A tap before you can move is answered (Roll pulses;
+  during the opponent's turn its "Thinking" does). Multi-step moves time each hop by its flight:
+  the next hop starts after 326–454 ms instead of always 440.
+- **Opponents:** no lines on doubles; "that was close" only when the loser had ≤ 3 checkers left;
+  "Again?" instead of hello when replaying the same opponent; no line twice in a row; smug lines
+  replaced; the goodbye comes with the end banner, after the last checker has landed.
+- **Result:** a lost gammon is "Gammon", not "Gammon!"; after a loss one line says what the
+  review holds ("Your coach found 2 moves to look at", the biggest lesson when there are many, or
+  that the dice decided). The review now runs during the end banner, so it's ready when the sheet
+  rises. XP counts up, lands with a pop and a tick and fills a level bar; streak and achievements
+  follow it. Short phones: smaller badge, and the sheet scrolls instead of running off the top.
+- **Board:** recessed felt under the frame's lip, a crisp frame edge, a sunken tray, turned
+  checker edges. Static art, every board style.
+- **Haptics:** your own moves, rolls and bear-offs are felt; the opponent's are only heard, a
+  little softer (the phone buzzed 4–5 times per computer turn). Being hit is felt (medium; landing
+  a hit stays heavy). The doubles chime is for your own doubles.
+- **Input safety:** a hop still waiting when the game moved on (a resign) is skipped instead of
+  being thrown out by the engine inside a timer (a release-build crash); stale actions the rules
+  refuse are reported, not crashed on; two quick Hint presses no longer cost two hints.
+- **Small phones:** Undo, Done and Show me were cut to "UN…", "DO…", "SHOW …" at 360–375 pt
+  (iPhone SE). Button rows tighten under 400 pt; labels shrink a little rather than truncate.
+
+Animation timing (responsiveness wins; nothing decorative blocks input):
+
+| Tier | What | Time |
+| ---- | ---- | ---- |
+| Instant | selection lift, legal targets, turn state | under 150 ms |
+| Fast | checker flight; drop settle; landing settle; dice throw (readable at 450 ms); buttons | 220–420; 170; ~230; 640; ≤ 260 ms |
+| Medium | table entrance; end banner, then the result sheet; an opponent's line | ~1 s; 450 ms, then 1.3 s (loss) / 1.7 s (win); 2.8 s |
+| Special | doubles (second pair and sparkle), hit (knock and jolt), win (confetti) | within the above |
+
+Measured in headless Chromium on the same seeded game (390×844), before → after this pass:
+- Unthrottled: computer turn median 1963 → 1959–1988 ms, max ~3.1 s both; one long task
+  (99 → 83–111 ms); 41 → 41–42 frame gaps over 34 ms, worst 117 ms both.
+- 4× CPU throttle, paired runs: long tasks 241 → 202, 297 → 254, 265 → 233 (12–16% fewer);
+  frame gaps noisy (332 → 334; 312 → 361 without screenshots); computer turn the same (2.2–2.4 s).
+  Animation scenes (move, hit, four quick bear-offs, doubles, the computer's hit, both endings):
+  no long tasks or frame gaps at 4× in either build; at 8× the doubles throw shows 1–4 short gaps
+  in both alike. Browser frames are a proxy: judge smoothness on the phone.
+- Hermes bundles: iOS 9,185,893 B (+18 KB), Android 9,361,905 B (+4 KB).
+
+Tests: 59 suites (every test file on disk discovered and run) and 1,230 tests, from 58 and 1,212
+(new: rapid input, hit and hop timing, haptics by whose move, opponent moments, result lines);
+typecheck, `npm run lint` and `eslint .` clean. In the browser: the gameplay checklist (19 items,
+rapid taps included) at 320, 360, 375, 390 and 430 pt; a game played by dragging; Coach Watch
+free (3 stops, unchanged) and Premium (7, unchanged); every route with no console errors.
+
+Known limitations: not yet felt or seen on a phone (above); after a game is left mid-way through
+the computer's turn it replays that whole turn ([BETA_BACKLOG.md](BETA_BACKLOG.md)); doubles reuse
+the lessons' star chime. Latest code commit of this pass: `d2268ec`.
+
 ### Gameplay polish (done)
 The game itself was reworked to feel like a real match rather than an exercise, after a recorded
 audit of seeded games at 320, 375, 390 and 430 pt. Engine and AI strength untouched; every change
