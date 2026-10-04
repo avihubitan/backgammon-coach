@@ -61,6 +61,10 @@ describe('planMotions', () => {
     const motion = Object.values(plan.motions)[0];
     expect(motion.kind).toBe('bearoff');
     expect(plan.cues).toEqual([{ at: motion.duration, kind: 'bearoff' }]);
+    // A glint where it lands in the tray, as it lands.
+    expect(plan.glints).toHaveLength(1);
+    expect(plan.glints[0].delay).toBe(motion.duration);
+    expect(plan.glints[0].at.x).toBeGreaterThan(m.trayX);
   });
 
   it('does not animate an unchanged board', () => {

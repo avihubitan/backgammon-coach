@@ -53,15 +53,24 @@ export interface SoundCue {
   kind: SoundCueKind;
 }
 
+/** A checker reaching the bear-off tray, for a small glint where it lands. */
+export interface Glint {
+  id: string;
+  at: Point2D;
+  delay: number;
+}
+
 export interface MotionPlan {
   motions: Record<string, Motion>;
   impacts: Impact[];
+  /** Checkers borne off, in landing order. */
+  glints: Glint[];
   cues: SoundCue[];
   /** When everything has settled, in ms. */
   totalMs: number;
 }
 
-export const EMPTY_PLAN: MotionPlan = { motions: {}, impacts: [], cues: [], totalMs: 0 };
+export const EMPTY_PLAN: MotionPlan = { motions: {}, impacts: [], glints: [], cues: [], totalMs: 0 };
 
 /** Several checkers moving at once take off one after another. */
 export const STAGGER_MS = 90;
@@ -160,17 +169,21 @@ export function planMotions(
     cues.push({ at: delay + duration, kind: 'place' });
   }
 
+  const glints: Glint[] = [];
   for (const checker of moved) {
     const motion = motions[checker.id];
     if (!motion || motion.kind === 'hit') continue;
     const at = motion.delay + motion.duration;
+    if (motion.kind === 'bearoff') {
+      glints.push({ id: `${updateId}:${checker.id}`, at: checkerCenter(m, checker, nextSizes), delay: at });
+    }
     const landedOnHit = checker.location.kind === 'point' && hitPoints.has(`${checker.location.point}`);
     cues.push({ at, kind: motion.kind === 'bearoff' ? 'bearoff' : landedOnHit ? 'hit' : 'place' });
   }
   cues.sort((a, b) => a.at - b.at);
 
   const totalMs = Object.values(motions).reduce((max, motion) => Math.max(max, motion.delay + motion.duration), 0);
-  return { motions, impacts, cues, totalMs };
+  return { motions, impacts, glints, cues, totalMs };
 }
 
 /** Collapses cues that land within `windowMs` of each other (the loudest kind wins). */

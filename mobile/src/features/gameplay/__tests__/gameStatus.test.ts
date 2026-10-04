@@ -46,6 +46,13 @@ describe('the status line', () => {
     });
   });
 
+  it('spells out doubles until the first of the four moves', () => {
+    const doubles = yourRoll([3, 3]);
+    expect(gameStatus(input(doubles))).toEqual({ text: 'Doubles! You play four 3s.', tone: 'info' });
+    const moved = gameReducer(doubles, { type: 'move', move: currentLegalMoves(doubles)[0] });
+    expect(gameStatus(input(moved))).toBeNull();
+  });
+
   it('shows what the opponent just played until the player rolls, and nothing during its turn', () => {
     const waiting = createGameFromPosition(initialBoard(), 'player1', { cubeEnabled: false });
     expect(gameStatus(input(waiting, { lastAiPlay: { text: 'Niko played 13/7 8/7.' } }))?.text).toBe('Niko played 13/7 8/7.');

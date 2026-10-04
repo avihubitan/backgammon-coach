@@ -40,6 +40,10 @@ export function gameStatus({ state, message, messageTone, lastAiPlay, opponentNa
   if (state.board.bar.player1 > 0) {
     return { text: `You’re on the bar: come back in on ${opponentName}’s side first.`, tone: 'info' };
   }
+  // Doubles: say what they're worth before the first of the four moves.
+  if (turn.dice.length === 4 && turn.moves.length === 0 && turn.requiredMoves > 0) {
+    return { text: `Doubles! You play four ${turn.dice[0]}s.`, tone: 'info' };
+  }
   // The first bear-off turn of the game: say how it works.
   if (turn.moves.length === 0 && state.board.off.player1 === 0 && allCheckersHome(state.board, 'player1')) {
     return { text: 'All your checkers are home: bear them off! Move a checker onto the tray.', tone: 'info' };

@@ -72,12 +72,13 @@ export const boardColors = {
   darkDie: '#26252A',
   darkPip: '#F6EFDF',
 
+  // Highlights are brass and ivory, like the board itself; only hits are coral.
   selected: '#F3B847',
-  target: '#7CF2C0',
+  target: '#F2DCA0',
   hitTarget: '#FF7A5C',
-  targetFill: 'rgba(124, 242, 192, 0.28)',
-  movable: 'rgba(243, 184, 71, 0.55)',
-  hintArrow: '#7CF2C0',
+  targetFill: 'rgba(242, 220, 160, 0.12)',
+  movable: 'rgba(243, 184, 71, 0.5)',
+  hintArrow: '#F3C25A',
   wrongArrow: '#FF6B5C',
   zoneHighlight: 'rgba(98, 182, 255, 0.24)',
   zoneBorder: 'rgba(98, 182, 255, 0.85)',

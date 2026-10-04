@@ -69,8 +69,8 @@ export function useGameController() {
   const [selected, setSelected] = useState<MoveSource | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<'info' | 'warning'>('info');
-  // Changes on every refused tap, so the board can give a small "no".
-  const [refusals, setRefusals] = useState(0);
+  // The last refused tap, so the board can say "no" where it happened.
+  const [refusal, setRefusal] = useState<{ key: number; place: TapPlace } | null>(null);
   // The decisive opening roll: each die stays on its owner's half for a moment.
   const [openingReveal, setOpeningReveal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -195,7 +195,12 @@ export function useGameController() {
           const moves = current.turn.moves;
           setLastAiPlay(
             moves.length > 0
-              ? { moves, text: `${opponent.name} played ${formatPlay('player2', moves)}.` }
+              ? {
+                  moves,
+                  text: moves.some((move) => move.hit)
+                    ? `${opponent.name} hit you (${formatPlay('player2', moves)}). Your checker is on the bar.`
+                    : `${opponent.name} played ${formatPlay('player2', moves)}.`,
+                }
               : { moves, text: `${opponent.name} couldn’t move.` },
           );
           aiPlan.current = null;
@@ -286,6 +291,8 @@ export function useGameController() {
   };
 
   const runHumanMoves = (moves: CheckerMove[], instant = false) => {
+    // A hit changes the game: say so, in words as well as on the board.
+    if (moves.some((move) => move.hit)) say(`Hit! ${opponent.name}’s checker goes to the bar.`);
     if (instant) {
       // A dragged checker goes straight to where it was dropped.
       let next = latestState();
@@ -330,7 +337,7 @@ export function useGameController() {
         haptics.warning();
         setSelected(null);
         say(result.reason, 'warning');
-        setRefusals((count) => count + 1);
+        setRefusal((last) => ({ key: (last?.key ?? 0) + 1, place }));
         break;
       case 'ignore':
         break;
@@ -458,8 +465,8 @@ export function useGameController() {
     legal,
     message: dancing ? 'No legal moves. Your turn passes.' : message,
     messageTone: dancing ? ('info' as const) : messageTone,
-    /** Changes whenever a tap is refused (the board shakes its head). */
-    refusals,
+    /** The last tap the rules refused (a new key each time). */
+    refusal,
     /** The opening roll's dice are still on their owners' halves. */
     openingReveal,
     opponent,

@@ -186,6 +186,7 @@ export function GameScreen() {
             showPointNumbers={settings.showPointNumbers}
             dice={boardDice}
             entrance={fresh}
+            refusal={game.refusal}
             cube={active.settings.cubeEnabled ? state.cube : null}
             selected={humanTurn ? game.selected : null}
             movable={settings.showMovableHints && game.selected === null ? game.movable : []}

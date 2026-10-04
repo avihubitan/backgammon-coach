@@ -92,6 +92,8 @@ export interface BackgammonBoardProps {
   sounds?: boolean;
   /** A new game: the checkers settle onto their points, left to right, when the board first appears. */
   entrance?: boolean;
+  /** A tap the rules refused: a small coral "no" at that place. Change `key` for each refusal. */
+  refusal?: { key: string | number; place: PointNumber | 'bar' | 'off' } | null;
   testID?: string;
 }
 
@@ -141,24 +143,25 @@ const LABEL_BG: Record<HighlightTone, string> = {
   gold: '#F3B847',
 };
 
+/** Legal destinations breathe softly: they fade in and out, they don't bounce. */
 const PULSE = {
   animationName: {
-    '0%': { opacity: 0.55, transform: [{ scale: 0.9 }] },
-    '100%': { opacity: 1, transform: [{ scale: 1.06 }] },
+    '0%': { opacity: 0.6 },
+    '100%': { opacity: 1 },
   },
-  animationDuration: 750,
+  animationDuration: 1100,
   animationIterationCount: 'infinite',
   animationDirection: 'alternate',
   animationTimingFunction: 'ease-in-out',
 } as const;
 
-/** Movable checkers breathe gently to invite a tap. */
+/** Movable checkers breathe more slowly still: an invitation, not an alarm. */
 const MOVABLE_PULSE = {
   animationName: {
-    '0%': { opacity: 0.55 },
-    '100%': { opacity: 1 },
+    '0%': { opacity: 0.4 },
+    '100%': { opacity: 0.95 },
   },
-  animationDuration: 900,
+  animationDuration: 1400,
   animationIterationCount: 'infinite',
   animationDirection: 'alternate',
   animationTimingFunction: 'ease-in-out',
@@ -253,6 +256,7 @@ export function BackgammonBoard({
   celebrate,
   sounds = true,
   entrance = false,
+  refusal,
   testID,
 }: BackgammonBoardProps) {
   const m = computeMetrics(width);
@@ -663,6 +667,7 @@ export function BackgammonBoard({
                   width: size,
                   height: size,
                   zIndex: 60,
+                  borderWidth: 1.5,
                   borderColor: boardColors.movable,
                 },
                 MOVABLE_PULSE,
@@ -687,7 +692,7 @@ export function BackgammonBoard({
                   width: rect.width + 2,
                   height: rect.height + 2,
                   borderRadius: 6,
-                  borderWidth: 2.5,
+                  borderWidth: 2,
                   borderColor: boardColors.target,
                   backgroundColor: boardColors.targetFill,
                   zIndex: 65,
@@ -714,10 +719,11 @@ export function BackgammonBoard({
                 width: size,
                 height: size,
                 zIndex: 65,
-                borderWidth: isHit ? 3 : 2.5,
+                borderWidth: isHit ? 2.5 : 2,
                 borderColor: isHit ? boardColors.hitTarget : boardColors.target,
-                backgroundColor: isHit ? 'rgba(255, 107, 92, 0.18)' : 'transparent',
-                boxShadow: `0px 0px 10px ${isHit ? boardColors.hitTarget : boardColors.target}`,
+                backgroundColor: isHit ? 'rgba(255, 122, 92, 0.16)' : boardColors.targetFill,
+                // Only a hit gets a glow: it's the move that changes the game.
+                boxShadow: isHit ? `0px 0px 8px rgba(255, 122, 92, 0.55)` : undefined,
               },
               PULSE,
               { pointerEvents: 'none' },
@@ -779,6 +785,26 @@ export function BackgammonBoard({
           />
         </View>
       ))}
+
+      {plan.glints.map((glint) => (
+        <View key={glint.id} style={[StyleSheet.absoluteFill, { zIndex: 96 }, { pointerEvents: 'none' }]}>
+          <ParticleBurst
+            x={glint.at.x}
+            y={glint.at.y}
+            delay={glint.delay}
+            count={7}
+            radius={m.checker * 1.1}
+            size={Math.max(3, m.checker * 0.16)}
+            gravity={m.checker * 0.3}
+            duration={520}
+            shapes={['spark', 'circle']}
+            colors={['#FFE6A8', '#F3B847', '#FFFFFF']}
+            seed={glint.id.length + updateId}
+          />
+        </View>
+      ))}
+
+      {refusal ? <RefusalMark key={String(refusal.key)} center={refusalCenter(m, board, refusal.place)} size={m.checker} /> : null}
 
       {celebrate ? <Celebration key={String(celebrate.key)} spots={celebrate.spots} board={board} player={movingPlayer} metrics={m} /> : null}
 
@@ -855,6 +881,51 @@ export function BackgammonBoard({
       ) : null}
     </Animated.View>
     </GestureDetector>
+  );
+}
+
+/** Where a refused tap lands: the top checker of a point, an empty point's first spot, the bar or the tray. */
+function refusalCenter(m: BoardMetrics, board: BoardState, place: PointNumber | 'bar' | 'off'): Point2D {
+  if (place === 'off') {
+    const rect = trayRect(m);
+    return { x: rect.x + rect.width / 2, y: m.midY + m.checker * 1.5 };
+  }
+  if (place === 'bar') return { x: m.barX + m.barWidth / 2, y: m.midY };
+  const count = countAt(board, place);
+  return checkerCenterOnPoint(m, place, Math.max(0, count - 1), Math.max(1, count));
+}
+
+/** "Not there": a coral ring that appears, shakes its head once and fades. */
+function RefusalMark({ center, size }: { center: Point2D; size: number }) {
+  const ring = size * 1.15;
+  return (
+    <Animated.View
+      testID="refusal"
+      style={[
+        styles.abs,
+        styles.ring,
+        {
+          left: center.x - ring / 2,
+          top: center.y - ring / 2,
+          width: ring,
+          height: ring,
+          zIndex: 95,
+          borderWidth: 2,
+          borderColor: boardColors.hitTarget,
+          backgroundColor: 'rgba(255, 122, 92, 0.12)',
+          animationName: {
+            '0%': { opacity: 0, transform: [{ scale: 0.7 }, { translateX: 0 }] },
+            '20%': { opacity: 1, transform: [{ scale: 1.04 }, { translateX: -3 }] },
+            '40%': { opacity: 1, transform: [{ scale: 1 }, { translateX: 3 }] },
+            '60%': { opacity: 0.9, transform: [{ scale: 1 }, { translateX: -2 }] },
+            '100%': { opacity: 0, transform: [{ scale: 1.1 }, { translateX: 0 }] },
+          },
+          animationDuration: 560,
+          animationFillMode: 'forwards',
+        },
+        { pointerEvents: 'none' },
+      ]}
+    />
   );
 }
 
@@ -1103,10 +1174,10 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     zIndex: 97,
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: boardColors.target,
-    backgroundColor: boardColors.targetFill,
-    boxShadow: `0px 0px 16px ${boardColors.target}`,
+    backgroundColor: 'rgba(242, 220, 160, 0.2)',
+    boxShadow: '0px 0px 10px rgba(242, 220, 160, 0.45)',
   },
   touch: { zIndex: 100 },
   countBadge: {
