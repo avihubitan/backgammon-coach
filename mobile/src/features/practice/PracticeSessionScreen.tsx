@@ -17,12 +17,12 @@ import { StepSessionPlayer } from '@/features/lessons/components/StepSessionPlay
 import { summarizeSteps, type LessonOutcome } from '@/features/lessons/engine/session';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore, type PracticeKind } from '@/state/practiceStore';
-import { useProgressStore } from '@/state/progressStore';
+import { todayKey, useProgressStore } from '@/state/progressStore';
 import { skillOfDrill } from '@/features/skills/extract';
 import { colors, SCREEN_GUTTER, spacing } from '@/theme';
 
 import { levelProgress, type LevelProgress } from './drillLevels';
-import { isMastered, pickForPractice, withFocus } from './mistakes';
+import { dueIn, isMastered, nextDueDay, pickForPractice, withFocus } from './mistakes';
 import { PracticeComplete } from './PracticeComplete';
 import {
   buildDrillSession,
@@ -40,7 +40,7 @@ const practiceXp = (outcome: Parameters<typeof exerciseXp>[0]) => exerciseXp(out
 function buildSession(kind: PracticeKind, seed: number, focus?: string): PracticeSession | null {
   if (kind === 'mistakes') {
     const all = useMistakesStore.getState().mistakes;
-    const picks = withFocus(pickForPractice(all, SESSION_LENGTH), all, focus, SESSION_LENGTH);
+    const picks = withFocus(pickForPractice(all, SESSION_LENGTH, todayKey()), all, focus, SESSION_LENGTH);
     return picks.length > 0 ? buildMistakeSession(picks) : null;
   }
   const lessons = useProgressStore.getState().lessons;
@@ -64,6 +64,8 @@ export interface PracticeResult {
   /** The drill's level after the session, and whether this session moved it up. */
   level: LevelProgress | null;
   levelUp: boolean;
+  /** For your own mistakes: when the soonest of the ones just practised comes back ("tomorrow"). */
+  nextReview: string | null;
 }
 
 /** A short practice run: five drills from one skill, or positions from your own games. */
@@ -200,11 +202,11 @@ export function PracticeSessionScreen({ kind, focus, source }: { kind: string; f
           analytics.track('coach_pick_completed', { kind: kind === 'mistakes' ? 'mistakes' : 'drill' });
         }
         const saved = useMistakesStore.getState().mistakes;
-        const mastered =
-          kind === 'mistakes'
-            ? session.steps.filter((step) => saved.some((mistake) => mistake.id === step.id && isMastered(mistake))).length
-            : 0;
-        setResult({ outcome, reward, xp, mastered, level: getDrillCategory(kind)?.mixLevels ? null : after, levelUp });
+        const practised = saved.filter((mistake) => session.steps.some((step) => step.id === mistake.id));
+        const mastered = kind === 'mistakes' ? practised.filter(isMastered).length : 0;
+        const comesBack = kind === 'mistakes' ? nextDueDay(practised, todayKey()) : null;
+        const nextReview = comesBack ? dueIn(comesBack, todayKey()) : null;
+        setResult({ outcome, reward, xp, mastered, level: getDrillCategory(kind)?.mixLevels ? null : after, levelUp, nextReview });
       }}
     />
   );

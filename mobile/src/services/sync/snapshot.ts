@@ -121,6 +121,22 @@ function mergePractice(
   ) as SyncSnapshot['practice'];
 }
 
+/** One mistake practised on two devices: counts keep the larger, the schedule follows the latest practice. */
+function mergeMistake(x: UserMistake, y: UserMistake): UserMistake {
+  const latest = (y.lastPracticedAt ?? '') > (x.lastPracticedAt ?? '') ? y : x;
+  const merged: UserMistake = {
+    ...x,
+    attempts: Math.max(x.attempts, y.attempts),
+    solved: Math.max(x.solved, y.solved),
+    lastPracticedAt: maxDate(x.lastPracticedAt, y.lastPracticedAt),
+  };
+  if (x.wrong !== undefined || y.wrong !== undefined) merged.wrong = Math.max(x.wrong ?? 0, y.wrong ?? 0);
+  for (const key of ['streak', 'dueDay', 'lastCorrectDay'] as const) {
+    if (latest[key] !== undefined) (merged as unknown as Record<string, unknown>)[key] = latest[key];
+  }
+  return merged;
+}
+
 function mergeMistakeLists(a: UserMistake[], b: UserMistake[]): UserMistake[] {
   const byId = new Map<string, UserMistake>();
   for (const mistake of [...a, ...b]) {
@@ -129,12 +145,7 @@ function mergeMistakeLists(a: UserMistake[], b: UserMistake[]): UserMistake[] {
       mistake.id,
       !known
         ? mistake
-        : {
-            ...known,
-            attempts: Math.max(known.attempts, mistake.attempts),
-            solved: Math.max(known.solved, mistake.solved),
-            lastPracticedAt: maxDate(known.lastPracticedAt, mistake.lastPracticedAt),
-          },
+        : mergeMistake(known, mistake),
     );
   }
   const merged = Array.from(byId.values()).sort((x, y) => y.createdAt.localeCompare(x.createdAt));

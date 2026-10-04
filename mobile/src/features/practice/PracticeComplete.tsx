@@ -59,6 +59,9 @@ export function PracticeComplete({ title, kind, result, onAgain, onDone }: Pract
   if (kind === 'mistakes' && mastered > 0) {
     lines.push({ icon: 'check-decagram', color: colors.success, text: `${mastered} mistake${mastered === 1 ? '' : 's'} mastered` });
   }
+  if (kind === 'mistakes' && result.nextReview) {
+    lines.push({ icon: 'calendar-check', color: colors.info, text: `They come back ${result.nextReview}, to make them stick` });
+  }
   if (reward.streakExtended && reward.streak > 0) {
     lines.push({ icon: 'fire', color: colors.streak, text: `${reward.streak}-day streak!` });
   }

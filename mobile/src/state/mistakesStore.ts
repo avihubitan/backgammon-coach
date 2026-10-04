@@ -5,6 +5,7 @@ import {
   mergeMistakes,
   mistakesFromReview,
   recordAttempt,
+  sanitizeMistake,
   type UserMistake,
 } from '@/features/practice/mistakes';
 import type { GameReview } from '@/game';
@@ -45,9 +46,9 @@ export const useMistakesStore = create<MistakesState>()(
       version: 1,
       storage: persistStorage,
       merge: mergeChecked<MistakesState, Pick<MistakesState, 'mistakes'>>({ mistakes: [] }, (saved) => ({
-        mistakes: saved.mistakes.filter(
-          (mistake) => isPlainObject(mistake) && typeof mistake.id === 'string' && isPlainObject(mistake.position),
-        ),
+        mistakes: saved.mistakes
+          .filter((mistake) => isPlainObject(mistake) && typeof mistake.id === 'string' && isPlainObject(mistake.position))
+          .map(sanitizeMistake),
       })),
       partialize: ({ mistakes }) => ({ mistakes }),
     },

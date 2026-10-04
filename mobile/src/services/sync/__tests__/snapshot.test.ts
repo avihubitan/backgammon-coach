@@ -122,6 +122,16 @@ describe('merging snapshots', () => {
     expect(merged.progress.stats.bySkill.openings).toMatchObject({ attempted: 4, firstTry: 4 });
   });
 
+  it('keeps a mistake’s review schedule from the copy practised last', () => {
+    const early = mistake('m9', { attempts: 3, solved: 2, lastPracticedAt: '2026-10-01T09:00:00Z', streak: 2, dueDay: '2026-10-04', wrong: 1 });
+    const late = mistake('m9', { attempts: 4, solved: 2, lastPracticedAt: '2026-10-03T09:00:00Z', streak: 0, dueDay: '2026-10-04', wrong: 2, lastCorrectDay: '2026-10-01' });
+    const merged = mergeSnapshots(base({ mistakes: [early] }), base({ mistakes: [late] })).mistakes[0];
+    expect(merged).toMatchObject({ attempts: 4, solved: 2, wrong: 2, streak: 0, dueDay: '2026-10-04', lastPracticedAt: '2026-10-03T09:00:00Z' });
+    // A copy from before spaced repetition doesn't wipe the schedule.
+    const legacy = mistake('m9', { attempts: 1, solved: 0, lastPracticedAt: '2026-09-30T09:00:00Z' });
+    expect(mergeSnapshots(base({ mistakes: [legacy] }), base({ mistakes: [early] })).mistakes[0]).toMatchObject({ streak: 2, dueDay: '2026-10-04' });
+  });
+
   it('unions practice, challenge days and mistakes', () => {
     const a = base({
       practice: { hitting: { sessions: 2, bestFirstTry: 4, lastPlayedAt: '2026-09-30T00:00:00Z' } },

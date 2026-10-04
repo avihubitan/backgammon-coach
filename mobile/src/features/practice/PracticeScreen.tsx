@@ -14,10 +14,11 @@ import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
+import { useToday } from '@/state/useToday';
 import { colors, radii, spacing } from '@/theme';
 
 import { levelProgress, openLevels } from './drillLevels';
-import { isMastered } from './mistakes';
+import { dueIn, dueMistakes, isMastered, nextDueDay } from './mistakes';
 import { unlockedDrillCategories } from './practiceModel';
 
 /** Drills under the skill group they train, in path order. */
@@ -32,7 +33,10 @@ export function PracticeScreen() {
   const records = usePracticeStore((state) => state.records);
   const mistakes = useMistakesStore((state) => state.mistakes);
   const unlocked = new Set(unlockedDrillCategories(lessons).map((info) => info.id));
+  const { day: today } = useToday();
   const openMistakes = mistakes.filter((mistake) => !isMastered(mistake)).length;
+  const due = dueMistakes(mistakes, today).length;
+  const next = due === 0 ? nextDueDay(mistakes, today) : null;
   const canPracticeMistakes = useFeatureAccess().canUseAdvancedTraining();
   const completed = allLessons
     .filter((lesson) => lessons[lesson.id]?.completed)
@@ -83,12 +87,18 @@ export function PracticeScreen() {
           </View>
           <View style={styles.flex}>
             <AppText variant="subheading">
-              {openMistakes > 0 ? `${openMistakes} position${openMistakes === 1 ? '' : 's'} to fix` : 'Nothing to fix yet'}
+              {openMistakes === 0
+                ? 'Nothing to fix yet'
+                : due > 0
+                  ? `${due} position${due === 1 ? '' : 's'} due today`
+                  : `${openMistakes} position${openMistakes === 1 ? '' : 's'} to fix`}
             </AppText>
             <AppText variant="small" color="textSecondary">
-              {openMistakes > 0
-                ? 'Moves you got wrong in your games. Find the better move twice to master each one.'
-                : 'Play a game and open its review: your mistakes are collected here.'}
+              {openMistakes === 0
+                ? 'Play a game and open its review: your mistakes are collected here.'
+                : due > 0
+                  ? 'Moves you got wrong in your games come back until they stick: soon at first, then further apart each time you find them.'
+                  : `All caught up. The next one comes back ${next ? dueIn(next, today) : 'soon'}.`}
             </AppText>
           </View>
         </View>
