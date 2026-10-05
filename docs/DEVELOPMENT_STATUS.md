@@ -9,6 +9,94 @@ The next step is the first preview build on a physical phone, and it waits on an
 Nothing has been checked on a physical phone yet. After that comes the closed beta (20–50 testers):
 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) has the status table.
 
+### Learning system (done)
+Backgammon Coach is now a training system rather than a set of lessons: lessons, drills, game
+mistakes, reviews and recommendations all speak one skill taxonomy, and what happens in games
+decides what gets practised next. Engine, AI, Coach Watch limits, monetization tiers, analytics and
+backup are unchanged in kind; the 38 original lessons are kept (rewritten where the audit found
+problems) and two were added. The audit, the plan and what happened to each finding are in
+[LEARNING_AUDIT.md](LEARNING_AUDIT.md). **Nothing here has been tried on a physical phone.**
+- **Skills:** 15 skills in six groups (fundamentals, tactics, position, racing, strategy, cube).
+  Every lesson states its purpose (outcome, prerequisites, what it shows, the decision it asks,
+  where it shows up in games); scored steps credit the skill they train; each skill keeps a recent
+  window, days practised and last success. The curriculum gate checks skill order, prerequisites,
+  real on-board decisions (by the engine), feedback on every scored step, no more than two
+  explanations in a row, and that no drill or drill level comes before its lesson. New free
+  lessons: "How Risky Is a Blot?" (shot counting, section 3) and "Who’s Ahead?" (pip count and
+  race or contact, section 6).
+- **Micro-drills:** 12 drills (was 6) with 49 levels (41 generated from seeded positions; every
+  answer is decided by the engine). Questions take 10–30 s; levels open with lessons and clear at 5
+  answers with 80% first time, with one review question from a cleared level. Mini-games (hit,
+  escape, prime, race home, bear off) are checked solvable and failable by search. A bank of 98
+  real decisions from AI self-play, re-checked against the network in tests.
+- **Spaced repetition:** a mistake from a game comes back on days 0, 1, 3, 7, 16 and 35 after
+  each right answer (one per day counts); a wrong answer brings it back tomorrow; three right days
+  master it.
+- **Games feed learning:** Position of the Day ("What would you play?", then the best move, yours,
+  why, what each leads to, the key idea and "Try another like it"), from a due mistake or the
+  weakest taught skill. After a game: "You practised playing safe in “Safe or Risky?”. It tripped
+  you up twice today." with a free "Practise it". Coach Watch names the lesson behind its clue;
+  reviews show each weaker move's key idea and lesson, link the area to improve to its drill, and
+  let anyone practise one position free. Lesson complete adds "In your games: …".
+- **Recommendations:** Coach's pick with time estimates and "Also for you", from due reviews
+  (Premium), game patterns, a drill that just opened, a skill slipping in its latest answers, the
+  weakest skill and a fading one. The daily challenge follows the coach's focus every other day.
+- **Mastery and XP:** each skill climbs Learning → Practising → Strong → Mastered from lessons,
+  answers over days, recent accuracy, drill levels, open game mistakes and recency; Profile shows
+  every taught skill with its next step. One-time XP for a skill's first Practising, Strong and
+  Mastered (20/40/80), 15 XP per mistake fixed for good; the same drill or lesson replay earns full
+  XP three times a day, then half, then a quarter.
+- **Free and Premium:** every lesson that introduces a skill is free, as are all drills, Position
+  of the Day and practising any single position from a game. Premium adds the review queue of all
+  your mistakes, Coach Watch on every move and full reviews of every game.
+- **A beginner's first game (fixed after the walkthrough):** games open after section 1, when
+  none of the ideas a game exposes (hitting, safety, points…) has been taught, so the
+  game-to-learning link went quiet exactly when a beginner needs it: no line after the game, no
+  lesson named by Coach Watch, and Coach's pick dropped the pattern because no drill or finished
+  lesson could train it. Now the result sheet says "Playing safe tripped you up twice this game.
+  “Safe or Risky?”, ahead on your path, teaches it." with a free "Practise it"; Coach Watch and
+  reviews say "You'll learn this in …"; and Coach's pick offers "Practise one of them" (one of the
+  player's own positions, free, never the one Position of the Day already shows; done for the
+  day once a position about that idea has been practised) until a drill or lesson can take over.
+
+Beginner walkthrough (fresh install, production web build, 390×844, scripted like a learner who
+follows the hints): onboarding's one-move check → the six lessons of section 1, each ending with
+its "In your games" line → Home offers the next lesson, Coach's pick "New drill: Find the point"
+(2 min, opened by "The 24 Points") and a finished daily challenge → a first game, Coach Watch
+stopping a missed hit → the result sheet, the review and practising a position from it →
+Home again, with Position of the Day from that game. That run found the gap above; after the fix,
+from "section 1 done": the first game's line ("Making points tripped you up 3 times this game.
+“Making Points”, ahead on your path, teaches it.") and its position → Home with Coach's pick
+"Let's work on making points… Practise one of them · 1 min" (then "done for today" with the next
+pick) and Position of the Day from a different position → the next lesson → the daily challenge
+opening the lesson it counts → Profile's skills, each with its next step.
+
+Measured in Node on this machine (a phone is slower; nothing heavy runs on these screens): building
+a drill session takes a median of 0.02–0.6 ms per drill (worst 19 ms, an escape run); a "What
+would you play?" position 1.1–1.3 ms (worst 5.5 ms); picking today's position 0.01 ms; Coach's pick
+over 100 saved mistakes 0.4 ms (worst 3.2 ms); every skill's mastery 0.5 ms (worst 2.3 ms). The
+position bank is built offline (`scripts/build-position-bank.ts`), so the app ships the 98
+positions as data.
+
+Tests: 70 suites and 2,038 tests, from 59 and 1,230 before this milestone (new: skills and the
+curriculum gate, drill generators and levels, the position bank against the network, spaced
+repetition, Position of the Day, the game-to-lesson link, Coach's pick triggers, the daily
+challenge's focus, mastery and its rewards, repeat XP, persistence and backup merges of the new
+fields). `npm run test:all` runs the whole suite and fails unless every test file on disk ran and
+passed (70 of 70), so a suite can't silently drop out again. Typecheck and lint clean; the
+production web build exports; Hermes bundles compile (Android 9,581,513 B, +214 KB; iOS 9,377,291
+B, +187 KB: the new lessons, drill generators and position bank). In the production web build:
+the walkthrough above, a first game after section 1 with the fixed links, seeded runs through
+Home, Position of the Day, reviews, Coach Watch, drills, mastery and repeat XP, and 29 routes,
+with no console errors.
+
+Not done (genuine gaps, not blockers): drills for scoring, game plans and the cube; the back game;
+good game decisions and Coach Watch outcomes aren't recorded as skill evidence; cube decisions from
+games aren't saved for practice; seven lessons still end on a "why" question after their on-board
+decision. None of it has been seen on a phone.
+
+Latest code commit of this milestone: `f7c7884`.
+
 ### Game-feel polish (done)
 A last pass on how the game feels in the hand, before the first phone. Engine, AI strength, Coach
 Watch limits, Premium gating and saved data are untouched (nothing under `src/game`, `src/state`

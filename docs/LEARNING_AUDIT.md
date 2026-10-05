@@ -292,3 +292,22 @@ Today's review categories map onto it as follows: opening → openings,
 hitting → hitting, risk → safety, running → escaping, racing → racing,
 bearing-off → bear-off, cube → cube. Positioning splits by headline: "An
 anchor was available" → anchors; the rest → points.
+
+## Outcome (phases B–F)
+
+What happened to each finding. Commits: `bce06c6` (B), `d89afca` (C), `083b06f` (D),
+`8e5c914` (E), `fdd8523` (F). The curriculum is now 40 lessons, 217 steps, 143 scored
+(explain 69, move 53, choice 53, tap 26, cube 9, demo 5, challenge 2).
+
+| Finding | Now |
+| --- | --- |
+| 1. Duplicated concepts | The opening roll is taught once, in the openings section. Authored drill items no longer share ids with lessons. |
+| 2. Too early | Every drill and drill level opens with the lesson that teaches it (checked by the curriculum gate). Coach Watch and reviews name the lesson behind a clue, or the idea when it hasn't been taught yet. |
+| 3. Too late | Shot counting ("How Risky Is a Blot?", section 3) and pip counting with race-or-contact ("Who’s Ahead?", section 6) are in the free path. Game plans still start in section 9. |
+| 4. Taught, never practised | 12 drills with 49 levels (41 generated, so nothing is memorised): board reading, landing spots, entering, hitting, shot counting, safety, points, primes, anchors, escaping, the race (pips, race or contact, who is the favourite) and bearing off, plus a position check that rehearses the whole routine. No drill yet for scoring, game plans or the cube. |
+| 5. Practised, never measured | Every scored answer (lessons, drills, positions from games) is credited to the skill its step trains, with a recent window, days practised and last success. Good game decisions and Coach Watch outcomes are still not recorded. |
+| 6. Explains before asking | No lesson has more than two explanations in a row (gate). Seven lessons still end on a "why" question, after an on-board decision. |
+| 7. Could be interactive | board-4, winning-1, cube-1, points-3, position-1 and racing-1 now ask before they tell. |
+| 8. Missing skills | Shot counting and pip comparison are free lessons; the position check drill and fluency drills (find the point, where it lands) exist. The back game is still absent. |
+| 9. Review → curriculum | Reviews give each weaker move's key idea and the lesson that taught it, link "Area to improve" to its drill, and let anyone practise a single position free. After a game: "You practised playing safe in “Safe or Risky?”. It tripped you up twice today." Cube decisions are still not saved for practice. |
+| 10. Personalisation | Coach's pick: due reviews, game patterns, a drill that just opened, a skill slipping, the weakest skill, a fading skill, each with minutes. Spaced repetition for mistakes (0, 1, 3, 7, 16, 35 days). Position of the Day from due mistakes or the weakest taught skill. The daily challenge follows the coach's focus every other day. Drills level up. Skills show Learning → Practising → Strong → Mastered. |
