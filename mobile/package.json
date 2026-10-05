@@ -60,6 +60,7 @@
     "typecheck": "tsc --noEmit",
     "check:env": "node scripts/check-env.js",
     "test": "jest",
+    "test:all": "node scripts/check-test-suites.js",
     "test:watch": "jest --watch",
     "eas-build-post-install": "node scripts/check-env.js"
   },

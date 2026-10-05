@@ -1,4 +1,5 @@
 import { allLessons } from '@/curriculum';
+import type { DrillCategory } from '@/curriculum/drills';
 import { emptyLessonRecord } from '@/features/learning/progression';
 import { emptySkillStats } from '@/features/learning/progressModel';
 import { lessonMinutes } from '@/features/learning/timeEstimates';
@@ -66,10 +67,11 @@ describe("coach's pick", () => {
     expect(pick?.action).toEqual({ kind: 'lesson', lessonId: 'points-1' });
   });
 
-  it('never points at a lesson the player cannot open or has not reached', () => {
+  it('never points at a lesson the player cannot open or has not reached: one of their own positions instead', () => {
     const mistakes = [mistake('cube'), mistake('cube'), mistake('cube')];
-    expect(coachPick(input({ mistakes }))).toBeNull();
-    expect(coachPick(input({ mistakes, lessons: done('cube-1'), canAccessLesson: () => false }))).toBeNull();
+    const own = { kind: 'position', position: `mistake:${mistakes[0].id}`, skill: 'cube' };
+    expect(coachPick(input({ mistakes }))).toMatchObject({ action: own, actionLabel: 'Practise one of them', premium: false, minutes: 1 });
+    expect(coachPick(input({ mistakes, lessons: done('cube-1'), canAccessLesson: () => false }))?.action).toEqual(own);
     expect(coachPick(input({ mistakes, lessons: done('cube-1') }))?.action).toEqual({ kind: 'lesson', lessonId: 'cube-1' });
   });
 
@@ -209,6 +211,23 @@ describe("coach's pick: more ways to help", () => {
     expect(plan.more.map((pick) => pick.topic)).toEqual(['Hitting', 'Openings']);
     expect(plan.more).toHaveLength(MORE_PICKS);
     for (const pick of [plan.pick, ...plan.more]) expect(pick.minutes).toBeGreaterThan(0);
+  });
+
+  it('gives a beginner one of their own positions for a weakness no lesson has covered yet', () => {
+    const mistakes = [due('a', '2026-10-06'), due('b'), due('c', '2026-10-05')];
+    const pick = coachPick(input({ mistakes, lessons: done('board-1', 'board-2'), unlockedDrills: ['board'], today }));
+    // The one due today comes first.
+    expect(pick).toMatchObject({ topic: 'Playing safe', trigger: 'pattern', action: { kind: 'position', position: 'mistake:b', skill: 'safety' } });
+    // Not the one Position of the Day already shows.
+    const base = { lessons: done('board-1', 'board-2'), unlockedDrills: ['board'] as DrillCategory[], today };
+    expect(coachPick(input({ ...base, mistakes, dailyPosition: 'mistake:b' }))?.action).toMatchObject({ position: 'mistake:c' });
+    // Done once a position about the same idea has been practised today, wherever it was opened.
+    expect(coachPlan(input({ ...base, mistakes }))?.done).toBe(false);
+    const practised = mistakes.map((mistake) => (mistake.id === 'b' ? { ...mistake, lastPracticedAt: '2026-10-04T12:00:00', dueDay: '2026-10-05' } : mistake));
+    expect(coachPlan(input({ ...base, mistakes: practised }))).toMatchObject({ done: true, pick: { topic: 'Playing safe' } });
+    // Yesterday's practice doesn't count.
+    const yesterday = mistakes.map((mistake) => (mistake.id === 'b' ? { ...mistake, lastPracticedAt: '2026-10-03T12:00:00' } : mistake));
+    expect(coachPlan(input({ ...base, mistakes: yesterday }))?.done).toBe(false);
   });
 
   it('names the drill the daily challenge should lean on', () => {

@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { useFeatureAccess } from '@/features/monetization/useFeatureAccess';
 import { analytics } from '@/services/analytics';
 import { unlockedDrillCategories } from '@/features/practice/practiceModel';
+import { useDailyPositionStore } from '@/state/dailyPositionStore';
 import { useMistakesStore } from '@/state/mistakesStore';
 import { usePracticeStore } from '@/state/practiceStore';
 import { useProgressStore } from '@/state/progressStore';
@@ -21,11 +22,13 @@ function open({ action, topic, trigger }: Pick<CoachPick, 'action' | 'topic' | '
   // `source` lets the session report a finished pick (coach_pick_completed).
   const source = 'coach_pick';
   if (action.kind === 'mistakes') router.push({ pathname: '/practice/[kind]', params: { kind: 'mistakes', source } });
-  else if (action.kind === 'drill') router.push({ pathname: '/practice/[kind]', params: { kind: action.drill, source } });
+  else if (action.kind === 'position') {
+    router.push({ pathname: '/practice/[kind]', params: { kind: 'position', position: action.position, source } });
+  } else if (action.kind === 'drill') router.push({ pathname: '/practice/[kind]', params: { kind: action.drill, source } });
   else router.push({ pathname: '/lesson/[id]', params: { id: action.lessonId, source } });
 }
 
-const ACTION_NAME = { mistakes: 'Your positions', drill: 'Drill', lesson: 'Lesson replay' } as const;
+const ACTION_NAME = { mistakes: 'Your positions', position: 'One of your positions', drill: 'Drill', lesson: 'Lesson replay' } as const;
 
 /** One more suggestion under the pick: a single tappable row. */
 function MoreRow({ pick, doneToday }: { pick: CoachPick; doneToday: boolean }) {
@@ -74,6 +77,8 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
   const practiced = usePracticeStore((state) => state.records);
   const access = useFeatureAccess();
   const { day: today } = useToday();
+  // Today's Position of the Day, kept by its card: the pick offers a different position.
+  const dailyPosition = useDailyPositionStore((state) => (state.day === today ? state.ref : null));
   const plan = coachPlan({
     mistakes,
     bySkill,
@@ -83,6 +88,7 @@ export function CoachPickCard({ enterDelay }: { enterDelay?: number }) {
     canAccessLesson: access.canAccessLesson,
     today,
     practiced,
+    dailyPosition,
   });
   if (!plan) return null;
   const { pick, done, next, more } = plan;

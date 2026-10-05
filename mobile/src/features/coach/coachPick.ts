@@ -3,8 +3,8 @@ import { getLesson, SKILL_IDS, SKILLS, type SkillId } from '@/curriculum';
 import { getDrillCategory, type DrillCategory } from '@/curriculum/drills';
 import { dayKey, daysBetween, type LessonRecords } from '@/features/learning/progression';
 import type { SkillStats } from '@/features/learning/progressModel';
-import { DRILL_MINUTES, lessonMinutes, reviewMinutes } from '@/features/learning/timeEstimates';
-import { dueMistakes, isMastered, type UserMistake } from '@/features/practice/mistakes';
+import { DRILL_MINUTES, lessonMinutes, POSITION_MINUTES, reviewMinutes } from '@/features/learning/timeEstimates';
+import { dueMistakes, isMastered, pickForPractice, type UserMistake } from '@/features/practice/mistakes';
 import { skillRows } from '@/features/profile/profileStats';
 import { skillOfMistake, trainingFor } from '@/features/skills/extract';
 import type { PracticeKind } from '@/state/practiceStore';
@@ -23,6 +23,8 @@ import type { PracticeKind } from '@/state/practiceStore';
 
 export type CoachAction =
   | { kind: 'mistakes' }
+  /** One of the player's own positions ("mistake:<id>") about `skill`, free: for a weakness nothing else trains yet. */
+  | { kind: 'position'; position: string; skill: SkillId }
   | { kind: 'drill'; drill: DrillCategory }
   | { kind: 'lesson'; lessonId: string };
 
@@ -68,6 +70,8 @@ export interface CoachInput {
   today?: string;
   /** When each kind of practice was last played (ISO timestamps). */
   practiced?: Partial<Record<PracticeKind, { lastPlayedAt: string | null }>>;
+  /** Today's Position of the Day ("mistake:<id>"), so the pick offers a different position. */
+  dailyPosition?: string | null;
 }
 
 type Training = Pick<CoachPick, 'action' | 'actionLabel' | 'minutes'>;
@@ -94,6 +98,30 @@ function skillPick(skill: SkillId, input: CoachInput, trigger: CoachTrigger, tit
 }
 
 const workOn = (skill: SkillId) => `Let’s work on ${SKILLS[skill].title.toLowerCase()}.`;
+
+/**
+ * One of the player's own positions about `skill`, when no drill or finished
+ * lesson trains it yet (a beginner's first games): practising the position
+ * teaches the idea, free.
+ */
+function positionPick(skill: SkillId, mistakes: UserMistake[], reason: string, input: CoachInput): CoachPick | null {
+  const about = mistakes.filter((mistake) => skillOfMistake(mistake) === skill);
+  const ordered = input.today ? pickForPractice(about, about.length, input.today) : about;
+  // Not the one Position of the Day already shows.
+  const next = ordered.find((mistake) => `mistake:${mistake.id}` !== input.dailyPosition);
+  if (!next) return null;
+  return {
+    topic: SKILLS[skill].title,
+    title: workOn(skill),
+    reason,
+    action: { kind: 'position', position: `mistake:${next.id}`, skill },
+    actionLabel: 'Practise one of them',
+    icon: SKILLS[skill].icon,
+    premium: false,
+    minutes: POSITION_MINUTES,
+    trigger: 'pattern',
+  };
+}
 
 /** Positions from the player's games that spaced repetition says are due today. */
 function reviewPicks(input: CoachInput): CoachPick[] {
@@ -137,9 +165,11 @@ function patternPicks(input: CoachInput, reviewing: boolean): CoachPick[] {
     : [];
   let patterns = countBySkill(recent);
   let games = 'your recent games';
+  let source = recent;
   if (patterns.length === 0) {
     patterns = countBySkill(open);
     games = 'your games';
+    source = open;
   }
   return patterns.flatMap(([skill, count], index): CoachPick[] => {
     const topic = SKILLS[skill].title;
@@ -160,7 +190,7 @@ function patternPicks(input: CoachInput, reviewing: boolean): CoachPick[] {
         },
       ];
     }
-    const pick = skillPick(skill, input, 'pattern', workOn(skill), reason);
+    const pick = skillPick(skill, input, 'pattern', workOn(skill), reason) ?? positionPick(skill, source, reason, input);
     return pick ? [pick] : [];
   });
 }
@@ -242,7 +272,13 @@ function fadingPicks(input: CoachInput): CoachPick[] {
 }
 
 const actionKey = (action: CoachAction) =>
-  action.kind === 'mistakes' ? 'mistakes' : action.kind === 'drill' ? `drill:${action.drill}` : `lesson:${action.lessonId}`;
+  action.kind === 'mistakes'
+    ? 'mistakes'
+    : action.kind === 'position'
+      ? `position:${action.position}`
+      : action.kind === 'drill'
+        ? `drill:${action.drill}`
+        : `lesson:${action.lessonId}`;
 
 /** Everything worth working on, best first, one pick per topic and action. */
 export function coachPicks(input: CoachInput): CoachPick[] {
@@ -277,7 +313,17 @@ export function focusDrill(input: CoachInput): DrillCategory | null {
 export function doneToday(action: CoachAction, input: CoachInput): boolean {
   if (!input.today) return false;
   if (action.kind === 'lesson') return input.lessons[action.lessonId]?.lastPlayedAt === input.today;
-  const last = input.practiced?.[action.kind === 'mistakes' ? 'mistakes' : action.drill]?.lastPlayedAt;
+  if (action.kind === 'position') {
+    // A position about the same idea, practised today (from here, the result sheet or the review).
+    return input.mistakes.some(
+      (mistake) =>
+        skillOfMistake(mistake) === action.skill &&
+        !!mistake.lastPracticedAt &&
+        dayKey(new Date(mistake.lastPracticedAt)) === input.today,
+    );
+  }
+  const kind: PracticeKind = action.kind === 'drill' ? action.drill : action.kind;
+  const last = input.practiced?.[kind]?.lastPlayedAt;
   return !!last && dayKey(new Date(last)) === input.today;
 }
 

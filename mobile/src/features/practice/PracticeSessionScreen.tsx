@@ -247,7 +247,9 @@ export function PracticeSessionScreen({
             : kind === 'mistakes'
               ? 'Play a game: your coach saves the positions you got wrong here, so you can fix them.'
               : kind === 'position'
-                ? 'Learn a little more on your path: positions start once your lessons cover hitting.'
+                ? daily
+                  ? 'Learn a little more on your path: positions start once your lessons cover hitting.'
+                  : 'That position isn’t saved any more. Your coach keeps the most useful ones.'
                 : `Finish the lesson “${lesson?.title ?? 'before it'}” on your path to unlock it.`}
         </AppText>
         <Button label="Back to practice" onPress={() => router.replace('/practice')} />
@@ -332,7 +334,7 @@ export function PracticeSessionScreen({
           source,
         });
         if (source === 'coach_pick') {
-          analytics.track('coach_pick_completed', { kind: kind === 'mistakes' ? 'mistakes' : 'drill' });
+          analytics.track('coach_pick_completed', { kind: kind === 'mistakes' || kind === 'position' ? kind : 'drill' });
         }
         const comesBack = kind === 'mistakes' || kind === 'position' ? nextDueDay(practised, todayKey()) : null;
         const nextReview = comesBack ? dueIn(comesBack, todayKey()) : null;

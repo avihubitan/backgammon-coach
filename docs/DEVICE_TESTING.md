@@ -110,9 +110,12 @@ Run every flow on every phone with a preview build. Note pass/fail and anything 
 - Dragging a checker feels immediate; the screen doesn't scroll while you drag.
 - Feedback, XP and stars animate smoothly; the next lesson unlocks and the path shows it.
 - "How was this lesson?" appears (at most once a day); "Not good" opens the box.
-- The daily loop: Home's "Your coach's pick" opens its drill or lesson, and shows it done after;
-  the daily challenge counts progress; the streak and daily goal update after a lesson. Over a few
-  days: a missed day uses a ready streak freeze.
+- The daily loop: Home's "Your coach's pick" (with its minutes) opens its drill, lesson or
+  position, and shows it done after; Position of the Day opens "What would you play?", then shows
+  done with "Try another"; the daily challenge counts progress; the streak and daily goal update
+  after a lesson. Over a few days: a missed day uses a ready streak freeze.
+- A drill's fourth round in a day says it earns half XP; a skill reaching a new level says so on
+  the completion screen, and Profile → Your skills shows it.
 
 **Flow 3: game.** Home → Play → choose a level → roll → move → Coach Watch → finish → review.
 - Dice and checker animations are smooth; the computer's turn doesn't freeze the screen.
@@ -135,7 +138,10 @@ Run every flow on every phone with a preview build. Note pass/fail and anything 
 **Flow 4: coach.** Game → mistake → Coach Watch → review → practise the position → practice.
 - The review shows your move, the coach's move, why, and what could have happened.
 - Tapping between mistakes feels instant.
-- "Practise this position" opens it first (Premium), or the paywall (free).
+- "Practise this position" opens that one position for everyone (free), and so does the result
+  sheet's "Practise it" line ("You practised … It tripped you up …", or the lesson ahead for an idea
+  not taught yet). "Practice my mistakes" runs the whole review queue (Premium) or the paywall.
+- Coach Watch names the lesson behind its clue ("You practised this in …" / "You'll learn this in …").
 
 **Flow 5: Premium** (Apple sandbox account; Google Play license tester with a build from the
 internal testing track).

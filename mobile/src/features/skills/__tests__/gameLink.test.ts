@@ -29,9 +29,10 @@ describe('the lesson behind a skill', () => {
     expect(practisedIn('hitting', done('hitting-1', 'hitting-2'))?.id).toBe('hitting-2');
   });
 
-  it('gives Coach Watch its line', () => {
+  it('gives Coach Watch its line, or names the lesson ahead', () => {
     expect(practisedLine('safety', done('points-2'))).toBe('You practised this in “Safe or Risky?”.');
-    expect(practisedLine('cube', done('points-2'))).toBeNull();
+    expect(practisedLine('cube', done('points-2'))).toBe('You’ll learn this in “Raising the Stakes”.');
+    expect(practisedLine('points', {})).toBe('You’ll learn this in “Making Points”.');
   });
 });
 
@@ -53,10 +54,18 @@ describe('after a game', () => {
     expect(gameLessonText(note!)).toBe('You practised playing safe in “Safe or Risky?”. It tripped you up twice this game.');
   });
 
-  it('skips ideas the learner has not studied yet', () => {
+  it('points a beginner to the lesson ahead when the idea isn’t taught yet', () => {
     const game = review([move(2, 'mistake', unsafe), move(4, 'blunder', unsafe), move(6, 'mistake', missedHit, 'hitting')]);
-    expect(gameLesson('g1', game, done('hitting-2'), [], today)).toMatchObject({ skill: 'hitting', mistakeId: 'g1:6' });
-    expect(gameLesson('g1', game, {}, [], today)).toBeNull();
+    // The biggest problem comes first, even before its lesson: a first game after section 1.
+    const ahead = gameLesson('g1', game, done('board-1', 'board-2'), [], today)!;
+    expect(ahead).toMatchObject({ skill: 'safety', studied: false, inGame: 2, mistakeId: 'g1:2' });
+    expect(ahead.lesson.id).toBe('points-2');
+    expect(gameLessonText(ahead)).toBe('Playing safe tripped you up twice this game. “Safe or Risky?”, ahead on your path, teaches it.');
+    expect(gameLesson('g1', game, {}, [], today)).toMatchObject({ skill: 'safety', studied: false });
+    // On a tie, the idea they've studied: practise what you've learned.
+    const tie = review([move(2, 'mistake', unsafe), move(6, 'mistake', missedHit, 'hitting')]);
+    expect(gameLesson('g1', tie, done('hitting-2'), [], today)).toMatchObject({ skill: 'hitting', studied: true, mistakeId: 'g1:6' });
+    // No clear mistakes: nothing to say.
     expect(gameLesson('g1', review([move(1, 'inaccuracy', unsafe)]), done('points-2'), [], today)).toBeNull();
   });
 

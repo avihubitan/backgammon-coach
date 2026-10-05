@@ -74,9 +74,9 @@ export interface AnalyticsEvents {
   skill_level_up: { skill: string; level: string; xp: number };
 
   /** Home's "Coach's pick" opened: what the coach suggested, and why (due review, pattern, new drill…). */
-  coach_pick_opened: { kind: 'lesson' | 'drill' | 'mistakes'; topic: string; done_today: boolean; trigger: string };
+  coach_pick_opened: { kind: 'lesson' | 'drill' | 'mistakes' | 'position'; topic: string; done_today: boolean; trigger: string };
   /** The lesson or practice the pick opened was finished. */
-  coach_pick_completed: { kind: 'lesson' | 'drill' | 'mistakes' };
+  coach_pick_completed: { kind: 'lesson' | 'drill' | 'mistakes' | 'position' };
 
   game_started: { mode: 'ai'; level: string; match_length: number };
   game_completed: {

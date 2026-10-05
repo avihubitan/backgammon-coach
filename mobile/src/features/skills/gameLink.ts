@@ -1,4 +1,4 @@
-import { allLessons, lessonSkills, SKILLS, type Lesson, type SkillId } from '@/curriculum';
+import { allLessons, introducingLesson, lessonsForSkill, lessonSkills, SKILLS, type Lesson, type SkillId } from '@/curriculum';
 import { dayKey, type LessonRecords } from '@/features/learning/progression';
 import type { UserMistake } from '@/features/practice/mistakes';
 import type { GameReview } from '@/game';
@@ -6,10 +6,16 @@ import type { GameReview } from '@/game';
 import { skillOfMistake } from './extract';
 
 /**
- * Connects what happens in a game to what the learner has studied: the
- * lesson behind a mistake, and how often that idea tripped them up today.
- * Pure: the result sheet, Coach Watch and the review only render it.
+ * Connects what happens in a game to the curriculum: the lesson behind a
+ * mistake (one the learner has done, or the one ahead of them that teaches
+ * it), and how often that idea tripped them up today. Pure: the result
+ * sheet, Coach Watch and the review only render it.
  */
+
+/** The lesson that teaches `skill` to someone who hasn't studied it yet: where it's introduced (always free). */
+export function teachingLesson(skill: SkillId): Lesson | null {
+  return introducingLesson(skill) ?? lessonsForSkill(skill)[0] ?? null;
+}
 
 /** The lesson the learner finished that teaches `skill` (its main skill first, the most recent of those). */
 export function practisedIn(skill: SkillId, lessons: LessonRecords): Lesson | null {
@@ -25,8 +31,10 @@ export interface GameLesson {
   inGame: number;
   /** Mistakes about it in every game today, this one included. */
   today: number;
-  /** The lesson where the learner studied it. */
+  /** The lesson where the learner studied it, or the one ahead on their path that teaches it. */
   lesson: Lesson;
+  /** Whether the learner has done `lesson`. */
+  studied: boolean;
   /** The first such position in this game: the one to practise. */
   mistakeId: string;
 }
@@ -51,9 +59,9 @@ export function reviewFocus(review: GameReview): SkillId | null {
 }
 
 /**
- * The idea this game most needs: the skill behind most of its mistakes that
- * the learner has studied (null when the game had no clear mistakes, or none
- * about anything they've learned yet).
+ * The idea this game most needs: the skill behind most of its clear mistakes
+ * (on a tie, one the learner has studied), with the lesson that taught it or
+ * the one ahead that will. Null when the game had no clear mistakes.
  */
 export function gameLesson(
   gameId: string,
@@ -70,25 +78,43 @@ export function gameLesson(
     return !Number.isNaN(made.getTime()) && dayKey(made) === today;
   };
   // Checker moves only: they're the positions there are to practise.
-  for (const [skill, { count, first }] of mistakeSkills(review, false)) {
-    const lesson = practisedIn(skill, lessons);
-    if (!lesson) continue;
-    const todayCount = mistakes.filter((mistake) => fromToday(mistake) && skillOfMistake(mistake) === skill).length;
-    return { skill, inGame: count, today: Math.max(todayCount, count), lesson, mistakeId: `${gameId}:${first}` };
-  }
-  return null;
+  const ranked = mistakeSkills(review, false)
+    .map(([skill, stats]) => ({ skill, ...stats, done: practisedIn(skill, lessons), ahead: teachingLesson(skill) }))
+    .filter((entry) => entry.done || entry.ahead)
+    .sort((a, b) => b.count - a.count || Number(!!b.done) - Number(!!a.done) || a.first - b.first);
+  const top = ranked[0];
+  if (!top) return null;
+  const todayCount = mistakes.filter((mistake) => fromToday(mistake) && skillOfMistake(mistake) === top.skill).length;
+  return {
+    skill: top.skill,
+    inGame: top.count,
+    today: Math.max(todayCount, top.count),
+    lesson: (top.done ?? top.ahead)!,
+    studied: !!top.done,
+    mistakeId: `${gameId}:${top.first}`,
+  };
 }
 
 const times = (count: number) => (count === 1 ? 'once' : count === 2 ? 'twice' : `${count} times`);
 
-/** "You practised playing safe in “Safe or Risky?”. It tripped you up twice today." */
+const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
+ * "You practised playing safe in “Safe or Risky?”. It tripped you up twice today."
+ * Not studied yet: "Making points tripped you up twice this game. “Making Points”, ahead on your path, teaches it."
+ */
 export function gameLessonText(note: GameLesson): string {
   const when = note.today > note.inGame ? `${times(note.today)} today` : `${times(note.inGame)} this game`;
-  return `You practised ${SKILLS[note.skill].doing} in “${note.lesson.title}”. It tripped you up ${when}.`;
+  const { doing } = SKILLS[note.skill];
+  return note.studied
+    ? `You practised ${doing} in “${note.lesson.title}”. It tripped you up ${when}.`
+    : `${capitalised(doing)} tripped you up ${when}. “${note.lesson.title}”, ahead on your path, teaches it.`;
 }
 
-/** For Coach Watch: "You practised this in “Making Points”." */
+/** For Coach Watch and reviews: "You practised this in “Making Points”." or "You’ll learn this in “Making Points”." */
 export function practisedLine(skill: SkillId, lessons: LessonRecords): string | null {
-  const lesson = practisedIn(skill, lessons);
-  return lesson ? `You practised this in “${lesson.title}”.` : null;
+  const done = practisedIn(skill, lessons);
+  if (done) return `You practised this in “${done.title}”.`;
+  const ahead = teachingLesson(skill);
+  return ahead ? `You’ll learn this in “${ahead.title}”.` : null;
 }

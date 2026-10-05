@@ -15,9 +15,11 @@ waiting for beta feedback: [`docs/BETA_BACKLOG.md`](docs/BETA_BACKLOG.md).
 
 ## What's in the app
 
-- **Learning path:** 12 sections, 38 lessons, from "Meet the Board" to "Advanced Strategy".
-  - Every lesson is hands-on: move checkers, tap points, answer choices, take cube decisions, or
-    play mini bear-off challenges. Every exercise gets instant, animated feedback.
+- **Learning path:** 12 sections, 40 lessons, from "Meet the Board" to "Advanced Strategy".
+  - Every lesson is hands-on and asks before it tells: move checkers, tap points, answer choices,
+    take cube decisions, or play mini challenges. Every exercise gets instant, animated feedback.
+  - Every exercise trains a named skill (15, from reading the board to the cube). Profile shows each
+    skill's level, Learning → Practising → Strong → Mastered, and what the next one takes.
 - **Interactive board:** drag a checker onto a lit-up target, or tap the checker and then the target.
   Checker flights, a thrown-dice animation, hit impacts and bearing off run on the UI thread
   (Reanimated). Screen readers hear each point's checkers and what can be done with it.
@@ -28,24 +30,32 @@ waiting for beta feedback: [`docs/BETA_BACKLOG.md`](docs/BETA_BACKLOG.md).
   - Coach Watch: before a clear mistake is confirmed, "Are you sure?" with a clue; then try again,
     see the better move, or play on. After a stop it lets the next two moves pass unless one is a
     blunder, so learners aren't nagged. Can be switched off.
-  - Reviews every game in the background: what you played, the coach's move, why, what could
-    have happened (shots, winning chances), and "Practise this position".
-  - Move quality per game (0–100) and its trend; mistakes come back as practice until fixed.
-  - Coach's pick on Home: the one thing to work on today, from recent games and weak lesson skills.
-- **Practice:** skill drills, a daily challenge, your own mistakes, lesson replays.
+  - Reviews every game in the background: what you played, the coach's move, why, the key idea
+    and the lesson behind it, what could have happened (shots, winning chances), and "Practise
+    this position" (free).
+  - After a game: the idea that tripped you up, the lesson that teaches it, one position to practise.
+  - Move quality per game (0–100) and its trend; mistakes come back on a spaced schedule (after 1,
+    3, 7, 16 and 35 days) until fixed.
+  - Coach's pick on Home: what to work on next, with minutes, from due reviews, patterns in your
+    games, a drill that just opened, and skills that are weak, slipping or fading.
+  - Position of the Day: "What would you play?", from your own games or your weakest skill.
+- **Practice:** 12 drills with levels (fresh positions each time, 10–30 s a question, short
+  hit/escape/prime/race/bear-off challenges), a daily challenge that follows the coach's focus, your
+  own mistakes, lesson replays.
 - **Progress:** XP and levels, stars, streak with streak freezes, a daily goal, achievements.
 - **Daily reminders:** opt-in local notifications that follow the streak.
 - **Cloud backup (optional):** anonymous backup code, merged across devices.
 
 ## Free and Premium
 
-Free: the beginner course and Opening Moves, the first lesson of every advanced course, games at
-every level, drills, daily challenges, one full coach review per day, and three hints and three
-Coach Watch checks per game.
+Free: the beginner course and Opening Moves, every lesson that introduces a skill, the first
+lesson of every advanced course, games at every level, all drills, daily challenges, Position of the
+Day, practising any single position from your games, one full coach review per day, and three hints
+and three Coach Watch checks per game.
 
-Premium adds the rest of the advanced courses, unlimited coach reviews, hints and Coach Watch,
-mistake practice, winning chances and the move-quality trend, and two extra board styles
-(cosmetic). There is no paywall on first launch and nothing pay-to-win.
+Premium adds the rest of the advanced courses, unlimited coach reviews, hints and Coach Watch, the
+review queue of all your mistakes, winning chances and the move-quality trend, and two extra board
+styles (cosmetic). There is no paywall on first launch and nothing pay-to-win.
 
 One file decides access: `mobile/src/features/monetization/access.ts`. Screens ask `FeatureAccess`;
 they never check products or prices.
